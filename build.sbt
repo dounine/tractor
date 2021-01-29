@@ -29,6 +29,7 @@ lazy val app = (project in file("."))
       "com.lightbend.akka" %% "akka-stream-alpakka-file" % alpakka,
       "com.lightbend.akka" %% "akka-stream-alpakka-slick" % alpakka,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http-caching" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion,

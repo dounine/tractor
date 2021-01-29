@@ -10,7 +10,7 @@ import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.cluster.scaladsl.ClusterHttpManagementRoutes
 import akka.management.scaladsl.AkkaManagement
 import akka.stream.SystemMaterializer
-import com.dounine.tractor.router.routers.HealthRouter
+import com.dounine.tractor.router.routers.{BindRouters, CachingRouter, HealthRouter}
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
@@ -26,15 +26,10 @@ object Bootstrap {
     implicit val system = ActorSystem(Behaviors.empty, appName)
     implicit val materialize = SystemMaterializer(system).materializer
     implicit val executionContext = system.executionContext
-    val routers = Route.seal(
-      concat(
-        new HealthRouter(system)()
-      )
-    )
+    val routers = BindRouters(system)
 
     AkkaManagement(system).start()
     ClusterBootstrap(system).start()
-
 
     val cluster: Cluster = Cluster.get(system)
     val managementRoutes: Route = ClusterHttpManagementRoutes(cluster)

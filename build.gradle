@@ -95,6 +95,7 @@ dependencies {
     compile group: 'com.lightbend.akka', name: "akka-stream-alpakka-file_${versions.ScalaBinary}", version: versions.alpakka
     compile group: 'com.lightbend.akka', name: "akka-stream-alpakka-slick_${versions.ScalaBinary}", version: versions.alpakka
     compile group: 'com.typesafe.akka', name: "akka-http_${versions.ScalaBinary}", version: versions.akkaHttp
+    compile group: 'com.typesafe.akka', name: "akka-http-caching_${versions.ScalaBinary}", version: versions.akkaHttp
     compile group: 'com.typesafe.akka', name: "akka-http-spray-json_${versions.ScalaBinary}", version: versions.akkaHttp
     compile group: 'com.typesafe.akka', name: "akka-stream_${versions.ScalaBinary}", version: versions.akka
     compile group: 'com.typesafe.akka', name: "akka-cluster-typed_${versions.ScalaBinary}", version: versions.akka
