@@ -13,6 +13,7 @@ import scala.util.{Failure, Success}
 
 class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing {
   implicit val ec = system.executionContext
+  val cc = ""
   val manualTime: ManualTime = ManualTime()
 
   "stream test" must {
@@ -66,8 +67,6 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
         .toMat(BroadcastHub.sink[Int](bufferSize = 8))(Keep.both)
         .run()
 
-//      val f1 = broadcastHub.runWith(TestSink())
-//      val f2 = broadcastHub.runWith(TestSink())
       val f1 = broadcastHub.runWith(Sink.seq)
       val f2 = broadcastHub.runWith(Sink.seq)
 
@@ -75,9 +74,6 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
 
      f1.futureValue should === (1 to 3)
       f2.futureValue should === (1 to 3)
-
-//      f1.request(3).expectNext(1, 2, 3)
-//      f2.request(3).expectNext(1, 2, 3)
     }
     "broadcast sink" in {
       val source = Source(1 to 3)
