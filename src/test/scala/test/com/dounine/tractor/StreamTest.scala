@@ -35,32 +35,6 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       source.runWith(TestSink[Int]()).request(1).expectNext(1)
       source.runWith(TestSink[Int]()).request(1).expectNext(1)
     }
-    "source for broadcast fast" in {
-      val source = Source(1 to 4)
-      val broadcastHub = source.runWith(BroadcastHub.sink[Int](bufferSize = 2))
-
-      val probe = testKit.createTestProbe[Seq[Int]]()
-      broadcastHub.runWith(Sink.seq)
-        .onComplete({
-          case Failure(exception) => throw exception
-          case Success(value) => {
-            probe.tell(value)
-          }
-        })
-
-
-      val probe2 = testKit.createTestProbe[Seq[Int]]()
-      broadcastHub.runWith(Sink.seq)
-        .onComplete({
-          case Failure(exception) => throw exception
-          case Success(value) => {
-            probe2.tell(value)
-          }
-        })
-      probe.expectMessage(Seq(1, 2, 3, 4))
-      probe2.expectMessage(Seq(1, 2, 3, 4))
-
-    }
     "source for broadcast" in {
       val source = Source.maybe[Int].concat(Source(1 to 3))
       val (close, broadcastHub) = source
