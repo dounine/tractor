@@ -44,10 +44,11 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       val f1 = broadcastHub.runWith(Sink.seq)
       val f2 = broadcastHub.runWith(Sink.seq)
 
+      TimeUnit.MILLISECONDS.sleep(10)
       close.success(None)
 
-     f1.futureValue should === (1 to 3)
-      f2.futureValue should === (1 to 3)
+      f1.futureValue should ===(1 to 3)
+      f2.futureValue should ===(1 to 3)
     }
     "broadcast sink" in {
       val source = Source(1 to 3)
