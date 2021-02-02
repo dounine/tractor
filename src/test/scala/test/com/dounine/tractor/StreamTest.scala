@@ -12,17 +12,26 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing {
-  implicit val materializer = SystemMaterializer(testKit.system).materializer
-  implicit val ec = testKit.system.executionContext
+  implicit val ec = system.executionContext
   val manualTime: ManualTime = ManualTime()
 
   "stream test" must {
+    "manualTime test" in {
+      val source = Source(1 to 3)
+        .delay(1.seconds)
+//        .throttle(1, 1.seconds)
+      //        .delay(1.seconds)
+      //      manualTime.timePasses(10.seconds)
+      val probe = testKit.createTestProbe[Int]()
+      source.runForeach(probe.tell)
+            manualTime.timePasses(3.seconds)
+      probe.expectMessage(1)
+    }
     "multi use source" in {
       val source = Source(1 to 3)
         .throttle(1, 1.seconds)
 
       source.runWith(TestSink[Int]()).request(1).expectNext(1)
-      manualTime.timePasses(1100.millis)
       source.runWith(TestSink[Int]()).request(1).expectNext(1)
     }
     "source for broadcast fast" in {
@@ -42,7 +51,7 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       val probe2 = testKit.createTestProbe[Seq[Int]]()
       broadcastHub.runWith(Sink.seq)
         .onComplete({
-          case Failure(exception)  => throw exception
+          case Failure(exception) => throw exception
           case Success(value) => {
             probe2.tell(value)
           }
@@ -53,7 +62,7 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
     }
     "source for broadcast" ignore {
       val source = Source(1 to 3)
-        .throttle(1,100.millis)
+        .throttle(1, 100.millis)
         .watchTermination()((_, done) => {
           done.onComplete {
             case Failure(exception) => println("------", exception.getMessage)
@@ -64,11 +73,9 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
         })
       val broadcastHub = source
         .runWith(BroadcastHub.sink[Int](bufferSize = 1))
-      //        .buffer(10, OverflowStrategy.dropHead)
 
-      broadcastHub.take(1).runWith(TestSink[Int]()).request(1).expectNext(100.millis, 1)
-      //      manualTime.timePasses(100.seconds)
-      broadcastHub.take(1).runWith(TestSink[Int]()).request(1).expectNext(100.millis, 1)
+      broadcastHub.take(1).runWith(TestSink[Int]()).request(1).expectNext(1)
+      broadcastHub.take(1).runWith(TestSink[Int]()).request(1).expectNext(1)
     }
     "broadcast sink" in {
       val source = Source(1 to 3)

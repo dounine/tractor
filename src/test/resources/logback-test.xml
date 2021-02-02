@@ -6,7 +6,7 @@
             <level>INFO</level>
         </filter>
         <encoder>
-            <pattern>[%date{ISO8601}] [%level] [%logger] [%marker] [%thread] - %msg MDC: {%mdc}%n</pattern>
+            <pattern>[%date{yyyy-MM-dd HH:mm:ss.SSS}] [%level] [%thread] [%logger{50}:%line]  %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -28,5 +28,8 @@
 
     <root level="DEBUG">
         <appender-ref ref="CapturingAppender"/>
+    </root>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
     </root>
 </configuration>
