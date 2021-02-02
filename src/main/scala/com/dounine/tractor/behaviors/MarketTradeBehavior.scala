@@ -6,11 +6,13 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.model.{StatusCodes, Uri}
-import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
+import akka.stream.scaladsl.{BroadcastHub, Compression, Flow, Keep, RunnableGraph, Sink, Source, SourceQueueWithComplete, StreamRefs}
 import akka.stream.typed.scaladsl.{ActorSink, ActorSource}
-import akka.stream.{KillSwitches, OverflowStrategy, QueueCompletionResult, QueueOfferResult, SystemMaterializer}
+import akka.stream.{KillSwitches, OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
+import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.tools.akka.ConnectSettings
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.LoggerFactory
@@ -24,7 +26,9 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   trait Event extends BaseSerializer
 
-  case class Sub()(val replyTo: ActorRef[_]) extends Event
+  case class Sub(symbol: CoinSymbol, contractType: ContractType)(val replyTo: ActorRef[Event]) extends Event
+
+  case class SubResponse(source: SourceRef[TradeDetail]) extends Event
 
   case class SendMessage(data: String) extends Event
 
@@ -35,6 +39,12 @@ object MarketTradeBehavior extends ActorSerializerSuport {
   case class SocketConnectReject(msg: Option[String]) extends Event
 
   case class SocketMessage(data: String) extends Event
+
+  case class TradeDetail(
+                          symbol: CoinSymbol,
+                          contractType: ContractType,
+                          price: Double
+                        ) extends BaseSerializer
 
   case class SocketConnectFail(msg: String) extends Event
 
@@ -73,8 +83,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
           onFailureMessage = (e: Throwable) => SocketCloseFail(e.getMessage)
         )
 
-
-      val convertSinkFlow = Flow[Message]
+      val convertFlow = Flow[Message]
         .collect {
           case BinaryMessage.Strict(data) => {
             Source.single(data)
@@ -95,12 +104,9 @@ object MarketTradeBehavior extends ActorSerializerSuport {
         .mapAsync(4)(identity)
         .map(SocketMessage)
         .log("socket convert error")
-        .to(sink)
-        .named("socket convert flow")
-
 
       val flow = Flow.fromSinkAndSourceCoupledMat(
-        sink = convertSinkFlow,
+        sink = convertFlow.to(sink),
         source = source
       )(Keep.right)
         .named("socket flow")
@@ -121,6 +127,36 @@ object MarketTradeBehavior extends ActorSerializerSuport {
         .to(Sink.foreach(context.self.tell))
         .run()
 
+      //      val sourceGroupBy = Source.queue[TradeDetail](
+      //        100,
+      //        OverflowStrategy.dropHead
+      //      )
+      //        .groupBy(50, el => (el.symbol, el.contractType))
+      //        .flatMapConcat(detail => {
+      //          Source.single(detail)
+      //            .toMat(BroadcastHub.sink(10))(Keep.right)
+      //            .run()
+      //        })
+      //
+
+      //      val ss = Source.actorRef(
+      //        completionMatcher = PartialFunction.empty,
+      //        failureMatcher = PartialFunction.empty,
+      //        bufferSize = 100,
+      //        OverflowStrategy.dropHead
+      //      )
+      //        .collect {
+      //          case e@TradeDetail(_, _, _) => e
+      //        }
+      //        .preMaterialize()
+
+
+      val (subTradeDetailQueue, subTradeDetailSource) = Source.queue[TradeDetail](
+        100,
+        OverflowStrategy.dropHead
+      )
+        .preMaterialize()
+
       def data(serverActor: Option[ActorRef[Event]]): Behavior[BaseSerializer] = Behaviors.receiveMessage {
         case e@SocketConnect(url) => {
           logger.info(e.logJson)
@@ -139,6 +175,8 @@ object MarketTradeBehavior extends ActorSerializerSuport {
           logger.info(e.toString)
           if (data.contains("ping")) {
             serverActor.foreach(_.tell(SendMessage(data.replace("ping", "pong"))))
+          } else {
+            subTradeDetailQueue.offer(data.jsonTo[TradeDetail])
           }
           Behaviors.same
         }
@@ -154,8 +192,12 @@ object MarketTradeBehavior extends ActorSerializerSuport {
           logger.info(e.logJson)
           Behaviors.same
         }
-        case e@Sub() => {
+        case e@Sub(symbol, contractType) => {
           logger.info(e.logJson)
+          val sourceRef = subTradeDetailSource
+            .filter(detail => detail.symbol == symbol && detail.contractType == contractType)
+            .runWith(StreamRefs.sourceRef())
+          e.replyTo.tell(SubResponse(sourceRef))
           Behaviors.same
         }
         case e@Shutdown => {
