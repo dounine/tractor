@@ -8,7 +8,7 @@ import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.typed.scaladsl.{ActorSink, ActorSource}
-import akka.stream.{OverflowStrategy, QueueCompletionResult, QueueOfferResult, SystemMaterializer}
+import akka.stream.{KillSwitches, OverflowStrategy, QueueCompletionResult, QueueOfferResult, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.tools.akka.ConnectSettings
@@ -59,7 +59,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
           bufferSize = 100,
           overflowStrategy = OverflowStrategy.fail
         )
-        .concatMat(Source.maybe[Done])(Keep.both)
+        .viaMat(KillSwitches.single)(Keep.both)
         .collect {
           case SendMessage(text) => TextMessage(text)
         }
@@ -107,19 +107,18 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
       val socket = Source.queue[String](1)
         .flatMapConcat(url => {
-          val (response, (serverActor, close)) = http.singleWebSocketRequest(
+          val (response, (serverActor, killSwitch)) = http.singleWebSocketRequest(
             request = WebSocketRequest(uri = Uri(url)),
             clientFlow = flow,
             settings = ConnectSettings.settings(context.system)
           )
-
           Source.future(response)
             .collect {
               case ValidUpgrade(response, chosenSubprotocol) => SocketConnected(serverActor)
               case InvalidUpgradeResponse(response, cause) => SocketConnectFail(cause)
             }
         })
-        .toMat(Sink.foreach(context.self.tell))(Keep.left)
+        .to(Sink.foreach(context.self.tell))
         .run()
 
       def data(serverActor: Option[ActorRef[Event]]): Behavior[BaseSerializer] = Behaviors.receiveMessage {
