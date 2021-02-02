@@ -5,19 +5,16 @@ import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ManualTi
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.server.Directives._
-import akka.stream.{BoundedSourceQueue, QueueCompletionResult, QueueOfferResult, SystemMaterializer}
+import akka.stream.{BoundedSourceQueue, KillSwitches, QueueCompletionResult, QueueOfferResult, SystemMaterializer}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
-import akka.stream.typed.scaladsl.ActorSink
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
-import scala.util.{Failure, Success}
 
 class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing {
   val globalGort = new AtomicInteger(8080)
@@ -27,8 +24,8 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       val port = globalGort.getAndIncrement()
       val probe = testKit.createTestProbe[String]()
       val sink = Sink.foreach(probe.ref.tell)
-      val ((client: BoundedSourceQueue[Message], close: Promise[Option[Message]]), source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .concatMat(Source.maybe[Message])(Keep.both)
+      val ((client: BoundedSourceQueue[Message], close), source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .viaMat(KillSwitches.single)(Keep.both)
         .preMaterialize()
 
       val receiveMessageFlow = Flow[Message]
@@ -51,18 +48,18 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
         .bindFlow(handleWebSocketMessages(result))
         .andThen(_.get)(system.executionContext), Duration.Inf)
 
-      val marketTradeBehavior = testKit.spawn(MarketTradeBehavior())
       val time = System.currentTimeMillis()
       client.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+      val marketTradeBehavior = testKit.spawn(MarketTradeBehavior())
       LoggingTestKit.info(classOf[MarketTradeBehavior.SocketConnect].getSimpleName)
         .withMessageContains(classOf[MarketTradeBehavior.SocketConnect].getSimpleName)
         .expect {
           marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[MarketTradeBehavior.Event]().ref))
         }
-      probe.expectMessage(10.seconds, s"""{"pong":${time}}""")
+      probe.expectMessage(s"""{"pong":${time}}""")
       probe.stop()
       client.complete()
-      close.success(Option.empty)
+      close.shutdown()
       server.addToCoordinatedShutdown(1.millis)
     }
 
@@ -71,8 +68,8 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       val port = globalGort.getAndIncrement()
       val probe = testKit.createTestProbe[String]()
       val sink = Sink.foreach[String](probe.ref.tell)
-      val ((client: BoundedSourceQueue[Message], close: Promise[Option[Message]]), source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .concatMat(Source.maybe[Message])(Keep.both)
+      val ((client: BoundedSourceQueue[Message], close), source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .viaMat(KillSwitches.single)(Keep.both)
         .preMaterialize()
 
       val receiveMessageFlow = Flow[Message]
@@ -101,7 +98,7 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
         .info(classOf[MarketTradeBehavior.SocketClosed].getSimpleName)
         .expect {
           client.complete()
-          close.success(None)
+          close.shutdown()
           server.addToCoordinatedShutdown(1.millis)
         }
     }
