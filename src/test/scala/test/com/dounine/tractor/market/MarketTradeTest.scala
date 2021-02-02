@@ -61,10 +61,6 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
           marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[MarketTradeBehavior.Event]().ref))
         }
       probe.expectMessage(s"""{"pong":${time}}""")
-      probe.stop()
-      client.complete()
-      close.shutdown()
-      server.addToCoordinatedShutdown(1.millis)
     }
 
     "socket close normal single for server" in {
@@ -101,9 +97,8 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       LoggingTestKit
         .info(classOf[MarketTradeBehavior.SocketClosed].getSimpleName)
         .expect {
-          client.complete()
           close.shutdown()
-          server.addToCoordinatedShutdown(1.millis)
+          client.complete()
         }
     }
 
