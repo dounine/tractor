@@ -20,9 +20,6 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
     "manualTime test" in {
       val source = Source(1 to 3)
         .delay(1.seconds)
-      //        .throttle(1, 1.seconds)
-      //        .delay(1.seconds)
-      //      manualTime.timePasses(10.seconds)
       val probe = testKit.createTestProbe[Int]()
       source.runForeach(probe.tell)
       manualTime.timePasses(3.seconds)
