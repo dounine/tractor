@@ -155,6 +155,68 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       subResponse.source.runWith(TestSink()).request(1).expectNext(messageData.jsonTo[MarketTradeBehavior.TradeDetail])
     }
 
+    "multi sub and run source" in {
+      implicit val materializer = SystemMaterializer(system).materializer
+      val port = globalGort.getAndIncrement()
+      val probe = testKit.createTestProbe[String]()
+      val sink = Sink.foreach[String](probe.ref.tell)
+      val ((client: BoundedSourceQueue[Message], close), source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .viaMat(KillSwitches.single)(Keep.both)
+        .preMaterialize()
+
+      val receiveMessageFlow = Flow[Message]
+        .collect {
+          case TextMessage.Strict(text) => Future.successful(text)
+          case TextMessage.Streamed(stream) => stream.runFold("")(_ ++ _)(materializer)
+        }
+        .mapAsync(1)(identity)
+        .to(sink)
+
+      val binaryMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
+
+      val result = Flow.fromSinkAndSourceCoupledMat(
+        sink = receiveMessageFlow,
+        source = source
+      )(Keep.right)
+
+      val server = Await.result(Http(system)
+        .newServerAt("0.0.0.0", port)
+        .bindFlow(handleWebSocketMessages(result))
+        .andThen(_.get)(system.executionContext), Duration.Inf)
+
+      val marketTradeBehavior = testKit.spawn(MarketTradeBehavior())
+      LoggingTestKit
+        .info(classOf[MarketTradeBehavior.SocketConnected].getSimpleName)
+        .expect {
+          marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[MarketTradeBehavior.Event]().ref))
+        }
+
+      val probeSource = testKit.createTestProbe[MarketTradeBehavior.Event]()
+      val messageData = """{"symbol":"BTC","contractType":"quarter","price":100}"""
+      client.offer(BinaryMessage.Strict(
+        binaryMessage(messageData)
+      ))
+      LoggingTestKit
+        .info(classOf[MarketTradeBehavior.Sub].getSimpleName)
+        .expect {
+          marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource.ref))
+        }
+
+      val probeSource2 = testKit.createTestProbe[MarketTradeBehavior.Event]()
+      LoggingTestKit
+        .info(classOf[MarketTradeBehavior.Sub].getSimpleName)
+        .expect {
+          marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource2.ref))
+        }
+
+      val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
+      val subResponse2 = probeSource2.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
+      subResponse.source.runWith(TestSink()).request(1).expectNext(messageData.jsonTo[MarketTradeBehavior.TradeDetail])
+      subResponse2.source.runWith(TestSink()).request(1).expectNext(messageData.jsonTo[MarketTradeBehavior.TradeDetail])
+
+    }
+
+
   }
 
 }

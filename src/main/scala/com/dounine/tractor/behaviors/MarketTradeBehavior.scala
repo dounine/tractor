@@ -157,6 +157,8 @@ object MarketTradeBehavior extends ActorSerializerSuport {
       )
         .preMaterialize()
 
+      val brocastHub = subTradeDetailSource.runWith(BroadcastHub.sink)
+
       def data(serverActor: Option[ActorRef[Event]]): Behavior[BaseSerializer] = Behaviors.receiveMessage {
         case e@SocketConnect(url) => {
           logger.info(e.logJson)
@@ -194,7 +196,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
         }
         case e@Sub(symbol, contractType) => {
           logger.info(e.logJson)
-          val sourceRef = subTradeDetailSource
+          val sourceRef = brocastHub
             .filter(detail => detail.symbol == symbol && detail.contractType == contractType)
             .runWith(StreamRefs.sourceRef())
           e.replyTo.tell(SubResponse(sourceRef))
