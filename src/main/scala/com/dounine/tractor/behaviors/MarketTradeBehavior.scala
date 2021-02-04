@@ -13,12 +13,10 @@ import akka.util.ByteString
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
+import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.tools.akka.ConnectSettings
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.LoggerFactory
-
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
 
 object MarketTradeBehavior extends ActorSerializerSuport {
 
@@ -43,7 +41,10 @@ object MarketTradeBehavior extends ActorSerializerSuport {
   case class TradeDetail(
                           symbol: CoinSymbol,
                           contractType: ContractType,
-                          price: Double
+                          direction: Direction,
+                          price: Double,
+                          amount: Int,
+                          time: Long,
                         ) extends BaseSerializer
 
   case class SocketConnectFail(msg: String) extends Event
@@ -89,7 +90,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
             Source.single(data)
               .via(Compression.gunzip())
               .map(_.decodeString("ISO-8859-1"))
-              .log("error")
+              .log("strict gunzip error")
               .runWith(Sink.head)
           }
           case BinaryMessage.Streamed(dataStream) => {
@@ -97,7 +98,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
               .fold(ByteString.empty)(_ ++ _)
               .via(Compression.gunzip())
               .map(_.decodeString("ISO-8859-1"))
-              .log("error")
+              .log("streamed gunzip error")
               .runWith(Sink.head)
           }
         }
@@ -126,30 +127,6 @@ object MarketTradeBehavior extends ActorSerializerSuport {
         })
         .to(Sink.foreach(context.self.tell))
         .run()
-
-      //      val sourceGroupBy = Source.queue[TradeDetail](
-      //        100,
-      //        OverflowStrategy.dropHead
-      //      )
-      //        .groupBy(50, el => (el.symbol, el.contractType))
-      //        .flatMapConcat(detail => {
-      //          Source.single(detail)
-      //            .toMat(BroadcastHub.sink(10))(Keep.right)
-      //            .run()
-      //        })
-      //
-
-      //      val ss = Source.actorRef(
-      //        completionMatcher = PartialFunction.empty,
-      //        failureMatcher = PartialFunction.empty,
-      //        bufferSize = 100,
-      //        OverflowStrategy.dropHead
-      //      )
-      //        .collect {
-      //          case e@TradeDetail(_, _, _) => e
-      //        }
-      //        .preMaterialize()
-
 
       val (subTradeDetailQueue, subTradeDetailSource) = Source.queue[TradeDetail](
         100,

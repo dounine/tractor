@@ -10,7 +10,6 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
-import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
 import com.dounine.tractor.tools.json.JsonParse
 import org.scalatest.matchers.should.Matchers
@@ -148,7 +147,7 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
 
       val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
 
-      val messageData = """{"symbol":"BTC","contractType":"quarter","price":100}"""
+      val messageData = s"""{"symbol":"BTC","contractType":"quarter","direction":"buy","price":100,"amount":1,"time":${System.currentTimeMillis()}}"""
       client.offer(BinaryMessage.Strict(
         binaryMessage(messageData)
       ))
@@ -192,7 +191,7 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
         }
 
       val probeSource = testKit.createTestProbe[MarketTradeBehavior.Event]()
-      val messageData = """{"symbol":"BTC","contractType":"quarter","price":100}"""
+      val messageData = s"""{"symbol":"BTC","contractType":"quarter","direction":"buy","price":100,"amount":1,"time":${System.currentTimeMillis()}}"""
       client.offer(BinaryMessage.Strict(
         binaryMessage(messageData)
       ))
