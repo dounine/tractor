@@ -81,7 +81,7 @@ repositories {
 def versions = [
         ScalaBinary: "2.13",
         scala      : "2.13.4",
-        akka       : "2.6.11",
+        akka       : "2.6.12",
         akkaHttp   : "10.2.3",
         alpakka    : "2.0.2",
 ]
@@ -95,6 +95,7 @@ dependencies {
     compile group: 'com.lightbend.akka', name: "akka-stream-alpakka-file_${versions.ScalaBinary}", version: versions.alpakka
     compile group: 'com.lightbend.akka', name: "akka-stream-alpakka-slick_${versions.ScalaBinary}", version: versions.alpakka
     compile group: 'com.typesafe.akka', name: "akka-http_${versions.ScalaBinary}", version: versions.akkaHttp
+    compile group: 'com.typesafe.akka', name: "akka-http-testkit_${versions.ScalaBinary}", version: versions.akkaHttp
     compile group: 'com.typesafe.akka', name: "akka-http-caching_${versions.ScalaBinary}", version: versions.akkaHttp
     compile group: 'com.typesafe.akka', name: "akka-http-spray-json_${versions.ScalaBinary}", version: versions.akkaHttp
     compile group: 'com.typesafe.akka', name: "akka-stream_${versions.ScalaBinary}", version: versions.akka

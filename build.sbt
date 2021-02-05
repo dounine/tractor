@@ -1,4 +1,4 @@
-val akkaVersion = "2.6.11"
+val akkaVersion = "2.6.12"
 val akkaHttpVersion = "10.2.3"
 val json4sVersion = "3.7.0-M6"
 val alpakka = "2.0.2"
@@ -9,7 +9,7 @@ lazy val app = (project in file("."))
     name := "tractor",
     organization := "com.dounine",
     maintainer := "amwoqmgo@gmail.com",
-    scalaVersion := "2.13.3",
+    scalaVersion := "2.13.4",
     dockerBaseImage := "openjdk:11.0.8-slim",
     //    mainClass in (Compile, run) := Some("com.dounine.tractor.Bootstrap"),
     mappings in Universal ++= {
