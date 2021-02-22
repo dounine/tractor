@@ -3,6 +3,7 @@ package com.dounine.tractor.behaviors
 import akka.Done
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.model.{StatusCodes, Uri}
@@ -21,6 +22,8 @@ import org.slf4j.LoggerFactory
 object MarketTradeBehavior extends ActorSerializerSuport {
 
   private val logger = LoggerFactory.getLogger(MarketTradeBehavior.getClass)
+
+  val typeKey: EntityTypeKey[BaseSerializer] = EntityTypeKey[BaseSerializer]("MarketTradeBehavior")
 
   trait Event extends BaseSerializer
 
@@ -173,7 +176,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
         }
         case e@Sub(symbol, contractType) => {
           logger.info(e.logJson)
-          val sourceRef = brocastHub
+          val sourceRef: SourceRef[TradeDetail] = brocastHub
             .filter(detail => detail.symbol == symbol && detail.contractType == contractType)
             .runWith(StreamRefs.sourceRef())
           e.replyTo.tell(SubResponse(sourceRef))

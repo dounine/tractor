@@ -13,10 +13,9 @@ import scala.util.{Failure, Success}
 
 class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing {
   implicit val ec = system.executionContext
-  val cc = ""
   val manualTime: ManualTime = ManualTime()
 
-  "stream test" must {
+  "stream test" should {
     "manualTime test" in {
       val source = Source(1 to 3)
         .delay(1.seconds)

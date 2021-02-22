@@ -134,6 +134,7 @@ dependencies {
     compile group: 'org.json4s', name: "json4s-ext_${versions.ScalaBinary}", version: '3.7.0-M7'
     compile group: 'com.github.pathikrit', name: 'better-files_2.13', version: '3.9.1'
     compile group: 'com.github.pathikrit', name: 'better-files-akka_2.13', version: '3.9.1'
+    testImplementation "org.fusesource.leveldbjni:leveldbjni-all:1.8"
     testImplementation "org.scalatest:scalatest_${versions.ScalaBinary}:3.1.4"
     testImplementation "com.typesafe.akka:akka-stream-testkit_${versions.ScalaBinary}:${versions.akka}"
 }
