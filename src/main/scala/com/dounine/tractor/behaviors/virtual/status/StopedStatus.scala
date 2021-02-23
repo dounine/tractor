@@ -15,35 +15,39 @@ object StopedStatus extends JsonParse {
     LoggerFactory.getLogger(StopedStatus.getClass)
 
   def apply(
-      context: ActorContext[BaseSerializer],
-      shard: ActorRef[ClusterSharding.ShardCommand],
-      timers: TimerScheduler[BaseSerializer]
-  ): (
-      (
-          State,
-          BaseSerializer,
-          (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State],
-      (
-          State,
-          BaseSerializer,
-          (State, BaseSerializer) => State
-      ) => State,
-      Class[_]
-  ) = {
-    val commandHandler: (
-        State,
+             context: ActorContext[BaseSerializer],
+             shard: ActorRef[ClusterSharding.ShardCommand],
+             timers: TimerScheduler[BaseSerializer]
+           ): (
+    (
+      State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-    ) => Effect[BaseSerializer, State] = (
-        state: State,
-        command: BaseSerializer,
-        _: (State, BaseSerializer) => Effect[BaseSerializer, State]
-    ) =>
+      ) => Effect[BaseSerializer, State],
+      (
+        State,
+          BaseSerializer,
+          (State, BaseSerializer) => State
+        ) => State,
+      Class[_]
+    ) = {
+    val commandHandler: (
+      State,
+        BaseSerializer,
+        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      ) => Effect[BaseSerializer, State] = (
+                                             state: State,
+                                             command: BaseSerializer,
+                                             _: (State, BaseSerializer) => Effect[BaseSerializer, State]
+                                           ) =>
       command match {
         case Run => {
           logger.info(command.logJson)
-          Effect.persist(command).thenReply(context.self)(_ => RunSelfOk())
+          Effect.persist(command)
+            .thenRun((_: State) => {
+              context.self.tell(RunSelfOk())
+            })
+          //            .thenReply(context.self)(_ => RunSelfOk())
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
@@ -52,15 +56,15 @@ object StopedStatus extends JsonParse {
       }
 
     val defaultEvent
-        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-          state: State,
-          command: BaseSerializer,
-          defaultEvent: (State, BaseSerializer) => State
+        state: State,
+        command: BaseSerializer,
+        defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case Run   => Busy(state.data)
-          case e @ _ => defaultEvent(state, e)
+          case Run => Busy(state.data)
+          case e@_ => defaultEvent(state, e)
         }
       }
 

@@ -27,13 +27,13 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   trait Event extends BaseSerializer
 
-  case class Sub(symbol: CoinSymbol, contractType: ContractType)(val replyTo: ActorRef[Event]) extends Event
+  case class Sub(symbol: CoinSymbol, contractType: ContractType)(val replyTo: ActorRef[BaseSerializer]) extends Event
 
   case class SubResponse(source: SourceRef[TradeDetail]) extends Event
 
   case class SendMessage(data: String) extends Event
 
-  case class SocketConnect(url: Option[String] = Option.empty)(val replyTo: ActorRef[Event]) extends Event
+  case class SocketConnect(url: Option[String] = Option.empty)(val replyTo: ActorRef[BaseSerializer]) extends Event
 
   case class SocketConnectAccept() extends Event
 

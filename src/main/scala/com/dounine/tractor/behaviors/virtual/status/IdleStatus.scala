@@ -18,7 +18,7 @@ import java.time.LocalDateTime
 object IdleStatus extends JsonParse {
 
   private final val logger: Logger =
-    LoggerFactory.getLogger(BusyStatus.getClass)
+    LoggerFactory.getLogger(IdleStatus.getClass)
 
   def apply(
              context: ActorContext[BaseSerializer],

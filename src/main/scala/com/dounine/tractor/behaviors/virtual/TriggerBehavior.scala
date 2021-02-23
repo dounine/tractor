@@ -103,7 +103,7 @@ object TriggerBehavior extends ActorSerializerSuport {
                 .withResetBackoffAfter(10.seconds)
             ).receiveSignal({
               case (state, RecoveryCompleted) =>
-                logger.debug(
+                logger.info(
                   "Recovery Completed with state: {}",
                   state
                 )
@@ -128,7 +128,7 @@ object TriggerBehavior extends ActorSerializerSuport {
                 logger.info(s"PreRestart")
                 context.self.tell(Recovery)
               case (_, single) =>
-                logger.debug(single.logJson)
+                logger.info(single.logJson)
             }).snapshotWhen((state, event, _) => true)
               .withRetention(
                 criteria = RetentionCriteria
