@@ -106,7 +106,9 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
 
   override protected def beforeAll(): Unit = {
     import better.files._
-    val files = Seq(file"/tmp/journal", file"/tmp/snapshot")
+    val journalDir = system.settings.config.getString("akka.persistence.journal.leveldb.dir")
+    val snapshotDir = system.settings.config.getString("akka.persistence.snapshot-store.local.dir")
+    val files = Seq(file"${journalDir}", file"${snapshotDir}")
     files.filter(_.exists).foreach(_.delete())
   }
 
