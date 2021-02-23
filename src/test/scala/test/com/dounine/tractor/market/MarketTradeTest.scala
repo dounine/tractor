@@ -132,19 +132,11 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
         .andThen(_.get)(system.executionContext), Duration.Inf)
 
       val marketTradeBehavior = testKit.spawn(MarketTradeBehavior())
-      LoggingTestKit
-        .info(classOf[MarketTradeBehavior.SocketConnected].getSimpleName)
-        .expect {
-          marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[BaseSerializer]().ref))
-        }
+      marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[BaseSerializer]().ref))
 
       val probeSource = testKit.createTestProbe[BaseSerializer]()
 
-      LoggingTestKit
-        .info(classOf[MarketTradeBehavior.Sub].getSimpleName)
-        .expect {
-          marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource.ref))
-        }
+      marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource.ref))
 
       val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
 
@@ -210,11 +202,7 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
         .andThen(_.get)(system.executionContext), Duration.Inf)
 
       val marketTradeBehavior = testKit.spawn(MarketTradeBehavior())
-      LoggingTestKit
-        .info(classOf[MarketTradeBehavior.SocketConnected].getSimpleName)
-        .expect {
-          marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[BaseSerializer]().ref))
-        }
+      marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[BaseSerializer]().ref))
 
       val probeSource = testKit.createTestProbe[BaseSerializer]()
       val triggerMessage = MarketTradeModel.WsPrice(
@@ -246,18 +234,10 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       client.offer(BinaryMessage.Strict(
         binaryMessage(triggerMessage.toJson)
       ))
-      LoggingTestKit
-        .info(classOf[MarketTradeBehavior.Sub].getSimpleName)
-        .expect {
-          marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource.ref))
-        }
+      marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource.ref))
 
       val probeSource2 = testKit.createTestProbe[BaseSerializer]()
-      LoggingTestKit
-        .info(classOf[MarketTradeBehavior.Sub].getSimpleName)
-        .expect {
-          marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource2.ref))
-        }
+      marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource2.ref))
 
       val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
       val subResponse2 = probeSource2.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]

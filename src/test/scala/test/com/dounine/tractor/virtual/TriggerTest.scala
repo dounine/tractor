@@ -80,12 +80,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
         )
       ))
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      LoggingTestKit.info(
-        TriggerBase.Run.getClass.getSimpleName
-      )
-        .expect(
-          triggerBehavior.tell(TriggerBase.Run)
-        )
+      triggerBehavior.tell(TriggerBase.Run)
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       triggerBehavior.tell(TriggerBase.Create(
@@ -101,7 +96,6 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
       )(createProbe.ref))
 
       createProbe.expectMessage(TriggerBase.CreateOk("a"))
-
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
