@@ -11,7 +11,8 @@ import akka.stream.scaladsl.{BroadcastHub, Compression, Flow, Keep, RunnableGrap
 import akka.stream.typed.scaladsl.{ActorSink, ActorSource}
 import akka.stream.{KillSwitches, OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
 import akka.util.ByteString
-import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
@@ -158,7 +159,21 @@ object MarketTradeBehavior extends ActorSerializerSuport {
           if (data.contains("ping")) {
             serverActor.foreach(_.tell(SendMessage(data.replace("ping", "pong"))))
           } else {
-            subTradeDetailQueue.offer(data.jsonTo[TradeDetail])
+            val price = data.jsonTo[MarketTradeModel.WsPrice]
+            price.ch.split("\\.")(1).split("_") match{
+              case Array(symbolStr,contractTypeAlias) => {
+                val lastPrice = price.tick.data.last
+                val tradeDetail = TradeDetail(
+                  symbol = CoinSymbol.withName(symbolStr),
+                  contractType = ContractType.getReverAlias(contractTypeAlias),
+                  direction = lastPrice.direction,
+                  price = lastPrice.price,
+                  amount = lastPrice.amount,
+                  time = lastPrice.ts
+                )
+                subTradeDetailQueue.offer(tradeDetail)
+              }
+            }
           }
           Behaviors.same
         }

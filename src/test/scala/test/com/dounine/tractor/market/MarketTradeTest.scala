@@ -10,8 +10,8 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
-import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
+import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction}
 import com.dounine.tractor.tools.json.JsonParse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -148,11 +148,36 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
 
       val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
 
-      val messageData = s"""{"symbol":"BTC","contractType":"quarter","direction":"buy","price":100,"amount":1,"time":${System.currentTimeMillis()}}"""
+      val triggerMessage = MarketTradeModel.WsPrice(
+        ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
+        tick = MarketTradeModel.WsTick(
+          id = 123L,
+          ts = System.currentTimeMillis(),
+          data = Seq(
+            MarketTradeModel.WsData(
+              amount = 1,
+              direction = Direction.buy,
+              id = 123L,
+              price = 91,
+              ts = System.currentTimeMillis()
+            )
+          )
+        ),
+        ts = System.currentTimeMillis()
+      )
+      val tradeDetail = MarketTradeBehavior.TradeDetail(
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = triggerMessage.tick.data.head.direction,
+        price = triggerMessage.tick.data.head.price,
+        amount = triggerMessage.tick.data.head.amount,
+        time = triggerMessage.tick.data.head.ts
+      )
+
       client.offer(BinaryMessage.Strict(
-        binaryMessage(messageData)
+        binaryMessage(triggerMessage.toJson)
       ))
-      subResponse.source.runWith(TestSink()).request(1).expectNext(messageData.jsonTo[MarketTradeBehavior.TradeDetail])
+      subResponse.source.runWith(TestSink()).request(1).expectNext(tradeDetail)
     }
 
     "multi sub and run source" in {
@@ -192,9 +217,34 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
         }
 
       val probeSource = testKit.createTestProbe[BaseSerializer]()
-      val messageData = s"""{"symbol":"BTC","contractType":"quarter","direction":"buy","price":100,"amount":1,"time":${System.currentTimeMillis()}}"""
+      val triggerMessage = MarketTradeModel.WsPrice(
+        ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
+        tick = MarketTradeModel.WsTick(
+          id = 123L,
+          ts = System.currentTimeMillis(),
+          data = Seq(
+            MarketTradeModel.WsData(
+              amount = 1,
+              direction = Direction.buy,
+              id = 123L,
+              price = 91,
+              ts = System.currentTimeMillis()
+            )
+          )
+        ),
+        ts = System.currentTimeMillis()
+      )
+      val tradeDetail = MarketTradeBehavior.TradeDetail(
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = triggerMessage.tick.data.head.direction,
+        price = triggerMessage.tick.data.head.price,
+        amount = triggerMessage.tick.data.head.amount,
+        time = triggerMessage.tick.data.head.ts
+      )
+
       client.offer(BinaryMessage.Strict(
-        binaryMessage(messageData)
+        binaryMessage(triggerMessage.toJson)
       ))
       LoggingTestKit
         .info(classOf[MarketTradeBehavior.Sub].getSimpleName)
@@ -211,8 +261,8 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
 
       val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
       val subResponse2 = probeSource2.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
-      subResponse.source.runWith(TestSink()).request(1).expectNext(messageData.jsonTo[MarketTradeBehavior.TradeDetail])
-      subResponse2.source.runWith(TestSink()).request(1).expectNext(messageData.jsonTo[MarketTradeBehavior.TradeDetail])
+      subResponse.source.runWith(TestSink()).request(1).expectNext(tradeDetail)
+      subResponse2.source.runWith(TestSink()).request(1).expectNext(tradeDetail)
 
     }
 
