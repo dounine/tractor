@@ -5,11 +5,11 @@ import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.tools.json.JsonParse
+import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.TriggerBase._
 
-object StopedStatus extends JsonParse {
+object StopedStatus extends ActorSerializerSuport {
 
   private final val logger: Logger =
     LoggerFactory.getLogger(StopedStatus.getClass)

@@ -6,12 +6,12 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
-import com.dounine.tractor.tools.json.JsonParse
+import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.TriggerBase._
 import com.dounine.tractor.model.types.currency.TriggerStatus
 
-object BusyStatus extends JsonParse {
+object BusyStatus extends ActorSerializerSuport {
 
   private final val logger: Logger =
     LoggerFactory.getLogger(BusyStatus.getClass)

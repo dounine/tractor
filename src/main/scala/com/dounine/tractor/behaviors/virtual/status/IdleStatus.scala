@@ -4,18 +4,20 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
-import akka.stream.{Materializer, SystemMaterializer}
+import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.Sink
+import akka.stream.typed.scaladsl.ActorSource
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
-import com.dounine.tractor.tools.json.JsonParse
+import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.TriggerBase._
-import com.dounine.tractor.model.types.currency.TriggerStatus
+import com.dounine.tractor.model.types.currency.{TriggerStatus, TriggerType}
 
+import scala.concurrent.duration._
 import java.time.LocalDateTime
 
-object IdleStatus extends JsonParse {
+object IdleStatus extends ActorSerializerSuport {
 
   private final val logger: Logger =
     LoggerFactory.getLogger(IdleStatus.getClass)
@@ -83,9 +85,30 @@ object IdleStatus extends JsonParse {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case MarketTradeBehavior.TradeDetail(_, _, _, _, _, _) => {
+        case MarketTradeBehavior.TradeDetail(_, _, _, _, price, _) => {
           logger.info(command.logJson)
-          Effect.persist(command)
+          val triggers = state.data.triggers
+            .filter(_._2.status == TriggerStatus.submit)
+            .filter(trigger => {
+              val info = trigger._2.info
+              info.triggerType match {
+                case TriggerType.le => price >= info.triggerPrice
+                case TriggerType.ge => price <= info.triggerPrice
+              }
+            })
+
+          if (triggers.nonEmpty) {
+            Effect.persist(Triggers(
+              triggers = triggers.map(trigger => {
+                (trigger._1, trigger._2.copy(
+                  info = trigger._2.info,
+                  status = TriggerStatus.matchs
+                ))
+              })
+            ))
+          } else {
+            Effect.none
+          }
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
@@ -133,11 +156,17 @@ object IdleStatus extends JsonParse {
           }
           case MarketTradeBehavior.SubResponse(source) => {
             val materializer: Materializer = SystemMaterializer(context.system).materializer
-            source.runWith(Sink.foreach(context.self.tell))(materializer)
+            source
+              .throttle(1, 200.milliseconds)
+              .buffer(1, OverflowStrategy.dropHead)
+              .runWith(Sink.foreach(context.self.tell))(materializer)
             state
           }
-          case MarketTradeBehavior.TradeDetail(symbol, contractType, direction, price, amount, time) => {
-            state
+          case e@Triggers(triggers) => {
+            logger.info(e.logJson)
+            Idle(state.data.copy(
+              triggers = state.data.triggers ++ triggers
+            ))
           }
           case e@_ => defaultEvent(state, e)
         }

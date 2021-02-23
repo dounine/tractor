@@ -57,7 +57,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
 
     }
 
-    "create and trigger1" in {
+    "create and trigger" in {
       val materializer = SystemMaterializer(system).materializer
       val sharding = ClusterSharding(system)
 
@@ -115,7 +115,11 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
         ts = System.currentTimeMillis()
       ).toJson
 
-      socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
+      LoggingTestKit
+        .info(classOf[TriggerBase.Triggers].getSimpleName)
+        .expect {
+          socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
+        }
 
     }
 

@@ -86,7 +86,11 @@ object TriggerBase extends ActorSerializerSuport {
                            volume: Int
                          )(val replyTo: ActorRef[BaseSerializer]) extends Command
 
+  final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
+
   final case class CreateOk(orderId: String) extends Command
+
+  final case object Ack extends Command
 
   def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType): String = {
     s"${phone}-${symbol}-${contractType}"
