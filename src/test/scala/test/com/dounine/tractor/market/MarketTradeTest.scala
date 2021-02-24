@@ -55,11 +55,9 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       val time = System.currentTimeMillis()
       client.offer(BinaryMessage.Strict(pingMessage(Option(time))))
       val marketTradeBehavior = testKit.spawn(MarketTradeBehavior())
-      LoggingTestKit.info(classOf[MarketTradeBehavior.SocketConnect].getSimpleName)
-        .withMessageContains(classOf[MarketTradeBehavior.SocketConnect].getSimpleName)
-        .expect {
-          marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(testKit.createTestProbe[BaseSerializer]().ref))
-        }
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTradeBehavior.tell(MarketTradeBehavior.SocketConnect(Option(s"ws://127.0.0.1:${port}"))(connectProbe.ref))
+      connectProbe.expectMessage(MarketTradeBehavior.SocketConnectAccept())
       probe.expectMessage(s"""{"pong":${time}}""")
     }
 
