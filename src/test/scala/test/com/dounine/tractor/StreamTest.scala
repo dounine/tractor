@@ -24,13 +24,6 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       manualTime.timePasses(3.seconds)
       probe.expectMessage(1)
     }
-    "multi use source" in {
-      val source = Source(1 to 3)
-        .throttle(1, 1.seconds)
-
-      source.runWith(TestSink[Int]()).request(1).expectNext(1)
-      source.runWith(TestSink[Int]()).request(1).expectNext(1)
-    }
     "source for broadcast" in {
       val source = Source.maybe[Int].concat(Source(1 to 3))
       val (close, broadcastHub) = source

@@ -30,6 +30,72 @@ import scala.concurrent.duration.Duration
 
 class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
   val globalGort = new AtomicInteger(8100)
+  var socketClient: BoundedSourceQueue[Message] = _
+  val socketPort = globalGort.getAndIncrement()
+  val pingMessage = (time: Option[Long]) => Await.result(Source.single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""").map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
+  val dataMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    import better.files._
+    val journalDir = system.settings.config.getString("akka.persistence.journal.leveldb.dir")
+    val snapshotDir = system.settings.config.getString("akka.persistence.snapshot-store.local.dir")
+    val files = Seq(file"${journalDir}", file"${snapshotDir}")
+    files.filter(_.exists).foreach(_.delete())
+
+    val materializer = SystemMaterializer(system).materializer
+
+    val cluster = Cluster.get(system)
+    cluster.manager.tell(Join.create(cluster.selfMember.address))
+
+
+    val sink = Sink.ignore
+    val ((client: BoundedSourceQueue[Message], close), source: Source[Message, NotUsed]) = Source.queue[Message](10)
+      .viaMat(KillSwitches.single)(Keep.both)
+      .preMaterialize()
+
+    socketClient = client
+
+    val receiveMessageFlow = Flow[Message]
+      .collect {
+        case TextMessage.Strict(text) => Future.successful(text)
+        case TextMessage.Streamed(stream) => stream.runFold("")(_ ++ _)(materializer)
+      }
+      .mapAsync(1)(identity)
+      .to(sink)
+
+    val result = Flow.fromSinkAndSourceCoupledMat(
+      sink = receiveMessageFlow,
+      source = source
+    )(Keep.right)
+
+    val server = Await.result(Http(system)
+      .newServerAt("0.0.0.0", socketPort)
+      .bindFlow(handleWebSocketMessages(result))
+      .andThen(_.get)(system.executionContext), Duration.Inf)
+
+    val sharding = ClusterSharding(system)
+
+
+    sharding.init(Entity(
+      typeKey = MarketTradeBehavior.typeKey
+    )(
+      createBehavior = entityContext => MarketTradeBehavior()
+    ))
+
+    sharding.init(Entity(
+      typeKey = TriggerBase.typeKey
+    )(
+      createBehavior = entityContext => TriggerBehavior(
+        PersistenceId.of(
+          TriggerBase.typeKey.name,
+          entityContext.entityId
+        ),
+        entityContext.shard
+      )
+    ))
+
+  }
 
 
   "trigger behavior" should {
@@ -125,71 +191,5 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
 
   }
 
-  var socketClient: BoundedSourceQueue[Message] = _
-  val socketPort = globalGort.getAndIncrement()
-  val pingMessage = (time: Option[Long]) => Await.result(Source.single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""").map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
-  val dataMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    import better.files._
-    val journalDir = system.settings.config.getString("akka.persistence.journal.leveldb.dir")
-    val snapshotDir = system.settings.config.getString("akka.persistence.snapshot-store.local.dir")
-    val files = Seq(file"${journalDir}", file"${snapshotDir}")
-    files.filter(_.exists).foreach(_.delete())
-
-    val materializer = SystemMaterializer(system).materializer
-
-    val cluster = Cluster.get(system)
-    cluster.manager.tell(Join.create(cluster.selfMember.address))
-
-
-    val sink = Sink.ignore
-    val ((client: BoundedSourceQueue[Message], close), source: Source[Message, NotUsed]) = Source.queue[Message](10)
-      .viaMat(KillSwitches.single)(Keep.both)
-      .preMaterialize()
-
-    socketClient = client
-
-    val receiveMessageFlow = Flow[Message]
-      .collect {
-        case TextMessage.Strict(text) => Future.successful(text)
-        case TextMessage.Streamed(stream) => stream.runFold("")(_ ++ _)(materializer)
-      }
-      .mapAsync(1)(identity)
-      .to(sink)
-
-    val result = Flow.fromSinkAndSourceCoupledMat(
-      sink = receiveMessageFlow,
-      source = source
-    )(Keep.right)
-
-    val server = Await.result(Http(system)
-      .newServerAt("0.0.0.0", socketPort)
-      .bindFlow(handleWebSocketMessages(result))
-      .andThen(_.get)(system.executionContext), Duration.Inf)
-
-    val sharding = ClusterSharding(system)
-
-
-    sharding.init(Entity(
-      typeKey = MarketTradeBehavior.typeKey
-    )(
-      createBehavior = entityContext => MarketTradeBehavior()
-    ))
-
-    sharding.init(Entity(
-      typeKey = TriggerBase.typeKey
-    )(
-      createBehavior = entityContext => TriggerBehavior(
-        PersistenceId.of(
-          TriggerBase.typeKey.name,
-          entityContext.entityId
-        ),
-        entityContext.shard
-      )
-    ))
-
-  }
 
 }
