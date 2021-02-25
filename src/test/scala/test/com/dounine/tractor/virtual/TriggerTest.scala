@@ -18,7 +18,7 @@ import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.{TriggerBase, TriggerBehavior}
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerType}
+import com.dounine.tractor.model.types.currency.{CancelFailStatus, CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerType}
 import com.dounine.tractor.tools.json.JsonParse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -29,9 +29,10 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
-  val globalGort = new AtomicInteger(8100)
+  val portGlobal = new AtomicInteger(8100)
+  val orderIdGlobal = new AtomicInteger(1)
   var socketClient: BoundedSourceQueue[Message] = _
-  val socketPort = globalGort.getAndIncrement()
+  val socketPort = portGlobal.getAndIncrement()
   val pingMessage = (time: Option[Long]) => Await.result(Source.single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""").map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
   val dataMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
 
@@ -100,7 +101,6 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
 
   "trigger behavior" should {
     "run" in {
-      val materializer = SystemMaterializer(system).materializer
       val sharding = ClusterSharding(system)
 
       val time = System.currentTimeMillis()
@@ -124,7 +124,6 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
     }
 
     "create and trigger" in {
-      val materializer = SystemMaterializer(system).materializer
       val sharding = ClusterSharding(system)
 
       val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, MarketTradeBehavior.typeKey.name)
@@ -134,23 +133,13 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      sharding.init(Entity(
-        typeKey = TriggerBase.typeKey
-      )(
-        createBehavior = entityContext => TriggerBehavior(
-          PersistenceId.of(
-            TriggerBase.typeKey.name,
-            entityContext.entityId
-          ),
-          entityContext.shard
-        )
-      ))
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
       triggerBehavior.tell(TriggerBase.Run)
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
       triggerBehavior.tell(TriggerBase.Create(
-        orderId = "a",
+        orderId = orderId,
         direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
@@ -161,7 +150,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk("a"))
+      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -188,6 +177,113 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
         }
 
     }
+
+    "create and cancel" in {
+      val sharding = ClusterSharding(system)
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      triggerBehavior.tell(TriggerBase.Run)
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      triggerBehavior.tell(TriggerBase.Create(
+        orderId = orderId,
+        direction = Direction.buy,
+        leverRate = LeverRate.x20,
+        offset = Offset.open,
+        orderPriceType = OrderPriceType.limit,
+        triggerType = TriggerType.ge,
+        orderPrice = 100,
+        triggerPrice = 90,
+        volume = 1
+      )(createProbe.ref))
+
+      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+
+      val cancelProbe = testKit.createTestProbe[BaseSerializer]()
+      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(TriggerBase.CancelOk(orderId))
+
+    }
+
+    "create and multi cancel canceled fail" in {
+      val sharding = ClusterSharding(system)
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      triggerBehavior.tell(TriggerBase.Run)
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      triggerBehavior.tell(TriggerBase.Create(
+        orderId = orderId,
+        direction = Direction.buy,
+        leverRate = LeverRate.x20,
+        offset = Offset.open,
+        orderPriceType = OrderPriceType.limit,
+        triggerType = TriggerType.ge,
+        orderPrice = 100,
+        triggerPrice = 90,
+        volume = 1
+      )(createProbe.ref))
+
+      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+
+      triggerBehavior.tell(TriggerBase.Cancel(orderId)(testKit.createTestProbe[BaseSerializer]().ref))
+      val cancelProbe = testKit.createTestProbe[BaseSerializer]()
+      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(TriggerBase.CancelFail(orderId, CancelFailStatus.cancelAlreadyCanceled))
+
+    }
+
+
+    "create and multi cancel match fail" in {
+      val sharding = ClusterSharding(system)
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      triggerBehavior.tell(TriggerBase.Run)
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      triggerBehavior.tell(TriggerBase.Create(
+        orderId = orderId,
+        direction = Direction.buy,
+        leverRate = LeverRate.x20,
+        offset = Offset.open,
+        orderPriceType = OrderPriceType.limit,
+        triggerType = TriggerType.ge,
+        orderPrice = 100,
+        triggerPrice = 90,
+        volume = 1
+      )(createProbe.ref))
+
+      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+
+      val triggerMessage = MarketTradeModel.WsPrice(
+        ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
+        tick = MarketTradeModel.WsTick(
+          id = 123L,
+          ts = System.currentTimeMillis(),
+          data = Seq(
+            MarketTradeModel.WsData(
+              amount = 1,
+              direction = Direction.buy,
+              id = 123L,
+              price = 91,
+              ts = System.currentTimeMillis()
+            )
+          )
+        ),
+        ts = System.currentTimeMillis()
+      ).toJson
+
+      socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
+
+      TimeUnit.MILLISECONDS.sleep(50)
+
+      val cancelProbe = testKit.createTestProbe[BaseSerializer]()
+      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(TriggerBase.CancelFail(orderId, CancelFailStatus.cancelAlreadyMatched))
+
+    }
+
+
 
   }
 

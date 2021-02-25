@@ -6,13 +6,12 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.Sink
-import akka.stream.typed.scaladsl.ActorSource
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.TriggerBase._
-import com.dounine.tractor.model.types.currency.{TriggerStatus, TriggerType}
+import com.dounine.tractor.model.types.currency.{CancelFailStatus, TriggerStatus, TriggerType}
 
 import scala.concurrent.duration._
 import java.time.LocalDateTime
@@ -80,6 +79,37 @@ object IdleStatus extends ActorSerializerSuport {
             .thenRun((_: State) => {
               e.replyTo.tell(CreateOk(orderId))
             })
+        }
+        case e@Cancel(orderId) => {
+          logger.info(command.logJson)
+          state.data.triggers.get(orderId) match {
+            case Some(value) =>
+              value.status match {
+                case TriggerStatus.submit =>
+                  Effect.persist(command)
+                    .thenRun((_: State) => {
+                      e.replyTo.tell(CancelOk(orderId))
+                    })
+                case TriggerStatus.canceled =>
+                  Effect.none
+                    .thenRun((_: State) => {
+                      e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelAlreadyCanceled))
+                    })
+                case TriggerStatus.matchs =>
+                  Effect.none
+                    .thenRun((_: State) => {
+                      e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelAlreadyMatched))
+                    })
+                case TriggerStatus.error =>
+                  Effect.none
+                    .thenRun((_: State) => {
+                      e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelAlreadyFailed))
+                    })
+              }
+            case None => Effect.none.thenRun((_: State) => {
+              e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelOrderNotExit))
+            })
+          }
         }
         case MarketTradeBehavior.SubResponse(_) => {
           logger.info(command.logJson)
@@ -152,6 +182,17 @@ object IdleStatus extends ActorSerializerSuport {
                   status = TriggerStatus.submit
                 )
               )
+            ))
+          }
+          case Cancel(orderId) => {
+            Idle(state.data.copy(
+              triggers = state.data.triggers.map(item => {
+                if (item._1 == orderId) {
+                  (orderId, item._2.copy(
+                    status = TriggerStatus.canceled
+                  ))
+                } else item
+              })
             ))
           }
           case MarketTradeBehavior.SubResponse(source) => {

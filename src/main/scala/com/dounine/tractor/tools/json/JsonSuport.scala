@@ -1,7 +1,8 @@
 package com.dounine.tractor.tools.json
 
 import akka.actor.typed.ActorRef
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerStatus, TriggerType}
+import com.dounine.tractor.model.models.TriggerModel
+import com.dounine.tractor.model.types.currency.{CancelFailStatus, CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerStatus, TriggerType}
 import com.dounine.tractor.model.types.router.ResponseCode
 import org.json4s.JsonAST.{JField, JLong, JObject, JString}
 import org.json4s.ext.EnumNameSerializer
@@ -87,6 +88,7 @@ object JsonSuport {
     Offset,
     OrderPriceType,
     TriggerStatus,
-    TriggerType
+    TriggerType,
+    CancelFailStatus
   ).map(new EnumNameSerializer(_))
 }
