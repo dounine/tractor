@@ -1,36 +1,32 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ManualTime, ScalaTestWithActorTestKit}
-import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ScalaTestWithActorTestKit}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
-import akka.cluster.typed.internal.protobuf.ReliableDelivery.Cleanup
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.server.Directives.handleWebSocketMessages
-import akka.persistence.query.PersistenceQuery
-import akka.persistence.query.journal.leveldb.scaladsl.LeveldbReadJournal
 import akka.persistence.typed.PersistenceId
-import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
+import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
-import com.dounine.tractor.behaviors.virtual.trigger.TriggerBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
 import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
-import com.dounine.tractor.model.types.currency.{TriggerCancelFailStatus, CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerType}
+import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.tools.json.JsonParse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
-class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
-  val portGlobal = new AtomicInteger(8100)
+class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
+  val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
   var socketClient: BoundedSourceQueue[Message] = _
   val socketPort = portGlobal.getAndIncrement()
@@ -43,7 +39,11 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
     val journalDir = system.settings.config.getString("akka.persistence.journal.leveldb.dir")
     val snapshotDir = system.settings.config.getString("akka.persistence.snapshot-store.local.dir")
     val files = Seq(file"${journalDir}", file"${snapshotDir}")
-    files.filter(_.exists).foreach(_.delete())
+    try {
+      files.filter(_.exists).foreach(_.delete())
+    } catch {
+      case e =>
+    }
 
     val materializer = SystemMaterializer(system).materializer
 
@@ -86,11 +86,11 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
     ))
 
     sharding.init(Entity(
-      typeKey = TriggerBase.typeKey
+      typeKey = EntrustBase.typeKey
     )(
-      createBehavior = entityContext => TriggerBehavior(
+      createBehavior = entityContext => EntrustBehavior(
         PersistenceId.of(
-          TriggerBase.typeKey.name,
+          EntrustBase.typeKey.name,
           entityContext.entityId
         ),
         entityContext.shard
@@ -100,7 +100,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
   }
 
 
-  "trigger behavior" should {
+  "entrust behavior" should {
     "run" in {
       val sharding = ClusterSharding(system)
 
@@ -114,12 +114,12 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      val trigger = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      val entrustBehavior= sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
       LoggingTestKit.info(
-        classOf[TriggerBase.RunSelfOk].getSimpleName
+        classOf[EntrustBase.RunSelfOk].getSimpleName
       )
         .expect(
-          trigger.tell(TriggerBase.Run)
+          entrustBehavior.tell(EntrustBase.Run)
         )
 
     }
@@ -134,24 +134,22 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      triggerBehavior.tell(TriggerBase.Run)
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      entrustBehavior.tell(EntrustBase.Run)
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
-      triggerBehavior.tell(TriggerBase.Create(
+      entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
         direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
-        triggerType = TriggerType.ge,
-        orderPrice = 100,
-        triggerPrice = 90,
+        price = 100,
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -163,7 +161,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
               amount = 1,
               direction = Direction.buy,
               id = 123L,
-              price = 91,
+              price = 100,
               ts = System.currentTimeMillis()
             )
           )
@@ -172,7 +170,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
       ).toJson
 
       LoggingTestKit
-        .info(classOf[TriggerBase.Triggers].getSimpleName)
+        .info(classOf[EntrustBase.Entrusts].getSimpleName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }
@@ -181,80 +179,72 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
 
     "create and cancel" in {
       val sharding = ClusterSharding(system)
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      triggerBehavior.tell(TriggerBase.Run)
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      entrustBehavior.tell(EntrustBase.Run)
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
-      triggerBehavior.tell(TriggerBase.Create(
+      entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
         direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
-        triggerType = TriggerType.ge,
-        orderPrice = 100,
-        triggerPrice = 90,
+        price = 100,
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
-      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
-      cancelProbe.expectMessage(TriggerBase.CancelOk(orderId))
-
+      entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(EntrustBase.CancelOk(orderId))
     }
 
     "create and multi cancel canceled fail" in {
       val sharding = ClusterSharding(system)
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      triggerBehavior.tell(TriggerBase.Run)
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      entrustBehavior.tell(TriggerBase.Run)
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
-      triggerBehavior.tell(TriggerBase.Create(
+      entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
         direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
-        triggerType = TriggerType.ge,
-        orderPrice = 100,
-        triggerPrice = 90,
+        price = 100,
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
 
-      triggerBehavior.tell(TriggerBase.Cancel(orderId)(testKit.createTestProbe[BaseSerializer]().ref))
+      entrustBehavior.tell(EntrustBase.Cancel(orderId)(testKit.createTestProbe[BaseSerializer]().ref))
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
-      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
-      cancelProbe.expectMessage(TriggerBase.CancelFail(orderId, TriggerCancelFailStatus.cancelAlreadyCanceled))
+      entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelAlreadyCanceled))
 
     }
 
-
     "create and multi cancel match fail" in {
       val sharding = ClusterSharding(system)
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      triggerBehavior.tell(TriggerBase.Run)
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      entrustBehavior.tell(TriggerBase.Run)
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
-      triggerBehavior.tell(TriggerBase.Create(
+      entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
         direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
-        triggerType = TriggerType.ge,
-        orderPrice = 100,
-        triggerPrice = 90,
+        price = 100,
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -266,7 +256,7 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
               amount = 1,
               direction = Direction.buy,
               id = 123L,
-              price = 91,
+              price = 100,
               ts = System.currentTimeMillis()
             )
           )
@@ -279,8 +269,8 @@ class TriggerTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
       TimeUnit.MILLISECONDS.sleep(50)
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
-      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
-      cancelProbe.expectMessage(TriggerBase.CancelFail(orderId, TriggerCancelFailStatus.cancelAlreadyMatched))
+      entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelAlreadyMatchAll))
 
     }
 

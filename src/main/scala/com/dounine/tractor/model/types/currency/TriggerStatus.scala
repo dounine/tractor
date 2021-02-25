@@ -3,9 +3,9 @@ package com.dounine.tractor.model.types.currency
 object TriggerStatus extends Enumeration {
   type TriggerStatus = Value
 
-  val submit: TriggerStatus.Value = Value("submit")
-  val canceled: TriggerStatus.Value = Value("canceled")
-  val matchs: TriggerStatus.Value = Value("matchs")
-  val error: TriggerStatus.Value = Value("error")
+  val submit: TriggerStatus.Value = Value("trigger_submit")
+  val canceled: TriggerStatus.Value = Value("trigger_canceled")
+  val matchs: TriggerStatus.Value = Value("trigger_matchs")
+  val error: TriggerStatus.Value = Value("trigger_error")
 
 }

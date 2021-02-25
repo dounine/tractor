@@ -1,22 +1,16 @@
-package com.dounine.tractor.behaviors.virtual
+package com.dounine.tractor.behaviors.virtual.trigger
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PreRestart, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.persistence.typed.{PersistenceId, RecoveryCompleted, RecoveryFailed, SnapshotCompleted, SnapshotFailed}
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
-import com.dounine.tractor.behaviors.virtual.TriggerBase.TriggerInfo
-import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
-import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
-import com.dounine.tractor.model.types.currency.ContractType.ContractType
-import com.dounine.tractor.model.types.currency.Direction.Direction
-import com.dounine.tractor.model.types.currency.TriggerStatus.TriggerStatus
-import com.dounine.tractor.tools.json.ActorSerializerSuport
-import org.slf4j.LoggerFactory
-
-import scala.concurrent.duration._
-import TriggerBase._
+import akka.persistence.typed._
+import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
+import com.dounine.tractor.tools.json.ActorSerializerSuport
+import TriggerBase._
+import scala.concurrent.duration._
+import org.slf4j.LoggerFactory
 
 object TriggerBehavior extends ActorSerializerSuport {
   private val logger = LoggerFactory.getLogger(TriggerBehavior.getClass)
@@ -57,7 +51,7 @@ object TriggerBehavior extends ActorSerializerSuport {
             def eventDefaultHandler(state: State, command: BaseSerializer)
             : State = {
               command match {
-                case _ => throw new Exception(s"事件未知 ${command}")
+                case _ => throw new Exception(s"unknow command ${command}")
               }
             }
 
@@ -69,7 +63,7 @@ object TriggerBehavior extends ActorSerializerSuport {
                 case Some(status) =>
                   status._1(state, command, commandDefaultHandler)
                 case None =>
-                  throw new Exception(s"状态未知、请检查 -> ${state.getClass}")
+                  throw new Exception(s"status unknown -> ${state.getClass}")
               }
 
             val eventHandler: (State, BaseSerializer) => State =
@@ -77,7 +71,7 @@ object TriggerBehavior extends ActorSerializerSuport {
                 statusList.find(_._3 == state.getClass) match {
                   case Some(status) =>
                     status._2(state, command, eventDefaultHandler)
-                  case None => throw new Exception("状态未知、请检查")
+                  case None => throw new Exception("status unknown")
                 }
 
             EventSourcedBehavior(

@@ -1,18 +1,19 @@
-package com.dounine.tractor.behaviors.virtual.status
+package com.dounine.tractor.behaviors.virtual.entrust.status
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
-import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
+import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
+import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
-import com.dounine.tractor.behaviors.virtual.TriggerBase._
 
-object StopedStatus extends ActorSerializerSuport {
+object BusyStatus extends ActorSerializerSuport {
 
   private final val logger: Logger =
-    LoggerFactory.getLogger(StopedStatus.getClass)
+    LoggerFactory.getLogger(BusyStatus.getClass)
 
   def apply(
              context: ActorContext[BaseSerializer],
@@ -31,6 +32,13 @@ object StopedStatus extends ActorSerializerSuport {
         ) => State,
       Class[_]
     ) = {
+    val sharding: ClusterSharding = ClusterSharding(context.system)
+    lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
+      sharding.entityRefFor(
+        typeKey = MarketTradeBehavior.typeKey,
+        entityId = MarketTradeBehavior.typeKey.name
+      )
+
     val commandHandler: (
       State,
         BaseSerializer,
@@ -43,11 +51,25 @@ object StopedStatus extends ActorSerializerSuport {
       command match {
         case Run => {
           logger.info(command.logJson)
+          Effect.none
+        }
+        case Recovery => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+        }
+        case RunSelfOk() => {
+          logger.info(command.logJson)
           Effect.persist(command)
             .thenRun((_: State) => {
-              context.self.tell(RunSelfOk())
+              tradeDetailBehavior.tell(
+                MarketTradeBehavior.Sub(
+                  symbol = state.data.symbol,
+                  contractType = state.data.contractType
+                )(context.self)
+              )
             })
-          //            .thenReply(context.self)(_ => RunSelfOk())
+            .thenUnstashAll()
+
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
@@ -63,11 +85,11 @@ object StopedStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case Run => Busy(state.data)
+          case RunSelfOk() => Idle(state.data)
           case e@_ => defaultEvent(state, e)
         }
       }
 
-    (commandHandler, defaultEvent, classOf[Stoped])
+    (commandHandler, defaultEvent, classOf[Busy])
   }
 }

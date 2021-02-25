@@ -1,4 +1,4 @@
-package com.dounine.tractor.behaviors.virtual.status
+package com.dounine.tractor.behaviors.virtual.trigger.status
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
@@ -10,8 +10,8 @@ import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
-import com.dounine.tractor.behaviors.virtual.TriggerBase._
-import com.dounine.tractor.model.types.currency.{CancelFailStatus, TriggerStatus, TriggerType}
+import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
+import com.dounine.tractor.model.types.currency.{TriggerCancelFailStatus, TriggerStatus, TriggerType}
 
 import scala.concurrent.duration._
 import java.time.LocalDateTime
@@ -38,6 +38,7 @@ object IdleStatus extends ActorSerializerSuport {
         ) => State,
       Class[_]
     ) = {
+    val materializer: Materializer = SystemMaterializer(context.system).materializer
     val sharding: ClusterSharding = ClusterSharding(context.system)
     lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
       sharding.entityRefFor(
@@ -93,21 +94,21 @@ object IdleStatus extends ActorSerializerSuport {
                 case TriggerStatus.canceled =>
                   Effect.none
                     .thenRun((_: State) => {
-                      e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelAlreadyCanceled))
+                      e.replyTo.tell(CancelFail(orderId, TriggerCancelFailStatus.cancelAlreadyCanceled))
                     })
                 case TriggerStatus.matchs =>
                   Effect.none
                     .thenRun((_: State) => {
-                      e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelAlreadyMatched))
+                      e.replyTo.tell(CancelFail(orderId, TriggerCancelFailStatus.cancelAlreadyMatched))
                     })
                 case TriggerStatus.error =>
                   Effect.none
                     .thenRun((_: State) => {
-                      e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelAlreadyFailed))
+                      e.replyTo.tell(CancelFail(orderId, TriggerCancelFailStatus.cancelAlreadyFailed))
                     })
               }
             case None => Effect.none.thenRun((_: State) => {
-              e.replyTo.tell(CancelFail(orderId, CancelFailStatus.cancelOrderNotExit))
+              e.replyTo.tell(CancelFail(orderId, TriggerCancelFailStatus.cancelOrderNotExit))
             })
           }
         }
@@ -120,7 +121,7 @@ object IdleStatus extends ActorSerializerSuport {
           val triggers = state.data.triggers
             .filter(_._2.status == TriggerStatus.submit)
             .filter(trigger => {
-              val info = trigger._2.info
+              val info = trigger._2.trigger
               info.triggerType match {
                 case TriggerType.le => price >= info.triggerPrice
                 case TriggerType.ge => price <= info.triggerPrice
@@ -131,7 +132,7 @@ object IdleStatus extends ActorSerializerSuport {
             Effect.persist(Triggers(
               triggers = triggers.map(trigger => {
                 (trigger._1, trigger._2.copy(
-                  info = trigger._2.info,
+                  trigger = trigger._2.trigger,
                   status = TriggerStatus.matchs
                 ))
               })
@@ -167,8 +168,7 @@ object IdleStatus extends ActorSerializerSuport {
             Idle(state.data.copy(
               triggers = state.data.triggers ++ Map(
                 orderId -> TriggerInfo(
-                  info = TriggerItem(
-                    orderId = orderId,
+                  trigger = TriggerItem(
                     direction = direction,
                     leverRate = leverRate,
                     offset = offset,
@@ -196,7 +196,6 @@ object IdleStatus extends ActorSerializerSuport {
             ))
           }
           case MarketTradeBehavior.SubResponse(source) => {
-            val materializer: Materializer = SystemMaterializer(context.system).materializer
             source
               .throttle(1, 200.milliseconds)
               .buffer(1, OverflowStrategy.dropHead)

@@ -1,79 +1,70 @@
-package com.dounine.tractor.behaviors.virtual
+package com.dounine.tractor.behaviors.virtual.entrust
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
-import com.dounine.tractor.model.types.currency.CancelFailStatus.CancelFailStatus
+import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
+import com.dounine.tractor.model.types.currency.EntrustCancelFailStatus
+import com.dounine.tractor.model.types.currency.EntrustCancelFailStatus.EntrustCancelFailStatus
+import com.dounine.tractor.model.types.currency.EntrustStatus.EntrustStatus
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
 import com.dounine.tractor.model.types.currency.OrderPriceType.OrderPriceType
-import com.dounine.tractor.model.types.currency.TriggerStatus.TriggerStatus
-import com.dounine.tractor.model.types.currency.TriggerType.TriggerType
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 
 import java.time.LocalDateTime
 
-object TriggerBase extends ActorSerializerSuport {
+object EntrustBase extends ActorSerializerSuport {
 
   val typeKey: EntityTypeKey[BaseSerializer] =
-    EntityTypeKey[BaseSerializer]("TriggerBehavior")
+    EntityTypeKey[BaseSerializer]("EntrustBehavior")
 
-  case class TriggerItem(
-                          orderId: String,
-                          direction: Direction,
-                          leverRate: LeverRate,
-                          offset: Offset,
-                          orderPriceType: OrderPriceType,
-                          triggerType: TriggerType,
-                          orderPrice: Double,
-                          triggerPrice: Double,
-                          volume: Int,
-                          time: LocalDateTime
-                        )
+  final case class EntrustItem(
+                                direction: Direction,
+                                leverRate: LeverRate,
+                                offset: Offset,
+                                orderPriceType: OrderPriceType,
+                                price: Double,
+                                marginFrozen: Double,
+                                volume: Int,
+                                time: LocalDateTime
+                              ) extends BaseSerializer
 
-  case class TriggerInfo(
-                          info: TriggerItem,
-                          status: TriggerStatus
-                        ) extends BaseSerializer
+  final case class EntrustInfo(
+                                entrust: EntrustItem,
+                                status: EntrustStatus
+                              ) extends BaseSerializer
 
   case class DataStore(
-                        triggers: Map[String, TriggerInfo],
+                        entrusts: Map[String, EntrustInfo],
                         phone: String,
                         symbol: CoinSymbol,
                         contractType: ContractType
                       ) extends BaseSerializer
 
+  sealed trait Command extends BaseSerializer
+
   abstract class State() extends BaseSerializer {
     val data: DataStore
   }
 
-
-  /**
-   * status
-   */
   final case class Stoped(data: DataStore) extends State
 
   final case class Idle(data: DataStore) extends State
 
   final case class Busy(data: DataStore) extends State
 
-  /**
-   * command
-   */
-  trait Command extends BaseSerializer
-
   final case object Run extends Command
 
-  final case object Recovery extends Command
+  final case class RunSelfOk() extends Command
 
   final case object Stop extends Command
 
   final case object Shutdown extends Command
 
-  final case class RunSelfOk() extends Command
+  final case object Recovery extends Command
 
   final case class Create(
                            orderId: String,
@@ -81,9 +72,7 @@ object TriggerBase extends ActorSerializerSuport {
                            leverRate: LeverRate,
                            offset: Offset,
                            orderPriceType: OrderPriceType,
-                           triggerType: TriggerType,
-                           orderPrice: Double,
-                           triggerPrice: Double,
+                           price: Double,
                            volume: Int
                          )(val replyTo: ActorRef[BaseSerializer]) extends Command
 
@@ -93,11 +82,11 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case class CancelOk(orderId: String) extends Command
 
-  final case class CancelFail(orderId: String, status: CancelFailStatus) extends Command
+  final case class CancelFail(orderId: String, status: EntrustCancelFailStatus) extends Command
 
-  final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
-
-  final case object Ack extends Command
+  final case class Entrusts(
+                             entrusts: Map[String, EntrustInfo]
+                           ) extends Command
 
   def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType): String = {
     s"${phone}-${symbol}-${contractType}"
