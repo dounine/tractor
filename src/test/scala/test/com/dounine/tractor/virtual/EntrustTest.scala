@@ -121,7 +121,6 @@ class EntrustTest extends ScalaTestWithActorTestKit(
     "create and trigger" in {
       val (socketClient, socketPort) = createSocket()
       val time = System.currentTimeMillis()
-      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()

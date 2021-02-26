@@ -172,7 +172,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
     }
 
     "create and cancel" in {
-      val (socketClient, socketPort) = createSocket()
+      val (_, socketPort) = createSocket()
 
       val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()

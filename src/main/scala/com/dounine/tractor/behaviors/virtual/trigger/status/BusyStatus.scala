@@ -44,7 +44,7 @@ object BusyStatus extends ActorSerializerSuport {
                                              _: (State, BaseSerializer) => Effect[BaseSerializer, State]
                                            ) =>
       command match {
-        case Run(_) => {
+        case Run(_, _) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -52,13 +52,13 @@ object BusyStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case RunSelfOk(marketTradeId) => {
+        case RunSelfOk() => {
           logger.info(command.logJson)
           Effect.persist(command)
             .thenRun((_: State) => {
               sharding.entityRefFor(
                 typeKey = MarketTradeBehavior.typeKey,
-                entityId = marketTradeId
+                entityId = state.data.config.marketTradeId
               ).tell(
                 MarketTradeBehavior.Sub(
                   symbol = state.data.symbol,
@@ -83,7 +83,7 @@ object BusyStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case RunSelfOk(_) => Idle(state.data)
+          case RunSelfOk() => Idle(state.data)
           case e@_ => defaultEvent(state, e)
         }
       }

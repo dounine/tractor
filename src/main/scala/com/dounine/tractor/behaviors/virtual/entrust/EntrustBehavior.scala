@@ -80,6 +80,7 @@ object EntrustBehavior extends ActorSerializerSuport {
               emptyState = Stoped(
                 data = DataStore(
                   entrusts = Map.empty,
+                  config = Config(),
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),
                   contractType = ContractType.withName(contractTypeStr)

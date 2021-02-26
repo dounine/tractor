@@ -41,11 +41,11 @@ object StopedStatus extends ActorSerializerSuport {
                                              _: (State, BaseSerializer) => Effect[BaseSerializer, State]
                                            ) =>
       command match {
-        case Run(marketTradeId) => {
+        case Run(_) => {
           logger.info(command.logJson)
           Effect.persist(command)
             .thenRun((_: State) => {
-              context.self.tell(RunSelfOk(marketTradeId))
+              context.self.tell(RunSelfOk())
             })
         }
         case _ => {
@@ -62,7 +62,11 @@ object StopedStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case Run(_) => Busy(state.data)
+          case Run(marketTradeId) => Busy(state.data.copy(
+            config = state.data.config.copy(
+              marketTradeId = marketTradeId
+            )
+          ))
           case e@_ => defaultEvent(state, e)
         }
       }

@@ -3,6 +3,7 @@ package com.dounine.tractor.behaviors.virtual.trigger
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.TriggerCancelFailStatus.CancelFailStatus
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
@@ -34,6 +35,11 @@ object TriggerBase extends ActorSerializerSuport {
                           time: LocalDateTime
                         ) extends BaseSerializer
 
+  case class Config(
+                     marketTradeId: String = MarketTradeBehavior.typeKey.name,
+                     entrustId: String = EntrustBase.typeKey.name
+                   ) extends BaseSerializer
+
   case class TriggerInfo(
                           trigger: TriggerItem,
                           status: TriggerStatus
@@ -41,6 +47,7 @@ object TriggerBase extends ActorSerializerSuport {
 
   case class DataStore(
                         triggers: Map[String, TriggerInfo],
+                        config: Config,
                         phone: String,
                         symbol: CoinSymbol,
                         contractType: ContractType
@@ -66,7 +73,8 @@ object TriggerBase extends ActorSerializerSuport {
   trait Command extends BaseSerializer
 
   final case class Run(
-                        marketTradeId: String = MarketTradeBehavior.typeKey.name
+                        marketTradeId: String = MarketTradeBehavior.typeKey.name,
+                        entrustId: String = EntrustBase.typeKey.name
                       ) extends Command
 
   final case object Recovery extends Command
@@ -75,9 +83,7 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case object Shutdown extends Command
 
-  final case class RunSelfOk(
-                              marketTradeId: String
-                            ) extends Command
+  final case class RunSelfOk() extends Command
 
   final case class Create(
                            orderId: String,

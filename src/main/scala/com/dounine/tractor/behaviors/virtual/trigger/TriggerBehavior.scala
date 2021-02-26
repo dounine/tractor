@@ -79,6 +79,7 @@ object TriggerBehavior extends ActorSerializerSuport {
               emptyState = Stoped(
                 data = DataStore(
                   triggers = Map.empty,
+                  config = Config(),
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),
                   contractType = ContractType.withName(contractTypeStr)

@@ -33,6 +33,10 @@ object EntrustBase extends ActorSerializerSuport {
                                 time: LocalDateTime
                               ) extends BaseSerializer
 
+  final case class Config(
+                           marketTradeId: String = MarketTradeBehavior.typeKey.name
+                         ) extends BaseSerializer
+
   final case class EntrustInfo(
                                 entrust: EntrustItem,
                                 status: EntrustStatus
@@ -40,6 +44,7 @@ object EntrustBase extends ActorSerializerSuport {
 
   case class DataStore(
                         entrusts: Map[String, EntrustInfo],
+                        config: Config,
                         phone: String,
                         symbol: CoinSymbol,
                         contractType: ContractType
@@ -59,7 +64,7 @@ object EntrustBase extends ActorSerializerSuport {
 
   final case class Run(marketTradeId: String = MarketTradeBehavior.typeKey.name) extends Command
 
-  final case class RunSelfOk(marketTradeId: String) extends Command
+  final case class RunSelfOk() extends Command
 
   final case object Stop extends Command
 

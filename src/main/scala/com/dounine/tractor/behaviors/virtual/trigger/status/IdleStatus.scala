@@ -58,7 +58,7 @@ object IdleStatus extends ActorSerializerSuport {
                                              _: (State, BaseSerializer) => Effect[BaseSerializer, State]
                                            ) =>
       command match {
-        case Run(_) => {
+        case Run(_, _) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -139,6 +139,9 @@ object IdleStatus extends ActorSerializerSuport {
                 ))
               })
             ))
+              .thenRun((_: State) => {
+
+              })
           } else {
             Effect.none
           }
