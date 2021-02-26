@@ -34,11 +34,6 @@ object BusyStatus extends ActorSerializerSuport {
       Class[_]
     ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
-    lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
-      sharding.entityRefFor(
-        typeKey = MarketTradeBehavior.typeKey,
-        entityId = MarketTradeBehavior.typeKey.name
-      )
 
     val commandHandler: (
       State,
@@ -50,7 +45,7 @@ object BusyStatus extends ActorSerializerSuport {
                                              _: (State, BaseSerializer) => Effect[BaseSerializer, State]
                                            ) =>
       command match {
-        case Run => {
+        case Run(_) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -58,11 +53,14 @@ object BusyStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case RunSelfOk() => {
+        case RunSelfOk(marketTradeId) => {
           logger.info(command.logJson)
           Effect.persist(command)
             .thenRun((_: State) => {
-              tradeDetailBehavior.tell(
+              sharding.entityRefFor(
+                typeKey = MarketTradeBehavior.typeKey,
+                entityId = marketTradeId
+              ).tell(
                 MarketTradeBehavior.Sub(
                   symbol = state.data.symbol,
                   contractType = state.data.contractType
@@ -86,7 +84,7 @@ object BusyStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case RunSelfOk() => Idle(state.data)
+          case RunSelfOk(_) => Idle(state.data)
           case e@_ => defaultEvent(state, e)
         }
       }

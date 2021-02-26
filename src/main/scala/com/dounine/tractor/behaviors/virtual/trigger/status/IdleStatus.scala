@@ -12,6 +12,7 @@ import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
 import com.dounine.tractor.model.types.currency.{TriggerCancelFailStatus, TriggerStatus, TriggerType}
+import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
 import java.time.LocalDateTime
@@ -40,6 +41,7 @@ object IdleStatus extends ActorSerializerSuport {
     ) = {
     val materializer: Materializer = SystemMaterializer(context.system).materializer
     val sharding: ClusterSharding = ClusterSharding(context.system)
+    val config = context.system.settings.config.getConfig("app")
     lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
       sharding.entityRefFor(
         typeKey = MarketTradeBehavior.typeKey,
@@ -56,7 +58,7 @@ object IdleStatus extends ActorSerializerSuport {
                                              _: (State, BaseSerializer) => Effect[BaseSerializer, State]
                                            ) =>
       command match {
-        case Run => {
+        case Run(_) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -197,7 +199,7 @@ object IdleStatus extends ActorSerializerSuport {
           }
           case MarketTradeBehavior.SubResponse(source) => {
             source
-              .throttle(1, 200.milliseconds)
+              .throttle(1, config.getDuration("engine.trigger.speed").toMillis.milliseconds)
               .buffer(1, OverflowStrategy.dropHead)
               .runWith(Sink.foreach(context.self.tell))(materializer)
             state

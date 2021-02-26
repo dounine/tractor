@@ -17,6 +17,7 @@ import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavi
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.tools.json.JsonParse
+import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -25,59 +26,37 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
+class EntrustTest extends ScalaTestWithActorTestKit(
+  ConfigFactory.parseString(
+    s"""
+       |akka.remote.artery.canonical.port = 25520
+       |akka.persistence.journal.leveldb.dir = "/tmp/journal/${classOf[EntrustTest].getSimpleName}"
+       |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot/${classOf[EntrustTest].getSimpleName}"
+       |""".stripMargin)
+    .withFallback(
+      ConfigFactory.parseResources("application-test.conf")
+    )
+    .resolve()
+) with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
+  val materializer = SystemMaterializer(system).materializer
+  val sharding = ClusterSharding(system)
   val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
-  var socketClient: BoundedSourceQueue[Message] = _
-  val socketPort = portGlobal.getAndIncrement()
   val pingMessage = (time: Option[Long]) => Await.result(Source.single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""").map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
   val dataMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     import better.files._
-    val journalDir = system.settings.config.getString("akka.persistence.journal.leveldb.dir")
-    val snapshotDir = system.settings.config.getString("akka.persistence.snapshot-store.local.dir")
-    val files = Seq(file"${journalDir}", file"${snapshotDir}")
+    val files = Seq(file"/tmp/journal/${classOf[EntrustTest].getSimpleName}", file"/tmp/snapshot/${classOf[EntrustTest].getSimpleName}")
     try {
       files.filter(_.exists).foreach(_.delete())
     } catch {
       case e =>
     }
 
-    val materializer = SystemMaterializer(system).materializer
-
     val cluster = Cluster.get(system)
     cluster.manager.tell(Join.create(cluster.selfMember.address))
-
-
-    val sink = Sink.ignore
-    val ((client: BoundedSourceQueue[Message], close), source: Source[Message, NotUsed]) = Source.queue[Message](10)
-      .viaMat(KillSwitches.single)(Keep.both)
-      .preMaterialize()
-
-    socketClient = client
-
-    val receiveMessageFlow = Flow[Message]
-      .collect {
-        case TextMessage.Strict(text) => Future.successful(text)
-        case TextMessage.Streamed(stream) => stream.runFold("")(_ ++ _)(materializer)
-      }
-      .mapAsync(1)(identity)
-      .to(sink)
-
-    val result = Flow.fromSinkAndSourceCoupledMat(
-      sink = receiveMessageFlow,
-      source = source
-    )(Keep.right)
-
-    val server = Await.result(Http(system)
-      .newServerAt("0.0.0.0", socketPort)
-      .bindFlow(handleWebSocketMessages(result))
-      .andThen(_.get)(system.executionContext), Duration.Inf)
-
-    val sharding = ClusterSharding(system)
-
 
     sharding.init(Entity(
       typeKey = MarketTradeBehavior.typeKey
@@ -102,40 +81,66 @@ class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
 
   "entrust behavior" should {
     "run" in {
-      val sharding = ClusterSharding(system)
-
+      val socketPort = portGlobal.incrementAndGet()
       val time = System.currentTimeMillis()
+      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .preMaterialize()
+      val result = Flow.fromSinkAndSourceCoupledMat(
+        sink = Flow[Message].to(Sink.ignore),
+        source = source
+      )(Keep.right)
+
+      Await.result(Http(system)
+        .newServerAt("0.0.0.0", socketPort)
+        .bindFlow(handleWebSocketMessages(result))
+        .andThen(_.get)(system.executionContext), Duration.Inf)
+
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, MarketTradeBehavior.typeKey.name)
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      val entrustBehavior= sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
       LoggingTestKit.info(
         classOf[EntrustBase.RunSelfOk].getSimpleName
       )
         .expect(
-          entrustBehavior.tell(EntrustBase.Run)
+          entrustBehavior.tell(EntrustBase.Run(socketPort.toString))
         )
 
     }
 
     "create and trigger" in {
-      val sharding = ClusterSharding(system)
+      val socketPort = portGlobal.incrementAndGet()
+      val time = System.currentTimeMillis()
+      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .preMaterialize()
+      val result = Flow.fromSinkAndSourceCoupledMat(
+        sink = Flow[Message].to(Sink.ignore),
+        source = source
+      )(Keep.right)
 
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, MarketTradeBehavior.typeKey.name)
+      Await.result(Http(system)
+        .newServerAt("0.0.0.0", socketPort)
+        .bindFlow(handleWebSocketMessages(result))
+        .andThen(_.get)(system.executionContext), Duration.Inf)
+
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      entrustBehavior.tell(EntrustBase.Run)
+
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
+      entrustBehavior.tell(EntrustBase.Run(socketPort.toString))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -174,13 +179,35 @@ class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }
-
     }
 
     "create and cancel" in {
-      val sharding = ClusterSharding(system)
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      entrustBehavior.tell(EntrustBase.Run)
+      val socketPort = portGlobal.incrementAndGet()
+      val time = System.currentTimeMillis()
+      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .preMaterialize()
+      val result = Flow.fromSinkAndSourceCoupledMat(
+        sink = Flow[Message].to(Sink.ignore),
+        source = source
+      )(Keep.right)
+
+      Await.result(Http(system)
+        .newServerAt("0.0.0.0", socketPort)
+        .bindFlow(handleWebSocketMessages(result))
+        .andThen(_.get)(system.executionContext), Duration.Inf)
+
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
+      entrustBehavior.tell(EntrustBase.Run(socketPort.toString))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -202,9 +229,32 @@ class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
     }
 
     "create and multi cancel canceled fail" in {
-      val sharding = ClusterSharding(system)
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      entrustBehavior.tell(TriggerBase.Run)
+      val socketPort = portGlobal.incrementAndGet()
+      val time = System.currentTimeMillis()
+      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .preMaterialize()
+      val result = Flow.fromSinkAndSourceCoupledMat(
+        sink = Flow[Message].to(Sink.ignore),
+        source = source
+      )(Keep.right)
+
+      Await.result(Http(system)
+        .newServerAt("0.0.0.0", socketPort)
+        .bindFlow(handleWebSocketMessages(result))
+        .andThen(_.get)(system.executionContext), Duration.Inf)
+
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
+      entrustBehavior.tell(EntrustBase.Run(socketPort.toString))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -228,9 +278,32 @@ class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
     }
 
     "create and multi cancel match fail" in {
-      val sharding = ClusterSharding(system)
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter))
-      entrustBehavior.tell(TriggerBase.Run)
+      val socketPort = portGlobal.incrementAndGet()
+      val time = System.currentTimeMillis()
+      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
+        .preMaterialize()
+      val result = Flow.fromSinkAndSourceCoupledMat(
+        sink = Flow[Message].to(Sink.ignore),
+        source = source
+      )(Keep.right)
+
+      Await.result(Http(system)
+        .newServerAt("0.0.0.0", socketPort)
+        .bindFlow(handleWebSocketMessages(result))
+        .andThen(_.get)(system.executionContext), Duration.Inf)
+
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
+      entrustBehavior.tell(EntrustBase.Run(socketPort.toString))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -273,9 +346,6 @@ class EntrustTest extends ScalaTestWithActorTestKit() with Matchers with AnyWord
       cancelProbe.expectMessage(EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelAlreadyMatchAll))
 
     }
-
-
-
   }
 
 

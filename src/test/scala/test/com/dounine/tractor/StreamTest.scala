@@ -4,6 +4,7 @@ import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ManualTi
 import akka.stream.{KillSwitches, OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
+import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -33,11 +34,11 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       val f1 = broadcastHub.runWith(Sink.seq)
       val f2 = broadcastHub.runWith(Sink.seq)
 
-      TimeUnit.MILLISECONDS.sleep(10)
+      TimeUnit.MILLISECONDS.sleep(50)
       close.success(None)
 
-      f1.futureValue should ===(1 to 3)
-      f2.futureValue should ===(1 to 3)
+      f1.futureValue should ===((1 to 3).toSeq)
+      f2.futureValue should ===((1 to 3).toSeq)
     }
     "broadcast sink" in {
       val source = Source(1 to 3)

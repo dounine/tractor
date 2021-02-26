@@ -2,6 +2,7 @@ package com.dounine.tractor.behaviors.virtual.entrust
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
@@ -56,9 +57,9 @@ object EntrustBase extends ActorSerializerSuport {
 
   final case class Busy(data: DataStore) extends State
 
-  final case object Run extends Command
+  final case class Run(marketTradeId: String = MarketTradeBehavior.typeKey.name) extends Command
 
-  final case class RunSelfOk() extends Command
+  final case class RunSelfOk(marketTradeId: String) extends Command
 
   final case object Stop extends Command
 
@@ -88,8 +89,8 @@ object EntrustBase extends ActorSerializerSuport {
                              entrusts: Map[String, EntrustInfo]
                            ) extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType): String = {
-    s"${phone}-${symbol}-${contractType}"
+  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, randomId: String = ""): String = {
+    s"${phone}-${symbol}-${contractType}-${randomId}"
   }
 
 }

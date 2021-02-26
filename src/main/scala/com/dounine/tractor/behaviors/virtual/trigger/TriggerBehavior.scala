@@ -23,7 +23,7 @@ object TriggerBehavior extends ActorSerializerSuport {
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
 
         entityId.id.split("\\|").last.split("-") match {
-          case Array(phone, symbolStr, contractTypeStr) => {
+          case Array(phone, symbolStr, contractTypeStr, randomId) => {
 
             val statusList = Seq(
               status.StopedStatus(context, shard, timers),

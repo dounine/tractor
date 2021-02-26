@@ -2,6 +2,7 @@ package com.dounine.tractor.behaviors.virtual.trigger
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.TriggerCancelFailStatus.CancelFailStatus
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
@@ -64,7 +65,9 @@ object TriggerBase extends ActorSerializerSuport {
    */
   trait Command extends BaseSerializer
 
-  final case object Run extends Command
+  final case class Run(
+                        marketTradeId: String = MarketTradeBehavior.typeKey.name
+                      ) extends Command
 
   final case object Recovery extends Command
 
@@ -72,7 +75,9 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case object Shutdown extends Command
 
-  final case class RunSelfOk() extends Command
+  final case class RunSelfOk(
+                              marketTradeId: String
+                            ) extends Command
 
   final case class Create(
                            orderId: String,
@@ -98,8 +103,8 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case object Ack extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType): String = {
-    s"${phone}-${symbol}-${contractType}"
+  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, randomId: String = ""): String = {
+    s"${phone}-${symbol}-${contractType}-${randomId}"
   }
 
 }

@@ -14,6 +14,7 @@ import akka.http.scaladsl.model.headers.{Authorization, `Cache-Control`}
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.directives.CachingDirectives.{cache, routeCache}
 import com.dounine.tractor.router.routers.CachingRouter
+import com.typesafe.config.ConfigFactory
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
