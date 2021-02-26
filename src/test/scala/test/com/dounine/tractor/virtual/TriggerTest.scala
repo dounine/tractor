@@ -75,26 +75,30 @@ class TriggerTest extends ScalaTestWithActorTestKit(
     ))
   }
 
+  def createSocket(): (BoundedSourceQueue[Message], String) = {
+    val socketPort = portGlobal.incrementAndGet()
+    val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
+      .preMaterialize()
+    val result = Flow.fromSinkAndSourceCoupledMat(
+      sink = Flow[Message].to(Sink.ignore),
+      source = source
+    )(Keep.right)
+
+    Await.result(Http(system)
+      .newServerAt("0.0.0.0", socketPort)
+      .bindFlow(handleWebSocketMessages(result))
+      .andThen(_.get)(system.executionContext), Duration.Inf)
+
+    (socketClient, socketPort.toString)
+  }
 
   "trigger behavior" should {
     "run" in {
-      val socketPort = portGlobal.incrementAndGet()
+      val (socketClient, socketPort) = createSocket()
       val time = System.currentTimeMillis()
-      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .preMaterialize()
-      val result = Flow.fromSinkAndSourceCoupledMat(
-        sink = Flow[Message].to(Sink.ignore),
-        source = source
-      )(Keep.right)
-
-      Await.result(Http(system)
-        .newServerAt("0.0.0.0", socketPort)
-        .bindFlow(handleWebSocketMessages(result))
-        .andThen(_.get)(system.executionContext), Duration.Inf)
-
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
@@ -102,32 +106,19 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
       LoggingTestKit.info(
         classOf[TriggerBase.RunSelfOk].getSimpleName
       )
         .expect(
-          triggerBehavior.tell(TriggerBase.Run(socketPort.toString))
+          triggerBehavior.tell(TriggerBase.Run(socketPort))
         )
 
     }
 
     "create and trigger" in {
-      val socketPort = portGlobal.incrementAndGet()
-      val time = System.currentTimeMillis()
-      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .preMaterialize()
-      val result = Flow.fromSinkAndSourceCoupledMat(
-        sink = Flow[Message].to(Sink.ignore),
-        source = source
-      )(Keep.right)
-
-      Await.result(Http(system)
-        .newServerAt("0.0.0.0", socketPort)
-        .bindFlow(handleWebSocketMessages(result))
-        .andThen(_.get)(system.executionContext), Duration.Inf)
-
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val (socketClient, socketPort) = createSocket()
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
@@ -135,8 +126,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
-      triggerBehavior.tell(TriggerBase.Run(socketPort.toString))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -181,20 +172,9 @@ class TriggerTest extends ScalaTestWithActorTestKit(
     }
 
     "create and cancel" in {
-      val socketPort = portGlobal.incrementAndGet()
-      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .preMaterialize()
-      val result = Flow.fromSinkAndSourceCoupledMat(
-        sink = Flow[Message].to(Sink.ignore),
-        source = source
-      )(Keep.right)
+      val (socketClient, socketPort) = createSocket()
 
-      Await.result(Http(system)
-        .newServerAt("0.0.0.0", socketPort)
-        .bindFlow(handleWebSocketMessages(result))
-        .andThen(_.get)(system.executionContext), Duration.Inf)
-
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
@@ -202,8 +182,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
-      triggerBehavior.tell(TriggerBase.Run(socketPort.toString))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -227,20 +207,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
     }
 
     "create and multi cancel canceled fail" in {
-      val socketPort = portGlobal.incrementAndGet()
-      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .preMaterialize()
-      val result = Flow.fromSinkAndSourceCoupledMat(
-        sink = Flow[Message].to(Sink.ignore),
-        source = source
-      )(Keep.right)
-
-      Await.result(Http(system)
-        .newServerAt("0.0.0.0", socketPort)
-        .bindFlow(handleWebSocketMessages(result))
-        .andThen(_.get)(system.executionContext), Duration.Inf)
-
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val (socketClient, socketPort) = createSocket()
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
@@ -248,8 +216,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
-      triggerBehavior.tell(TriggerBase.Run(socketPort.toString))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -274,20 +242,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
     }
 
     "create and multi cancel match fail" in {
-      val socketPort = portGlobal.incrementAndGet()
-      val (socketClient: BoundedSourceQueue[Message], source: Source[Message, NotUsed]) = Source.queue[Message](10)
-        .preMaterialize()
-      val result = Flow.fromSinkAndSourceCoupledMat(
-        sink = Flow[Message].to(Sink.ignore),
-        source = source
-      )(Keep.right)
-
-      Await.result(Http(system)
-        .newServerAt("0.0.0.0", socketPort)
-        .bindFlow(handleWebSocketMessages(result))
-        .andThen(_.get)(system.executionContext), Duration.Inf)
-
-      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort.toString)
+      val (socketClient, socketPort) = createSocket()
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
@@ -295,8 +251,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort.toString))
-      triggerBehavior.tell(TriggerBase.Run(socketPort.toString))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
