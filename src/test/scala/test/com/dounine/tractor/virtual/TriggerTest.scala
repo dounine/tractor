@@ -29,8 +29,8 @@ class TriggerTest extends ScalaTestWithActorTestKit(
   ConfigFactory.parseString(
     s"""
        |akka.remote.artery.canonical.port = 25521
-       |akka.persistence.journal.leveldb.dir = "/tmp/journal/${classOf[TriggerTest].getSimpleName}"
-       |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot/${classOf[TriggerTest].getSimpleName}"
+       |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[TriggerTest].getSimpleName}"
+       |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot_${classOf[TriggerTest].getSimpleName}"
        |""".stripMargin)
     .withFallback(
       ConfigFactory.parseResources("application-test.conf")
@@ -47,7 +47,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     import better.files._
-    val files = Seq(file"/tmp/journal/${classOf[TriggerTest].getSimpleName}", file"/tmp/snapshot/${classOf[TriggerTest].getSimpleName}")
+    val files = Seq(file"/tmp/journal_${classOf[TriggerTest].getSimpleName}", file"/tmp/snapshot_${classOf[TriggerTest].getSimpleName}")
     try {
       files.filter(_.exists).foreach(_.delete())
     } catch {

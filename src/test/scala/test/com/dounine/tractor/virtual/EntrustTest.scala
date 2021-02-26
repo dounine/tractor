@@ -30,8 +30,8 @@ class EntrustTest extends ScalaTestWithActorTestKit(
   ConfigFactory.parseString(
     s"""
        |akka.remote.artery.canonical.port = 25520
-       |akka.persistence.journal.leveldb.dir = "/tmp/journal/${classOf[EntrustTest].getSimpleName}"
-       |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot/${classOf[EntrustTest].getSimpleName}"
+       |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[EntrustTest].getSimpleName}"
+       |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot_${classOf[EntrustTest].getSimpleName}"
        |""".stripMargin)
     .withFallback(
       ConfigFactory.parseResources("application-test.conf")
@@ -48,7 +48,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     import better.files._
-    val files = Seq(file"/tmp/journal/${classOf[EntrustTest].getSimpleName}", file"/tmp/snapshot/${classOf[EntrustTest].getSimpleName}")
+    val files = Seq(file"/tmp/journal_${classOf[EntrustTest].getSimpleName}", file"/tmp/snapshot_${classOf[EntrustTest].getSimpleName}")
     try {
       files.filter(_.exists).foreach(_.delete())
     } catch {
