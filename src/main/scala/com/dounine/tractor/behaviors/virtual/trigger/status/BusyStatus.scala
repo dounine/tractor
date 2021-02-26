@@ -34,7 +34,6 @@ object BusyStatus extends ActorSerializerSuport {
       Class[_]
     ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
-
     val commandHandler: (
       State,
         BaseSerializer,

@@ -33,12 +33,6 @@ object BusyStatus extends ActorSerializerSuport {
       Class[_]
     ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
-    lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
-      sharding.entityRefFor(
-        typeKey = MarketTradeBehavior.typeKey,
-        entityId = MarketTradeBehavior.typeKey.name
-      )
-
     val commandHandler: (
       State,
         BaseSerializer,
