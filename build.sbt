@@ -22,6 +22,7 @@ lazy val app = (project in file("."))
       }
       contentOf("src/main/resources/" + confFile)
     },
+    parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % "1.2.3",
       "com.github.pureconfig" %% "pureconfig" % "0.12.3",
