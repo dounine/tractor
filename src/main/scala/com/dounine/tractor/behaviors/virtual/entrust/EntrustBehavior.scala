@@ -99,7 +99,7 @@ object EntrustBehavior extends ActorSerializerSuport {
                 .withResetBackoffAfter(10.seconds)
             ).receiveSignal({
               case (state, RecoveryCompleted) =>
-                logger.info(
+                logger.debug(
                   "Recovery Completed with state: {}",
                   state
                 )
@@ -124,7 +124,7 @@ object EntrustBehavior extends ActorSerializerSuport {
                 logger.info(s"PreRestart")
                 context.self.tell(Recovery)
               case (_, single) =>
-                logger.info(single.logJson)
+                logger.debug(single.logJson)
             }).snapshotWhen((state, event, _) => true)
               .withRetention(
                 criteria = RetentionCriteria

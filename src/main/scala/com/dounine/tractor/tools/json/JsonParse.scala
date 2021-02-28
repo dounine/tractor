@@ -17,7 +17,7 @@ trait JsonParse extends Json4sSupport {
     def logJson: String = {
       write(
         Map(
-          "__" -> data.getClass.getSimpleName,
+          "__" -> data.getClass.getName,
           "data" -> data
         )
       )

@@ -5,8 +5,10 @@ import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.typed.scaladsl.ActorFlow
 import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
@@ -139,8 +141,27 @@ object IdleStatus extends ActorSerializerSuport {
                 ))
               })
             ))
-              .thenRun((_: State) => {
-
+              .thenRun((state: State) => {
+                Source(triggers)
+                  .mapAsync(1)(trigger => {
+                    logger.info("create ------------ {}", trigger)
+                    val info = trigger._2.trigger
+                    sharding.entityRefFor(
+                      EntrustBase.typeKey,
+                      state.data.config.entrustId
+                    ).ask[BaseSerializer](ref => EntrustBase.Create(
+                      orderId = trigger._1,
+                      direction = info.direction,
+                      leverRate = info.leverRate,
+                      offset = info.offset,
+                      orderPriceType = info.orderPriceType,
+                      price = info.orderPrice,
+                      volume = info.volume
+                    )(ref))(3.seconds)
+                  })
+                  .runForeach(result => {
+                    logger.info(result.logJson)
+                  })(materializer)
               })
           } else {
             Effect.none
