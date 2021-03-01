@@ -108,7 +108,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       LoggingTestKit.info(
         classOf[EntrustBase.RunSelfOk].getSimpleName
       )
@@ -130,7 +130,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -185,7 +185,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -220,7 +220,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -257,7 +257,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()

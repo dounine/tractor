@@ -118,13 +118,13 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "13535032936", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
       )
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
         marketTradeId = socketPort
       ))
-      val triggerId = TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort)
+      val triggerId = TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort)
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, triggerId)
       triggerBehavior.tell(TriggerBase.Run(marketTradeId = socketPort, entrustId = entrustId))
 

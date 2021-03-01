@@ -106,7 +106,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       LoggingTestKit.info(
         classOf[TriggerBase.RunSelfOk].getSimpleName
       )
@@ -126,7 +126,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -182,7 +182,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -216,7 +216,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -251,7 +251,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("13535032936", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
