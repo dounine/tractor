@@ -28,6 +28,7 @@ object PositionBehavior extends ActorSerializerSuport {
 
             val statusList = Seq(
               status.StopedStatus(context, shard, timers),
+              status.IdleStatus(context, shard, timers),
               status.BusyStatus(context, shard, timers)
             )
 

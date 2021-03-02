@@ -144,7 +144,6 @@ object IdleStatus extends ActorSerializerSuport {
               .thenRun((state: State) => {
                 Source(triggers)
                   .mapAsync(1)(trigger => {
-                    logger.info("create ------------ {}", trigger)
                     val info = trigger._2.trigger
                     sharding.entityRefFor(
                       EntrustBase.typeKey,
