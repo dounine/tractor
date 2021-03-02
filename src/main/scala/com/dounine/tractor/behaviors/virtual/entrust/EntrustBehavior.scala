@@ -83,7 +83,8 @@ object EntrustBehavior extends ActorSerializerSuport {
                   config = Config(),
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),
-                  contractType = ContractType.withName(contractTypeStr)
+                  contractType = ContractType.withName(contractTypeStr),
+                  contractSize = 0
                 )
               ),
               commandHandler = commandHandler,

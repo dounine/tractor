@@ -1,19 +1,20 @@
-package com.dounine.tractor.behaviors.virtual.trigger
+package com.dounine.tractor.behaviors.virtual.position
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PreRestart, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import akka.persistence.typed._
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import com.dounine.tractor.model.models.BaseSerializer
+import PositionBase._
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
-import TriggerBase._
-import scala.concurrent.duration._
 import org.slf4j.LoggerFactory
 
-object TriggerBehavior extends ActorSerializerSuport {
-  private val logger = LoggerFactory.getLogger(TriggerBehavior.getClass)
+import scala.concurrent.duration._
+
+object PositionBehavior extends ActorSerializerSuport {
+  private val logger = LoggerFactory.getLogger(PositionBehavior.getClass)
 
   def apply(
              entityId: PersistenceId,
@@ -27,8 +28,7 @@ object TriggerBehavior extends ActorSerializerSuport {
 
             val statusList = Seq(
               status.StopedStatus(context, shard, timers),
-              status.BusyStatus(context, shard, timers),
-              status.IdleStatus(context, shard, timers)
+              status.BusyStatus(context, shard, timers)
             )
 
             val commandDefaultHandler: (
@@ -51,7 +51,7 @@ object TriggerBehavior extends ActorSerializerSuport {
             def eventDefaultHandler(state: State, command: BaseSerializer)
             : State = {
               command match {
-                case _ => throw new Exception(s"unknow command ${command}")
+                case _ => throw new Exception(s"unknown command ${command}")
               }
             }
 
@@ -78,7 +78,7 @@ object TriggerBehavior extends ActorSerializerSuport {
               persistenceId = entityId,
               emptyState = Stoped(
                 data = DataStore(
-                  triggers = Map.empty,
+                  positions = Map.empty,
                   config = Config(),
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),

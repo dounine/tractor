@@ -47,7 +47,8 @@ object EntrustBase extends ActorSerializerSuport {
                         config: Config,
                         phone: String,
                         symbol: CoinSymbol,
-                        contractType: ContractType
+                        contractType: ContractType,
+                        contractSize: Int
                       ) extends BaseSerializer
 
   sealed trait Command extends BaseSerializer

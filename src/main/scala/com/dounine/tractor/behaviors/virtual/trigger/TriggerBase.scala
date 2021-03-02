@@ -5,13 +5,13 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.TriggerCancelFailStatus.CancelFailStatus
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
 import com.dounine.tractor.model.types.currency.OrderPriceType.OrderPriceType
+import com.dounine.tractor.model.types.currency.TriggerCancelFailStatus.TriggerCancelFailStatus
 import com.dounine.tractor.model.types.currency.TriggerStatus.TriggerStatus
 import com.dounine.tractor.model.types.currency.TriggerType.TriggerType
 import com.dounine.tractor.tools.json.ActorSerializerSuport
@@ -50,7 +50,8 @@ object TriggerBase extends ActorSerializerSuport {
                         config: Config,
                         phone: String,
                         symbol: CoinSymbol,
-                        contractType: ContractType
+                        contractType: ContractType,
+                        contractSize: Int
                       ) extends BaseSerializer
 
   abstract class State() extends BaseSerializer {
@@ -103,7 +104,7 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case class CancelOk(orderId: String) extends Command
 
-  final case class CancelFail(orderId: String, status: CancelFailStatus) extends Command
+  final case class CancelFail(orderId: String, status: TriggerCancelFailStatus) extends Command
 
   final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
 

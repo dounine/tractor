@@ -40,13 +40,7 @@ object IdleStatus extends ActorSerializerSuport {
       Class[_]
     ) = {
     val materializer: Materializer = SystemMaterializer(context.system).materializer
-    val sharding: ClusterSharding = ClusterSharding(context.system)
     val config = context.system.settings.config.getConfig("app")
-    lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
-      sharding.entityRefFor(
-        typeKey = MarketTradeBehavior.typeKey,
-        entityId = MarketTradeBehavior.typeKey.name
-      )
 
     val commandHandler: (
       State,

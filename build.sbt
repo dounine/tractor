@@ -70,6 +70,7 @@ lazy val app = (project in file("."))
       "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion % Test,
+      "org.scalatestplus" %% "mockito-3-4" % "3.2.5.0" % Test,
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
       "org.scalatest" %% "scalatest" % "3.1.2" % Test,
       "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8" % Test
