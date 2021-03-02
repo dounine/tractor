@@ -6,6 +6,7 @@ import akka.stream.testkit.scaladsl.TestSink
 import com.dounine.tractor.model.models.BalanceModel
 import com.dounine.tractor.model.types.currency.CoinSymbol
 import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.tools.util.ServiceSingleton
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.mockito.Mockito._
@@ -32,8 +33,9 @@ class MockTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpe
           balanceInfo
         )
       ))
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
-      val result = Await.result(mockBalanceService.balance("123456789", CoinSymbol.BTC), Duration.Inf)
+      val result = Await.result(ServiceSingleton.get(classOf[BalanceRepository]).balance("123456789", CoinSymbol.BTC), Duration.Inf)
 
       result.shouldBe(Option(balanceInfo))
 

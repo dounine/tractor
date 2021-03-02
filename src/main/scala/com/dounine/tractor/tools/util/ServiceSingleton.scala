@@ -28,5 +28,9 @@ object ServiceSingleton {
     map.get(clazz).asInstanceOf[T]
   }
 
+  def put[T](clazz: Class[T], value: Any): Unit = {
+    map.put(clazz, value)
+  }
+
 
 }
