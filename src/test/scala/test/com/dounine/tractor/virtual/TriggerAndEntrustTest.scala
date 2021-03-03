@@ -13,6 +13,7 @@ import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
 import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
 import com.dounine.tractor.model.types.currency._
@@ -63,6 +64,7 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
     )(
       createBehavior = entityContext => MarketTradeBehavior()
     ))
+
     sharding.init(Entity(
       typeKey = EntrustBase.typeKey
     )(
@@ -74,6 +76,19 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
         entityContext.shard
       )
     ))
+
+    sharding.init(Entity(
+      typeKey = PositionBase.typeKey
+    )(
+      createBehavior = entityContext => PositionBehavior(
+        PersistenceId.of(
+          PositionBase.typeKey.name,
+          entityContext.entityId
+        ),
+        entityContext.shard
+      )
+    ))
+
 
     sharding.init(Entity(
       typeKey = TriggerBase.typeKey
@@ -117,12 +132,26 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
+      val positionId = PositionBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        randomId = socketPort
+      )
+      val positionBehavior = sharding.entityRefFor(PositionBase.typeKey, positionId)
+      positionBehavior.tell(PositionBase.Run(
+        marketTradeId = socketPort
+      ))
+
+
       val entrustId = EntrustBase.createEntityId(
         phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
       )
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
-        marketTradeId = socketPort
+        marketTradeId = socketPort,
+        positionId = positionId
       ))
 
       val triggerId = TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort)

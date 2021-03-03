@@ -145,17 +145,15 @@ object IdleStatus extends ActorSerializerSuport {
               .log("position create")
               .mapAsync(1)(entrust => {
                 val info = entrust._2
-                //                sharding.entityRefFor(
-                //                  PositionBase.typeKey,
-                //                  state.data.config.positionId
-                //                ).ask[BaseSerializer](ref => PositionBase.Create(
-                //                  offset = info.entrust.offset,
-                //                  direction = info.entrust.direction,
-                //                  leverRate = info.entrust.leverRate,
-                //                  volume = info.entrust.volume,
-                //                  latestPrice = price
-                //                )(ref))(3.seconds)
-                Future.successful(1)
+                sharding.entityRefFor(
+                  PositionBase.typeKey,
+                  state.data.config.positionId
+                ).ask[BaseSerializer](ref => PositionBase.Create(
+                  offset = info.entrust.offset,
+                  leverRate = info.entrust.leverRate,
+                  volume = info.entrust.volume,
+                  latestPrice = price
+                )(ref))(3.seconds)
               }
               )
               .runWith(Sink.seq)(materializer)
