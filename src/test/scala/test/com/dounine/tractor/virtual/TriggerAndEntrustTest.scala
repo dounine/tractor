@@ -124,6 +124,7 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
       entrustBehavior.tell(EntrustBase.Run(
         marketTradeId = socketPort
       ))
+
       val triggerId = TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort)
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, triggerId)
       triggerBehavior.tell(TriggerBase.Run(marketTradeId = socketPort, entrustId = entrustId))
@@ -163,7 +164,7 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
       ).toJson
 
       LoggingTestKit
-        .info(classOf[EntrustBase.CreateOk].getName)
+        .info(classOf[EntrustBase.Create].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }

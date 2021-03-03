@@ -12,6 +12,7 @@ import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
 import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerCancelFailStatus, TriggerType}
@@ -61,6 +62,17 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       typeKey = MarketTradeBehavior.typeKey
     )(
       createBehavior = entityContext => MarketTradeBehavior()
+    ))
+    sharding.init(Entity(
+      typeKey = EntrustBase.typeKey
+    )(
+      createBehavior = entityContext => EntrustBehavior(
+        PersistenceId.of(
+          EntrustBase.typeKey.name,
+          entityContext.entityId
+        ),
+        entityContext.shard
+      )
     ))
     sharding.init(Entity(
       typeKey = TriggerBase.typeKey
@@ -126,8 +138,17 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+      )
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(EntrustBase.Run(
+        marketTradeId = socketPort
+      ))
+
+
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
-      triggerBehavior.tell(TriggerBase.Run(socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -182,8 +203,17 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+      )
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(EntrustBase.Run(
+        marketTradeId = socketPort
+      ))
+
+
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
-      triggerBehavior.tell(TriggerBase.Run(socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -216,8 +246,17 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
+
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+      )
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(EntrustBase.Run(
+        marketTradeId = socketPort
+      ))
+
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
-      triggerBehavior.tell(TriggerBase.Run(socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -251,8 +290,16 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+      )
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(EntrustBase.Run(
+        marketTradeId = socketPort
+      ))
+
       val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
-      triggerBehavior.tell(TriggerBase.Run(socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString

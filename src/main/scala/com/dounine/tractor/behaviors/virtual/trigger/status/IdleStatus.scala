@@ -18,6 +18,8 @@ import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
 import java.time.LocalDateTime
+import scala.concurrent.Await
+import scala.util.{Failure, Success}
 
 object IdleStatus extends ActorSerializerSuport {
 
@@ -133,35 +135,44 @@ object IdleStatus extends ActorSerializerSuport {
             })
 
           if (triggers.nonEmpty) {
-            Effect.persist(Triggers(
-              triggers = triggers.map(trigger => {
-                (trigger._1, trigger._2.copy(
-                  trigger = trigger._2.trigger,
-                  status = TriggerStatus.matchs
-                ))
+            val future = Source(triggers)
+              .log("entrust create")
+              .mapAsync(1)(trigger => {
+                val info = trigger._2.trigger
+                sharding.entityRefFor(
+                  EntrustBase.typeKey,
+                  state.data.config.entrustId
+                ).ask[BaseSerializer](ref => EntrustBase.Create(
+                  orderId = trigger._1,
+                  direction = info.direction,
+                  leverRate = info.leverRate,
+                  offset = info.offset,
+                  orderPriceType = info.orderPriceType,
+                  price = info.orderPrice,
+                  volume = info.volume
+                )(ref))(3.seconds)
               })
-            ))
-              .thenRun((state: State) => {
-                Source(triggers)
-                  .mapAsync(1)(trigger => {
-                    val info = trigger._2.trigger
-                    sharding.entityRefFor(
-                      EntrustBase.typeKey,
-                      state.data.config.entrustId
-                    ).ask[BaseSerializer](ref => EntrustBase.Create(
-                      orderId = trigger._1,
-                      direction = info.direction,
-                      leverRate = info.leverRate,
-                      offset = info.offset,
-                      orderPriceType = info.orderPriceType,
-                      price = info.orderPrice,
-                      volume = info.volume
-                    )(ref))(3.seconds)
-                  })
-                  .runForeach(result => {
-                    logger.info(result.logJson)
-                  })(materializer)
-              })
+              .runWith(Sink.seq)(materializer)
+
+            val result = future.transform({
+              case Failure(exception) => {
+                logger.error(exception.getMessage)
+                Success(Effect.none[BaseSerializer, State])
+              }
+              case Success(value) => {
+                Success(
+                  Effect.persist[BaseSerializer, State](Triggers(
+                    triggers = triggers.map(trigger => {
+                      (trigger._1, trigger._2.copy(
+                        trigger = trigger._2.trigger,
+                        status = TriggerStatus.matchs
+                      ))
+                    })
+                  ))
+                )
+              }
+            })(context.executionContext)
+            Await.result(result, Duration.Inf)
           } else {
             Effect.none
           }

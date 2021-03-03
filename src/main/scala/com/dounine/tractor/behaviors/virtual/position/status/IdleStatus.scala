@@ -9,7 +9,6 @@ import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
