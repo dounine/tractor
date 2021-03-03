@@ -65,6 +65,10 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
+        case ReplaceData(_) => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+        }
         case e@Create(
         offset: Offset,
         leverRate: LeverRate,
@@ -93,6 +97,7 @@ object IdleStatus extends ActorSerializerSuport {
                   Effect
                     .persist(MergePosition(mergePosition))
                     .thenRun((_: State) => {
+                      logger.info(MergeOk().logJson)
                       e.replyTo.tell(MergeOk())
                     })
 
@@ -118,6 +123,7 @@ object IdleStatus extends ActorSerializerSuport {
                     )
                   ))
                     .thenRun((_: State) => {
+                      logger.info(OpenOk().logJson)
                       e.replyTo.tell(
                         OpenOk()
                       )
@@ -150,6 +156,7 @@ object IdleStatus extends ActorSerializerSuport {
                         Effect
                           .persist(RemovePosition())
                           .thenRun((_: State) => {
+                            logger.info(CloseOk().logJson)
                             e.replyTo.tell(CloseOk())
                           })
                       })
@@ -157,6 +164,7 @@ object IdleStatus extends ActorSerializerSuport {
                         logger.error(ee.getMessage)
                         Effect.none
                           .thenRun((_: State) => {
+                            logger.info(CreateFail(PositionCreateFailStatus.createSystemError).logJson)
                             e.replyTo.tell(CreateFail(PositionCreateFailStatus.createSystemError))
                           })
                       })
@@ -192,6 +200,7 @@ object IdleStatus extends ActorSerializerSuport {
                             )
                           ))
                           .thenRun((_: State) => {
+                            logger.info(CloseOk().logJson)
                             e.replyTo.tell(CloseOk())
                           })
                       })
@@ -199,6 +208,7 @@ object IdleStatus extends ActorSerializerSuport {
                         logger.error(ee.getMessage)
                         Effect.none
                           .thenRun((_: State) => {
+                            logger.info(CreateFail(PositionCreateFailStatus.createSystemError).logJson)
                             e.replyTo.tell(CreateFail(PositionCreateFailStatus.createSystemError))
                           })
                       })
@@ -208,6 +218,9 @@ object IdleStatus extends ActorSerializerSuport {
                     Effect
                       .none
                       .thenRun((_: State) => {
+                        logger.info(CreateFail(
+                          PositionCreateFailStatus.createCloseNotEnoughIsAvailable
+                        ).logJson)
                         e.replyTo.tell(
                           CreateFail(
                             PositionCreateFailStatus.createCloseNotEnoughIsAvailable
@@ -218,6 +231,9 @@ object IdleStatus extends ActorSerializerSuport {
                 }
                 case None => {
                   Effect.none.thenRun((_: State) => {
+                    logger.info(CreateFail(
+                      PositionCreateFailStatus.createClosePositionNotExit
+                    ).logJson)
                     e.replyTo.tell(CreateFail(
                       PositionCreateFailStatus.createClosePositionNotExit
                     ))
@@ -250,6 +266,9 @@ object IdleStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
+          case ReplaceData(data) => {
+            Idle(data)
+          }
           case MergePosition(position) => {
             Idle(
               state.data.copy(

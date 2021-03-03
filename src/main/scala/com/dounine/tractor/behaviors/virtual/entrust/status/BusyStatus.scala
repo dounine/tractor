@@ -66,7 +66,6 @@ object BusyStatus extends ActorSerializerSuport {
               )
             })
             .thenUnstashAll()
-
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)

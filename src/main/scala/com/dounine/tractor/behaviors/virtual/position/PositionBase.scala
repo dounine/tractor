@@ -66,6 +66,8 @@ object PositionBase {
                         marketTradeId: String = MarketTradeBehavior.typeKey.name
                       ) extends Command
 
+  final case class ReplaceData(data: DataStore) extends Command
+
   final case class RunSelfOk() extends Command
 
   final case object Stop extends Command
@@ -98,5 +100,9 @@ object PositionBase {
                                 ) extends Command
 
   final case class RemovePosition() extends Command
+
+  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+    s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
+  }
 
 }
