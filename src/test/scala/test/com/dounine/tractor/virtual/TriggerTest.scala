@@ -341,6 +341,57 @@ class TriggerTest extends ScalaTestWithActorTestKit(
 
     }
 
+
+    "leverRate fun test" in {
+      val (socketClient, socketPort) = createSocket()
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
+      )
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(EntrustBase.Run(
+        marketTradeId = socketPort
+      ))
+
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
+      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.incrementAndGet().toString
+      triggerBehavior.tell(TriggerBase.Create(
+        orderId = orderId,
+        leverRate = LeverRate.x20,
+        offset = Offset.open,
+        orderPriceType = OrderPriceType.limit,
+        triggerType = TriggerType.ge,
+        orderPrice = 100,
+        triggerPrice = 90,
+        volume = 1
+      )(createProbe.ref))
+
+      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+
+      val leverRateProbe = testKit.createTestProbe[BaseSerializer]()
+      triggerBehavior.tell(TriggerBase.IsCanChangeLeverRate()(leverRateProbe.ref))
+      leverRateProbe.expectMessage(TriggerBase.ChangeLeverRateNo())
+
+      val cancelProbe = testKit.createTestProbe[BaseSerializer]()
+      triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(TriggerBase.CancelOk(orderId))
+
+      val leverRateProbeYes = testKit.createTestProbe[BaseSerializer]()
+      triggerBehavior.tell(TriggerBase.IsCanChangeLeverRate()(leverRateProbeYes.ref))
+      leverRateProbeYes.expectMessage(TriggerBase.ChangeLeverRateYes())
+    }
+
+
   }
 
 

@@ -163,6 +163,10 @@ class PositionTest extends ScalaTestWithActorTestKit(
         PositionCreateFailStatus.createCloseNotEnoughIsAvailable
       ))
 
+      val leverRateProbe = testKit.createTestProbe[BaseSerializer]()
+      positionBehavior.tell(PositionBase.IsCanChangeLeverRate()(leverRateProbe.ref))
+      leverRateProbe.expectMessage(PositionBase.ChangeLeverRateNo())
+
       val mergeProbe = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(PositionBase.Create(
         offset = Offset.open,
@@ -211,6 +215,11 @@ class PositionTest extends ScalaTestWithActorTestKit(
       closeErrorProbe.expectMessage(PositionBase.CreateFail(
         PositionCreateFailStatus.createClosePositionNotExit
       ))
+
+      val leverRateProbeYes = testKit.createTestProbe[BaseSerializer]()
+      positionBehavior.tell(PositionBase.IsCanChangeLeverRate()(leverRateProbeYes.ref))
+      leverRateProbeYes.expectMessage(PositionBase.ChangeLeverRateYes())
+
 
     }
 

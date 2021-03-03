@@ -357,6 +357,62 @@ class EntrustTest extends ScalaTestWithActorTestKit(
       cancelProbe.expectMessage(EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelAlreadyMatchAll))
 
     }
+
+    "leverRate fun test" in {
+      val (socketClient, socketPort) = createSocket()
+      val time = System.currentTimeMillis()
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val positionId = PositionBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        randomId = socketPort
+      )
+      val positionBehavior = sharding.entityRefFor(PositionBase.typeKey, positionId)
+      positionBehavior.tell(PositionBase.Run(
+        marketTradeId = socketPort
+      ))
+
+
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId))
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      entrustBehavior.tell(EntrustBase.Create(
+        orderId = orderId,
+        offset = Offset.open,
+        orderPriceType = OrderPriceType.limit,
+        price = 100,
+        volume = 1
+      )(createProbe.ref))
+
+      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
+
+      val leverRateProbe = testKit.createTestProbe[BaseSerializer]()
+      entrustBehavior.tell(EntrustBase.IsCanChangeLeverRate()(leverRateProbe.ref))
+      leverRateProbe.expectMessage(EntrustBase.ChangeLeverRateNo())
+
+      val cancelProbe = testKit.createTestProbe[BaseSerializer]()
+      entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))
+      cancelProbe.expectMessage(EntrustBase.CancelOk(orderId))
+
+      val leverRateProbeYes = testKit.createTestProbe[BaseSerializer]()
+      entrustBehavior.tell(EntrustBase.IsCanChangeLeverRate()(leverRateProbeYes.ref))
+      leverRateProbeYes.expectMessage(EntrustBase.ChangeLeverRateYes())
+
+    }
+
   }
 
 
