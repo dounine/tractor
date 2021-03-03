@@ -6,9 +6,10 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import akka.persistence.typed._
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import TriggerBase._
+
 import scala.concurrent.duration._
 import org.slf4j.LoggerFactory
 
@@ -23,7 +24,7 @@ object TriggerBehavior extends ActorSerializerSuport {
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
 
         entityId.id.split("\\|").last.split("-") match {
-          case Array(phone, symbolStr, contractTypeStr, randomId) => {
+          case Array(phone, symbolStr, contractTypeStr, directionStr, randomId) => {
 
             val statusList = Seq(
               status.StopedStatus(context, shard, timers),
@@ -83,6 +84,7 @@ object TriggerBehavior extends ActorSerializerSuport {
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),
                   contractType = ContractType.withName(contractTypeStr),
+                  direction = Direction.withName(directionStr),
                   contractSize = 0
                 )
               ),

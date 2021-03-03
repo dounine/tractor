@@ -41,11 +41,12 @@ object PositionBase {
                          ) extends BaseSerializer
 
   case class DataStore(
-                        positions: Map[(Offset, Direction), PositionInfo],
+                        position: Option[PositionInfo],
                         config: Config,
                         phone: String,
                         symbol: CoinSymbol,
                         contractType: ContractType,
+                        direction: Direction,
                         contractSize: Int
                       ) extends BaseSerializer
 
@@ -75,7 +76,6 @@ object PositionBase {
 
   final case class Create(
                            offset: Offset,
-                           direction: Direction,
                            leverRate: LeverRate,
                            volume: Int,
                            latestPrice: Double
@@ -90,20 +90,13 @@ object PositionBase {
   final case class CloseOk() extends Command
 
   final case class NewPosition(
-                                offset: Offset,
-                                direction: Direction,
                                 position: PositionInfo
                               ) extends Command
 
   final case class MergePosition(
-                                  offset: Offset,
-                                  direction: Direction,
                                   position: PositionInfo
                                 ) extends Command
 
-  final case class RemovePosition(
-                                   offset: Offset,
-                                   direction: Direction
-                                 ) extends Command
+  final case class RemovePosition() extends Command
 
 }

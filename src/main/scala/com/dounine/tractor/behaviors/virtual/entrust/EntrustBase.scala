@@ -23,7 +23,6 @@ object EntrustBase extends ActorSerializerSuport {
     EntityTypeKey[BaseSerializer]("EntrustBehavior")
 
   final case class EntrustItem(
-                                direction: Direction,
                                 leverRate: LeverRate,
                                 offset: Offset,
                                 orderPriceType: OrderPriceType,
@@ -49,6 +48,7 @@ object EntrustBase extends ActorSerializerSuport {
                         phone: String,
                         symbol: CoinSymbol,
                         contractType: ContractType,
+                        direction: Direction,
                         contractSize: Int
                       ) extends BaseSerializer
 
@@ -79,7 +79,6 @@ object EntrustBase extends ActorSerializerSuport {
 
   final case class Create(
                            orderId: String,
-                           direction: Direction,
                            leverRate: LeverRate,
                            offset: Offset,
                            orderPriceType: OrderPriceType,
@@ -99,8 +98,8 @@ object EntrustBase extends ActorSerializerSuport {
                              entrusts: Map[String, EntrustInfo]
                            ) extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, randomId: String = ""): String = {
-    s"${phone}-${symbol}-${contractType}-${randomId}"
+  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+    s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }
 
 }

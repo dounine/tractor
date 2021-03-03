@@ -66,7 +66,6 @@ object IdleStatus extends ActorSerializerSuport {
         }
         case e@Create(
         orderId,
-        direction,
         leverRate,
         offset,
         orderPriceType,
@@ -130,7 +129,7 @@ object IdleStatus extends ActorSerializerSuport {
             .filter(_._2.status == EntrustStatus.submit)
             .filter(item => {
               val info = item._2.entrust
-              (info.offset, info.direction) match {
+              (info.offset, state.data.direction) match {
                 case (Offset.open, Direction.buy) =>
                   price <= info.price
                 case (Offset.open, Direction.sell) =>
@@ -146,16 +145,16 @@ object IdleStatus extends ActorSerializerSuport {
               .log("position create")
               .mapAsync(1)(entrust => {
                 val info = entrust._2
-//                sharding.entityRefFor(
-//                  PositionBase.typeKey,
-//                  state.data.config.positionId
-//                ).ask[BaseSerializer](ref => PositionBase.Create(
-//                  offset = info.entrust.offset,
-//                  direction = info.entrust.direction,
-//                  leverRate = info.entrust.leverRate,
-//                  volume = info.entrust.volume,
-//                  latestPrice = price
-//                )(ref))(3.seconds)
+                //                sharding.entityRefFor(
+                //                  PositionBase.typeKey,
+                //                  state.data.config.positionId
+                //                ).ask[BaseSerializer](ref => PositionBase.Create(
+                //                  offset = info.entrust.offset,
+                //                  direction = info.entrust.direction,
+                //                  leverRate = info.entrust.leverRate,
+                //                  volume = info.entrust.volume,
+                //                  latestPrice = price
+                //                )(ref))(3.seconds)
                 Future.successful(1)
               }
               )
@@ -193,7 +192,6 @@ object IdleStatus extends ActorSerializerSuport {
         command match {
           case Create(
           orderId,
-          direction,
           leverRate,
           offset,
           orderPriceType,
@@ -204,7 +202,6 @@ object IdleStatus extends ActorSerializerSuport {
               entrusts = state.data.entrusts ++ Map(
                 orderId -> EntrustInfo(
                   entrust = EntrustItem(
-                    direction = direction,
                     leverRate = leverRate,
                     offset = offset,
                     orderPriceType = orderPriceType,

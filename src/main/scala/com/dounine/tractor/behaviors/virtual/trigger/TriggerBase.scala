@@ -24,7 +24,6 @@ object TriggerBase extends ActorSerializerSuport {
     EntityTypeKey[BaseSerializer]("TriggerBehavior")
 
   case class TriggerItem(
-                          direction: Direction,
                           leverRate: LeverRate,
                           offset: Offset,
                           orderPriceType: OrderPriceType,
@@ -51,6 +50,7 @@ object TriggerBase extends ActorSerializerSuport {
                         phone: String,
                         symbol: CoinSymbol,
                         contractType: ContractType,
+                        direction: Direction,
                         contractSize: Int
                       ) extends BaseSerializer
 
@@ -88,7 +88,6 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case class Create(
                            orderId: String,
-                           direction: Direction,
                            leverRate: LeverRate,
                            offset: Offset,
                            orderPriceType: OrderPriceType,
@@ -110,8 +109,8 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case object Ack extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, randomId: String = ""): String = {
-    s"${phone}-${symbol}-${contractType}-${randomId}"
+  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+    s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }
 
 }

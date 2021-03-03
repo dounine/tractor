@@ -67,7 +67,6 @@ object IdleStatus extends ActorSerializerSuport {
         }
         case e@Create(
         offset: Offset,
-        direction: Direction,
         leverRate: LeverRate,
         volume: Int,
         latestPrice: Double
@@ -76,9 +75,8 @@ object IdleStatus extends ActorSerializerSuport {
           val takeRate = 0.0004
           offset match {
             case Offset.open => {
-              state.data.positions.find(_._1 == (offset, direction)) match {
-                case Some(tp2) => {
-                  val position = tp2._2
+              state.data.position match {
+                case Some(position) => {
                   val fee = volume * state.data.contractSize / latestPrice * takeRate
 
                   val costHold: Double =
@@ -93,7 +91,7 @@ object IdleStatus extends ActorSerializerSuport {
                     )
 
                   Effect
-                    .persist(MergePosition(offset, direction, mergePosition))
+                    .persist(MergePosition(mergePosition))
                     .thenRun((_: State) => {
                       e.replyTo.tell(MergeOk())
                     })
@@ -103,8 +101,6 @@ object IdleStatus extends ActorSerializerSuport {
                   val marginFrozen = state.data.contractSize * volume / latestPrice / leverRate.toString.toInt
                   val fee = volume * state.data.contractSize / latestPrice * takeRate
                   Effect.persist(NewPosition(
-                    offset,
-                    direction,
                     PositionInfo(
                       leverRate = leverRate,
                       volume = volume,
@@ -130,9 +126,8 @@ object IdleStatus extends ActorSerializerSuport {
               }
             }
             case Offset.close => {
-              state.data.positions.find(_._1 == (offset, Direction.reverse(direction))) match {
-                case Some(tp2) => {
-                  val position = tp2._2
+              state.data.position match {
+                case Some(position) => {
                   val costHold = state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
                   val closeFee = volume * state.data.contractSize / costHold * takeRate
                   val balanceService = ServiceSingleton.get(classOf[BalanceRepository])
@@ -141,7 +136,7 @@ object IdleStatus extends ActorSerializerSuport {
                       balanceService.mergeBalance(
                         phone = state.data.phone,
                         symbol = state.data.symbol,
-                        balance = (tp2._1._2 match {
+                        balance = (state.data.direction match {
                           case Direction.buy =>
                             (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
                           case Direction.sell =>
@@ -153,10 +148,7 @@ object IdleStatus extends ActorSerializerSuport {
                       .log("update balance")
                       .map(item => {
                         Effect
-                          .persist(RemovePosition(
-                            offset = offset,
-                            direction = tp2._1._2
-                          ))
+                          .persist(RemovePosition())
                           .thenRun((_: State) => {
                             e.replyTo.tell(CloseOk())
                           })
@@ -180,7 +172,7 @@ object IdleStatus extends ActorSerializerSuport {
                       balanceService.mergeBalance(
                         phone = state.data.phone,
                         symbol = state.data.symbol,
-                        balance = (tp2._1._2 match {
+                        balance = (state.data.direction match {
                           case Direction.buy =>
                             (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
                           case Direction.sell =>
@@ -193,8 +185,6 @@ object IdleStatus extends ActorSerializerSuport {
                       .map(item => {
                         Effect
                           .persist(MergePosition(
-                            offset = offset,
-                            direction = tp2._1._2,
                             position = position.copy(
                               volume = sumVolume,
                               closeFee = sumCloseFee,
@@ -260,28 +250,24 @@ object IdleStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case MergePosition(offset, direction, position) => {
+          case MergePosition(position) => {
             Idle(
               state.data.copy(
-                positions = state.data.positions ++ Map(
-                  (offset, direction) -> position
-                )
+                position = Option(position)
               )
             )
           }
-          case NewPosition(offset, direction, position) => {
+          case NewPosition(position) => {
             Idle(
               state.data.copy(
-                positions = state.data.positions ++ Map(
-                  (offset, direction) -> position
-                )
+                position = Option(position)
               )
             )
           }
-          case RemovePosition(offset, direction) => {
+          case RemovePosition() => {
             Idle(
               state.data.copy(
-                positions = state.data.positions.filterNot(_._1 == (offset, direction))
+                position = Option.empty
               )
             )
           }

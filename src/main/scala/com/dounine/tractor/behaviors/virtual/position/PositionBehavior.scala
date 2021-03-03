@@ -7,7 +7,7 @@ import akka.persistence.typed._
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import com.dounine.tractor.model.models.BaseSerializer
 import PositionBase._
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 
@@ -24,7 +24,7 @@ object PositionBehavior extends ActorSerializerSuport {
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
 
         entityId.id.split("\\|").last.split("-") match {
-          case Array(phone, symbolStr, contractTypeStr, randomId) => {
+          case Array(phone, symbolStr, contractTypeStr, directionStr, randomId) => {
 
             val statusList = Seq(
               status.StopedStatus(context, shard, timers),
@@ -79,10 +79,11 @@ object PositionBehavior extends ActorSerializerSuport {
               persistenceId = entityId,
               emptyState = Stoped(
                 data = DataStore(
-                  positions = Map.empty,
+                  position = Option.empty,
                   config = Config(),
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),
+                  direction = Direction.withName(directionStr),
                   contractType = ContractType.withName(contractTypeStr),
                   contractSize = 0
                 )

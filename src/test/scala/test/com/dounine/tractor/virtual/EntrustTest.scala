@@ -108,7 +108,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       LoggingTestKit.info(
         classOf[EntrustBase.RunSelfOk].getSimpleName
       )
@@ -130,14 +130,13 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
@@ -185,14 +184,13 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
@@ -220,14 +218,13 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
@@ -257,14 +254,13 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       entrustBehavior.tell(EntrustBase.Run(socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,

@@ -72,7 +72,6 @@ object IdleStatus extends ActorSerializerSuport {
         }
         case e@Create(
         orderId,
-        direction,
         leverRate,
         offset,
         orderPriceType,
@@ -144,7 +143,6 @@ object IdleStatus extends ActorSerializerSuport {
                   state.data.config.entrustId
                 ).ask[BaseSerializer](ref => EntrustBase.Create(
                   orderId = trigger._1,
-                  direction = info.direction,
                   leverRate = info.leverRate,
                   offset = info.offset,
                   orderPriceType = info.orderPriceType,
@@ -193,7 +191,6 @@ object IdleStatus extends ActorSerializerSuport {
         command match {
           case Create(
           orderId,
-          direction,
           leverRate,
           offset,
           orderPriceType,
@@ -205,7 +202,6 @@ object IdleStatus extends ActorSerializerSuport {
               triggers = state.data.triggers ++ Map(
                 orderId -> TriggerInfo(
                   trigger = TriggerItem(
-                    direction = direction,
                     leverRate = leverRate,
                     offset = offset,
                     orderPriceType = orderPriceType,

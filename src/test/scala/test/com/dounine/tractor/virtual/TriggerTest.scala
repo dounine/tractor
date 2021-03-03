@@ -118,7 +118,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         )(connectProbe.ref)
       )
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       LoggingTestKit.info(
         classOf[TriggerBase.RunSelfOk].getSimpleName
       )
@@ -139,7 +139,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
       )
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
@@ -147,14 +147,13 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       ))
 
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
@@ -204,7 +203,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
       )
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
@@ -212,14 +211,13 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       ))
 
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
@@ -248,21 +246,20 @@ class TriggerTest extends ScalaTestWithActorTestKit(
 
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
       )
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
         marketTradeId = socketPort
       ))
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
@@ -291,21 +288,20 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, socketPort
+        phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
       )
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
         marketTradeId = socketPort
       ))
 
-      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, socketPort))
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
       triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        direction = Direction.buy,
         leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
