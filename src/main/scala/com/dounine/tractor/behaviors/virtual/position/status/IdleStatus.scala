@@ -69,9 +69,23 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
+        case UpdateLeverRate(_) => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+        }
+        case e@IsCanChangeLeverRate() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((state: State) => {
+            if (state.data.position.isDefined){
+              e.replyTo.tell(ChangeLeverRateNo())
+            } else {
+              e.replyTo.tell(ChangeLeverRateYes())
+            }
+          })
+        }
+
         case e@Create(
         offset: Offset,
-        leverRate: LeverRate,
         volume: Int,
         latestPrice: Double
         ) => {
@@ -91,7 +105,7 @@ object IdleStatus extends ActorSerializerSuport {
                       volume = position.volume + volume,
                       openFee = position.openFee + fee,
                       positionMargin =
-                        state.data.contractSize * (position.volume + volume) / costHold / position.leverRate.toString.toInt
+                        state.data.contractSize * (position.volume + volume) / costHold / state.data.leverRate.toString.toInt
                     )
 
                   Effect
@@ -103,11 +117,10 @@ object IdleStatus extends ActorSerializerSuport {
 
                 }
                 case None => {
-                  val marginFrozen = state.data.contractSize * volume / latestPrice / leverRate.toString.toInt
+                  val marginFrozen = state.data.contractSize * volume / latestPrice / state.data.leverRate.toString.toInt
                   val fee = volume * state.data.contractSize / latestPrice * takeRate
                   Effect.persist(NewPosition(
                     PositionInfo(
-                      leverRate = leverRate,
                       volume = volume,
                       available = volume,
                       frozen = 0,
@@ -174,7 +187,7 @@ object IdleStatus extends ActorSerializerSuport {
                     val sumVolume = position.volume - volume
                     val sumCloseFee = position.closeFee + closeFee
                     val sumPositionMargin =
-                      state.data.contractSize * (position.volume - volume) / position.costHold / position.leverRate.toString.toInt
+                      state.data.contractSize * (position.volume - volume) / position.costHold / state.data.leverRate.toString.toInt
 
                     val result = Source.future(
                       balanceService.mergeBalance(
@@ -266,6 +279,11 @@ object IdleStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
+          case UpdateLeverRate(value) => {
+            Idle(state.data.copy(
+              leverRate = value
+            ))
+          }
           case ReplaceData(data) => {
             Idle(data)
           }

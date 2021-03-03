@@ -7,7 +7,7 @@ import akka.persistence.typed._
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import com.dounine.tractor.model.models.BaseSerializer
 import PositionBase._
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 
@@ -85,6 +85,7 @@ object PositionBehavior extends ActorSerializerSuport {
                   symbol = CoinSymbol.withName(symbolStr),
                   direction = Direction.withName(directionStr),
                   contractType = ContractType.withName(contractTypeStr),
+                  leverRate = LeverRate.x20,
                   contractSize = 0
                 )
               ),

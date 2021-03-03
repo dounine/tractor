@@ -162,7 +162,6 @@ class EntrustTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         price = 100,
@@ -229,7 +228,6 @@ class EntrustTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         price = 100,
@@ -276,7 +274,6 @@ class EntrustTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         price = 100,
@@ -325,7 +322,6 @@ class EntrustTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.getAndIncrement().toString
       entrustBehavior.tell(EntrustBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         price = 100,

@@ -64,9 +64,22 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
+        case UpdateLeverRate(_) => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+        }
+        case e@IsCanChangeLeverRate() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((state: State) => {
+            if (state.data.entrusts.values.exists(p => p.status == EntrustStatus.submit)) {
+              e.replyTo.tell(ChangeLeverRateNo())
+            } else {
+              e.replyTo.tell(ChangeLeverRateYes())
+            }
+          })
+        }
         case e@Create(
         orderId,
-        leverRate,
         offset,
         orderPriceType,
         price,
@@ -150,7 +163,6 @@ object IdleStatus extends ActorSerializerSuport {
                   state.data.config.positionId
                 ).ask[BaseSerializer](ref => PositionBase.Create(
                   offset = info.entrust.offset,
-                  leverRate = info.entrust.leverRate,
                   volume = info.entrust.volume,
                   latestPrice = price
                 )(ref))(3.seconds)
@@ -188,9 +200,13 @@ object IdleStatus extends ActorSerializerSuport {
         defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
+          case UpdateLeverRate(value) => {
+            Idle(state.data.copy(
+              leverRate = value
+            ))
+          }
           case Create(
           orderId,
-          leverRate,
           offset,
           orderPriceType,
           price,
@@ -200,7 +216,6 @@ object IdleStatus extends ActorSerializerSuport {
               entrusts = state.data.entrusts ++ Map(
                 orderId -> EntrustInfo(
                   entrust = EntrustItem(
-                    leverRate = leverRate,
                     offset = offset,
                     orderPriceType = orderPriceType,
                     price = price,

@@ -128,7 +128,6 @@ class PositionTest extends ScalaTestWithActorTestKit(
         data = PositionBase.DataStore(
           position = Option(
             PositionBase.PositionInfo(
-              leverRate = LeverRate.x20,
               volume = 1,
               available = 1,
               frozen = 0,
@@ -150,13 +149,13 @@ class PositionTest extends ScalaTestWithActorTestKit(
           symbol = CoinSymbol.BTC,
           contractType = ContractType.quarter,
           direction = Direction.buy,
+          leverRate = LeverRate.x20,
           contractSize = 100
         )
       ))
       val closeNotAvaiable = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(PositionBase.Create(
         offset = Offset.close,
-        leverRate = LeverRate.x20,
         volume = 2,
         latestPrice = 100
       )(closeNotAvaiable.ref))
@@ -167,7 +166,6 @@ class PositionTest extends ScalaTestWithActorTestKit(
       val mergeProbe = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(PositionBase.Create(
         offset = Offset.open,
-        leverRate = LeverRate.x20,
         volume = 1,
         latestPrice = 100
       )(mergeProbe.ref))
@@ -199,7 +197,6 @@ class PositionTest extends ScalaTestWithActorTestKit(
       val closeProbe = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(PositionBase.Create(
         offset = Offset.close,
-        leverRate = LeverRate.x20,
         volume = 2,
         latestPrice = 100
       )(closeProbe.ref))
@@ -208,7 +205,6 @@ class PositionTest extends ScalaTestWithActorTestKit(
       val closeErrorProbe = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(PositionBase.Create(
         offset = Offset.close,
-        leverRate = LeverRate.x20,
         volume = 1,
         latestPrice = 100
       )(closeErrorProbe.ref))

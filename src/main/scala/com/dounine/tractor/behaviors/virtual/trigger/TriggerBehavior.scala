@@ -6,7 +6,7 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import akka.persistence.typed._
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import TriggerBase._
 
@@ -85,6 +85,7 @@ object TriggerBehavior extends ActorSerializerSuport {
                   symbol = CoinSymbol.withName(symbolStr),
                   contractType = ContractType.withName(contractTypeStr),
                   direction = Direction.withName(directionStr),
+                  leverRate = LeverRate.x20,
                   contractSize = 0
                 )
               ),

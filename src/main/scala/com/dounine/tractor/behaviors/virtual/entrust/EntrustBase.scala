@@ -23,7 +23,6 @@ object EntrustBase extends ActorSerializerSuport {
     EntityTypeKey[BaseSerializer]("EntrustBehavior")
 
   final case class EntrustItem(
-                                leverRate: LeverRate,
                                 offset: Offset,
                                 orderPriceType: OrderPriceType,
                                 price: Double,
@@ -49,6 +48,7 @@ object EntrustBase extends ActorSerializerSuport {
                         symbol: CoinSymbol,
                         contractType: ContractType,
                         direction: Direction,
+                        leverRate: LeverRate,
                         contractSize: Int
                       ) extends BaseSerializer
 
@@ -79,12 +79,23 @@ object EntrustBase extends ActorSerializerSuport {
 
   final case class Create(
                            orderId: String,
-                           leverRate: LeverRate,
                            offset: Offset,
                            orderPriceType: OrderPriceType,
                            price: Double,
                            volume: Int
                          )(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class ChangeLeverRateYes() extends Command
+
+  final case class ChangeLeverRateNo() extends Command
+
+  final case class UpdateLeverRate(value: LeverRate)(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class UpdateLeverRateOk() extends Command
+
+  final case class UpdateLeverRateFail() extends Command
 
   final case class CreateOk(orderId: String) extends Command
 

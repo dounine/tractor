@@ -24,7 +24,6 @@ object TriggerBase extends ActorSerializerSuport {
     EntityTypeKey[BaseSerializer]("TriggerBehavior")
 
   case class TriggerItem(
-                          leverRate: LeverRate,
                           offset: Offset,
                           orderPriceType: OrderPriceType,
                           triggerType: TriggerType,
@@ -51,6 +50,7 @@ object TriggerBase extends ActorSerializerSuport {
                         symbol: CoinSymbol,
                         contractType: ContractType,
                         direction: Direction,
+                        leverRate: LeverRate,
                         contractSize: Int
                       ) extends BaseSerializer
 
@@ -77,6 +77,18 @@ object TriggerBase extends ActorSerializerSuport {
                         marketTradeId: String = MarketTradeBehavior.typeKey.name,
                         entrustId: String = EntrustBase.typeKey.name
                       ) extends Command
+
+  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class ChangeLeverRateYes() extends Command
+
+  final case class ChangeLeverRateNo() extends Command
+
+  final case class UpdateLeverRate(value: LeverRate)(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class UpdateLeverRateOk() extends Command
+
+  final case class UpdateLeverRateFail() extends Command
 
   final case object Recovery extends Command
 
@@ -106,8 +118,6 @@ object TriggerBase extends ActorSerializerSuport {
   final case class CancelFail(orderId: String, status: TriggerCancelFailStatus) extends Command
 
   final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
-
-  final case object Ack extends Command
 
   def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
     s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"

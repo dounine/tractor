@@ -7,7 +7,7 @@ import akka.persistence.typed._
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import com.dounine.tractor.model.models.BaseSerializer
 import EntrustBase._
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 
@@ -85,6 +85,7 @@ object EntrustBehavior extends ActorSerializerSuport {
                   symbol = CoinSymbol.withName(symbolStr),
                   contractType = ContractType.withName(contractTypeStr),
                   direction = Direction.withName(directionStr),
+                  leverRate = LeverRate.x20,
                   contractSize = 0
                 )
               ),

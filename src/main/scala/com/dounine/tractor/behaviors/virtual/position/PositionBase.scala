@@ -21,7 +21,6 @@ object PositionBase {
     EntityTypeKey[BaseSerializer]("PositionBehavior")
 
   final case class PositionInfo(
-                                 leverRate: LeverRate,
                                  volume: Int,
                                  available: Int,
                                  frozen: Int,
@@ -47,6 +46,7 @@ object PositionBase {
                         symbol: CoinSymbol,
                         contractType: ContractType,
                         direction: Direction,
+                        leverRate: LeverRate,
                         contractSize: Int
                       ) extends BaseSerializer
 
@@ -66,6 +66,19 @@ object PositionBase {
                         marketTradeId: String = MarketTradeBehavior.typeKey.name
                       ) extends Command
 
+  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class ChangeLeverRateYes() extends Command
+
+  final case class ChangeLeverRateNo() extends Command
+
+  final case class UpdateLeverRate(value: LeverRate)(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class UpdateLeverRateOk() extends Command
+
+  final case class UpdateLeverRateFail() extends Command
+
+
   final case class ReplaceData(data: DataStore) extends Command
 
   final case class RunSelfOk() extends Command
@@ -78,7 +91,6 @@ object PositionBase {
 
   final case class Create(
                            offset: Offset,
-                           leverRate: LeverRate,
                            volume: Int,
                            latestPrice: Double
                          )(val replyTo: ActorRef[BaseSerializer]) extends Command
