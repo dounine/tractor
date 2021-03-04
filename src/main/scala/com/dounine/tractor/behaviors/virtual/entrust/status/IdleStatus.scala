@@ -8,9 +8,10 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
+import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
-import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.{Direction, EntrustCancelFailStatus, EntrustStatus, Offset, TriggerCancelFailStatus, TriggerStatus, TriggerType}
+import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
+import com.dounine.tractor.model.types.currency.{Direction, EntrustCancelFailStatus, EntrustStatus, Offset, OrderPriceType, OrderType, Role, TriggerCancelFailStatus, TriggerStatus, TriggerType}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.typesafe.config.ConfigFactory
 import org.slf4j.{Logger, LoggerFactory}
@@ -56,7 +57,7 @@ object IdleStatus extends ActorSerializerSuport {
                                              _: (State, BaseSerializer) => Effect[BaseSerializer, State]
                                            ) =>
       command match {
-        case Run(_, _) => {
+        case Run(_, _, _) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -87,24 +88,127 @@ object IdleStatus extends ActorSerializerSuport {
         ) => {
           logger.info(command.logJson)
           Effect.persist(command)
-            .thenRun((_: State) => {
+            .thenRun((state: State) => {
               e.replyTo.tell(CreateOk(orderId))
+              val result = Source.future(
+                sharding.entityRefFor(EntrustNotifyBehavior.typeKey, state.data.config.entrustNotifyId)
+                  .ask[BaseSerializer](ref => EntrustNotifyBehavior.Push(
+                    notif = NotifyModel.NotifyInfo(
+                      orderId = orderId,
+                      symbol = state.data.symbol,
+                      contractType = state.data.contractType,
+                      direction = state.data.direction,
+                      offset = offset,
+                      leverRate = state.data.leverRate,
+                      orderPriceType = orderPriceType,
+                      entrustStatus = EntrustStatus.submit,
+                      source = com.dounine.tractor.model.types.currency.Source.api,
+                      orderType = OrderType.statement,
+                      createTime = LocalDateTime.now(),
+                      price = price,
+                      volume = volume,
+                      tradeVolume = 0,
+                      tradeTurnover = 0,
+                      fee = 0,
+                      profit = 0,
+                      trade = List(NotifyModel.Trade(
+                        tradeVolume = 1,
+                        tradePrice = price,
+                        tradeFee = 0,
+                        tradeTurnover = 0,
+                        createTime = LocalDateTime.now(),
+                        role = Role.taker
+                      ))
+                    )
+                  )(ref))(3.seconds)
+              )
+                .runWith(Sink.head)(materializer)
+              Await.result(result, Duration.Inf)
             })
         }
         case e@Cancel(orderId) => {
           logger.info(command.logJson)
           state.data.entrusts.get(orderId) match {
-            case Some(value) =>
-              value.status match {
+            case Some(entrust) =>
+              entrust.status match {
                 case EntrustStatus.submit =>
                   Effect.persist(command)
                     .thenRun((_: State) => {
                       e.replyTo.tell(CancelOk(orderId))
+                      val result = Source.future(
+                        sharding.entityRefFor(EntrustNotifyBehavior.typeKey, state.data.config.entrustNotifyId)
+                          .ask[BaseSerializer](ref => EntrustNotifyBehavior.Push(
+                            notif = NotifyModel.NotifyInfo(
+                              orderId = orderId,
+                              symbol = state.data.symbol,
+                              contractType = state.data.contractType,
+                              direction = state.data.direction,
+                              offset = entrust.entrust.offset,
+                              leverRate = state.data.leverRate,
+                              orderPriceType = OrderPriceType.limit,
+                              entrustStatus = EntrustStatus.canceled,
+                              source = com.dounine.tractor.model.types.currency.Source.api,
+                              orderType = OrderType.statement,
+                              createTime = LocalDateTime.now(),
+                              price = entrust.entrust.price,
+                              volume = entrust.entrust.volume,
+                              tradeVolume = 0,
+                              tradeTurnover = 0,
+                              fee = 0,
+                              profit = 0,
+                              trade = List(NotifyModel.Trade(
+                                tradeVolume = 1,
+                                tradePrice = 0,
+                                tradeFee = 0,
+                                tradeTurnover = 0,
+                                createTime = LocalDateTime.now(),
+                                role = Role.taker
+                              ))
+                            )
+                          )(ref))(3.seconds)
+                      )
+                        .runWith(Sink.head)(materializer)
+                      Await.result(result, Duration.Inf)
                     })
                 case EntrustStatus.matchPart =>
                   Effect.persist(command)
                     .thenRun((_: State) => {
                       e.replyTo.tell(CancelOk(orderId))
+                      val result = Source.future(
+                        sharding.entityRefFor(EntrustNotifyBehavior.typeKey, state.data.config.entrustNotifyId)
+                          .ask[BaseSerializer](ref => EntrustNotifyBehavior.Push(
+                            notif = NotifyModel.NotifyInfo(
+                              orderId = orderId,
+                              symbol = state.data.symbol,
+                              contractType = state.data.contractType,
+                              direction = state.data.direction,
+                              offset = entrust.entrust.offset,
+                              leverRate = state.data.leverRate,
+                              orderPriceType = OrderPriceType.limit,
+                              entrustStatus = EntrustStatus.matchPartOtherCancel,
+                              source = com.dounine.tractor.model.types.currency.Source.api,
+                              orderType = OrderType.statement,
+                              createTime = LocalDateTime.now(),
+                              price = entrust.entrust.price,
+                              volume = entrust.entrust.volume,
+                              tradeVolume = 0,
+                              tradeTurnover = 0,
+                              fee = 0,
+                              profit = 0,
+                              trade = List(NotifyModel.Trade(
+                                tradeVolume = 1,
+                                tradePrice = 0,
+                                tradeFee = 0,
+                                tradeTurnover = 0,
+                                createTime = LocalDateTime.now(),
+                                role = Role.taker
+                              ))
+                            )
+                          )(ref))(3.seconds)
+                      )
+                        .runWith(Sink.head)(materializer)
+                      Await.result(result, Duration.Inf)
+
                     })
                 case EntrustStatus.matchPartOtherCancel =>
                   Effect.none
@@ -172,14 +276,54 @@ object IdleStatus extends ActorSerializerSuport {
 
             val result: Future[EffectBuilder[BaseSerializer, State]] = future.transform({
               case Failure(exception) => Success(Effect.none[BaseSerializer, State])
-              case Success(value) => Success(Effect.persist[BaseSerializer, State](Entrusts(
-                entrusts = entrusts.map(entrust => {
-                  (entrust._1, entrust._2.copy(
-                    entrust = entrust._2.entrust,
-                    status = EntrustStatus.matchAll
-                  ))
-                })
-              )))
+              case Success(value) => {
+                val notifyResult = Source(entrusts)
+                  .mapAsync(1)(el =>
+                  {
+                    val entrust = el._2.entrust
+                    sharding.entityRefFor(EntrustNotifyBehavior.typeKey, state.data.config.entrustNotifyId)
+                      .ask[BaseSerializer](ref => EntrustNotifyBehavior.Push(
+                        notif = NotifyModel.NotifyInfo(
+                          orderId = el._1,
+                          symbol = state.data.symbol,
+                          contractType = state.data.contractType,
+                          direction = state.data.direction,
+                          offset = entrust.offset,
+                          leverRate = state.data.leverRate,
+                          orderPriceType = OrderPriceType.limit,
+                          entrustStatus = EntrustStatus.matchAll,
+                          source = com.dounine.tractor.model.types.currency.Source.api,
+                          orderType = OrderType.statement,
+                          createTime = LocalDateTime.now(),
+                          price = entrust.price,
+                          volume = entrust.volume,
+                          tradeVolume = 0,
+                          tradeTurnover = 0,
+                          fee = 0,
+                          profit = 0,
+                          trade = List(NotifyModel.Trade(
+                            tradeVolume = 1,
+                            tradePrice = 0,
+                            tradeFee = 0,
+                            tradeTurnover = 0,
+                            createTime = LocalDateTime.now(),
+                            role = Role.taker
+                          ))
+                        )
+                      )(ref))(3.seconds)
+                  }
+                )
+                  .runWith(Sink.head)(materializer)
+                Await.result(notifyResult, Duration.Inf)
+                Success(Effect.persist[BaseSerializer, State](Entrusts(
+                  entrusts = entrusts.map(entrust => {
+                    (entrust._1, entrust._2.copy(
+                      entrust = entrust._2.entrust,
+                      status = EntrustStatus.matchAll
+                    ))
+                  })
+                )))
+              }
             })(context.executionContext)
             Await.result(result, Duration.Inf)
           } else {

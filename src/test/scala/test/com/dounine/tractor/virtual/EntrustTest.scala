@@ -9,19 +9,22 @@ import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
 import akka.http.scaladsl.server.Directives.handleWebSocketMessages
 import akka.persistence.typed.PersistenceId
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
+import akka.stream.testkit.scaladsl.TestSink
 import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
 import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
-import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
+import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel, NotifyModel}
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.tools.json.JsonParse
 import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration.Duration
@@ -75,6 +78,12 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         ),
         entityContext.shard
       )
+    ))
+
+    sharding.init(Entity(
+      typeKey = EntrustNotifyBehavior.typeKey
+    )(
+      createBehavior = entityContext => EntrustNotifyBehavior()
     ))
 
     sharding.init(Entity(
@@ -155,8 +164,10 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         marketTradeId = socketPort
       ))
 
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
+
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
-      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId, socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -220,9 +231,10 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         marketTradeId = socketPort
       ))
 
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
-      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId, socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -266,9 +278,10 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         marketTradeId = socketPort
       ))
 
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
-      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId, socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -314,9 +327,10 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         marketTradeId = socketPort
       ))
 
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
-      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId, socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -383,9 +397,10 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         marketTradeId = socketPort
       ))
 
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
-      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId, socketPort))
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.getAndIncrement().toString
@@ -412,6 +427,59 @@ class EntrustTest extends ScalaTestWithActorTestKit(
       leverRateProbeYes.expectMessage(EntrustBase.ChangeLeverRateYes())
 
     }
+
+
+    "notify test" in {
+      val (socketClient, socketPort) = createSocket()
+      val time = System.currentTimeMillis()
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val positionId = PositionBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        randomId = socketPort
+      )
+      val positionBehavior = sharding.entityRefFor(PositionBase.typeKey, positionId)
+      positionBehavior.tell(PositionBase.Run(
+        marketTradeId = socketPort
+      ))
+
+      val entrustNotifyBehavior = sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
+
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, EntrustBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort))
+      entrustBehavior.tell(EntrustBase.Run(socketPort, positionId, socketPort))
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      LoggingTestKit.info(
+        classOf[EntrustNotifyBehavior.Push].getName
+      ).expect(
+        entrustBehavior.tell(EntrustBase.Create(
+          orderId = orderId,
+          offset = Offset.open,
+          orderPriceType = OrderPriceType.limit,
+          price = 100,
+          volume = 1
+        )(createProbe.ref))
+      )
+
+      val subProbe = testKit.createTestProbe[BaseSerializer]()
+      entrustNotifyBehavior.tell(EntrustNotifyBehavior.Sub(CoinSymbol.BTC, ContractType.quarter, Direction.buy)(subProbe.ref))
+      val subResponse = subProbe.receiveMessage(3.seconds).asInstanceOf[EntrustNotifyBehavior.SubResponse]
+      val notifyInfo = subResponse.source.runWith(TestSink[NotifyModel.NotifyInfo]).request(1).expectNext(3.seconds)
+      notifyInfo.orderId shouldBe orderId
+    }
+
 
   }
 

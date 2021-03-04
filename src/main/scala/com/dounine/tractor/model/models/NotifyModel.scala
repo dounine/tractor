@@ -15,35 +15,35 @@ import java.time.LocalDateTime
 
 object NotifyModel {
 
-  final case class NotifyInfo(
-                               orderId: String,
-                               symbol: CoinSymbol,
-                               contractType: ContractType,
-                               direction: Direction,
-                               offset: Offset,
-                               leverRate: LeverRate,
-                               orderPriceType: OrderPriceType,
-                               entrustStatus: EntrustStatus,
-                               source: Source,
-                               orderType: OrderType,
-                               createTime: LocalDateTime,
-                               price: Double,
-                               volume: Int,
-                               tradeVolume: Int,
-                               tradeTurnover: Double,
-                               fee: Double,
-                               profit: Double,
-                               trade: List[Trade]
-                             ) extends BaseSerializer
+  case class NotifyInfo(
+                         orderId: String,
+                         symbol: CoinSymbol,
+                         contractType: ContractType,
+                         direction: Direction,
+                         offset: Offset,
+                         leverRate: LeverRate,
+                         orderPriceType: OrderPriceType,
+                         entrustStatus: EntrustStatus,
+                         source: Source,
+                         orderType: OrderType,
+                         createTime: LocalDateTime,
+                         price: Double,
+                         volume: Int,
+                         tradeVolume: Int,
+                         tradeTurnover: Double,
+                         fee: Double,
+                         profit: Double,
+                         trade: List[Trade]
+                       ) extends BaseSerializer
 
-  final case class Trade(
-                          tradeVolume: Int,
-                          tradePrice: Double,
-                          tradeFee: Double,
-                          tradeTurnover: Double,
-                          createTime: LocalDateTime,
-                          role: Role
-                        ) extends BaseSerializer
+  case class Trade(
+                    tradeVolume: Int,
+                    tradePrice: Double,
+                    tradeFee: Double,
+                    tradeTurnover: Double,
+                    createTime: LocalDateTime,
+                    role: Role
+                  ) extends BaseSerializer
 
 
 }

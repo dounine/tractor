@@ -13,6 +13,7 @@ import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
 import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel}
@@ -68,6 +69,12 @@ class PositionTest extends ScalaTestWithActorTestKit(
       typeKey = MarketTradeBehavior.typeKey
     )(
       createBehavior = entityContext => MarketTradeBehavior()
+    ))
+
+    sharding.init(Entity(
+      typeKey = EntrustNotifyBehavior.typeKey
+    )(
+      createBehavior = entityContext => EntrustNotifyBehavior()
     ))
 
     sharding.init(Entity(

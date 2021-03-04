@@ -3,6 +3,7 @@ package com.dounine.tractor.behaviors.virtual.entrust
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
@@ -33,7 +34,8 @@ object EntrustBase extends ActorSerializerSuport {
 
   final case class Config(
                            marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                           positionId: String = PositionBase.typeKey.name
+                           positionId: String = PositionBase.typeKey.name,
+                           entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
                          ) extends BaseSerializer
 
   final case class EntrustInfo(
@@ -66,7 +68,8 @@ object EntrustBase extends ActorSerializerSuport {
 
   final case class Run(
                         marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                        positionId: String = PositionBase.typeKey.name
+                        positionId: String = PositionBase.typeKey.name,
+                        entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
                       ) extends Command
 
   final case class RunSelfOk() extends Command

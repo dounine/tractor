@@ -29,7 +29,7 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
 
   case class PushFail(result: QueueOfferResult) extends Event
 
-  def apply(): Behavior[BaseSerializer] = Behaviors.setup {
+  def apply(): Behavior[BaseSerializer] = Behaviors.setup[BaseSerializer] {
     context => {
       implicit val materializer = SystemMaterializer(context.system).materializer
 

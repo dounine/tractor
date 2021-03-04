@@ -13,6 +13,7 @@ import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
 import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
@@ -91,6 +92,12 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
 
 
     sharding.init(Entity(
+      typeKey = EntrustNotifyBehavior.typeKey
+    )(
+      createBehavior = entityContext => EntrustNotifyBehavior()
+    ))
+
+    sharding.init(Entity(
       typeKey = TriggerBase.typeKey
     )(
       createBehavior = entityContext => TriggerBehavior(
@@ -144,6 +151,7 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
         marketTradeId = socketPort
       ))
 
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
         phone = "123456789", symbol = CoinSymbol.BTC, contractType = ContractType.quarter, Direction.buy, socketPort
@@ -151,7 +159,8 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
       val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
       entrustBehavior.tell(EntrustBase.Run(
         marketTradeId = socketPort,
-        positionId = positionId
+        positionId = positionId,
+        entrustNotifyId = socketPort
       ))
 
       val triggerId = TriggerBase.createEntityId("123456789", CoinSymbol.BTC, ContractType.quarter, Direction.buy, socketPort)
