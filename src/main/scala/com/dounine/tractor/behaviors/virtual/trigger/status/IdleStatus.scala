@@ -87,7 +87,6 @@ object IdleStatus extends ActorSerializerSuport {
 
         case e@Create(
         orderId,
-        leverRate,
         offset,
         orderPriceType,
         triggerType,
@@ -98,7 +97,7 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
             .thenRun((_: State) => {
-              e.replyTo.tell(CreateOk(orderId))
+              e.replyTo.tell(CreateOk(e))
             })
         }
         case e@Cancel(orderId) => {
@@ -132,7 +131,7 @@ object IdleStatus extends ActorSerializerSuport {
             })
           }
         }
-        case MarketTradeBehavior.SubResponse(_) => {
+        case MarketTradeBehavior.SubOk(_) => {
           logger.info(command.logJson)
           Effect.persist(command)
         }
@@ -210,7 +209,6 @@ object IdleStatus extends ActorSerializerSuport {
           }
           case Create(
           orderId,
-          leverRate,
           offset,
           orderPriceType,
           triggerType,
@@ -245,7 +243,7 @@ object IdleStatus extends ActorSerializerSuport {
               })
             ))
           }
-          case MarketTradeBehavior.SubResponse(source) => {
+          case MarketTradeBehavior.SubOk(source) => {
             source
               .throttle(1, config.getDuration("engine.trigger.speed").toMillis.milliseconds)
               .buffer(1, OverflowStrategy.dropHead)

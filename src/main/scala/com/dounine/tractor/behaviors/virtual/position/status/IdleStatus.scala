@@ -257,7 +257,7 @@ object IdleStatus extends ActorSerializerSuport {
             }
           }
         }
-        case MarketTradeBehavior.SubResponse(_) => {
+        case MarketTradeBehavior.SubOk(_) => {
           logger.info(command.logJson)
           Effect.persist(command)
         }
@@ -308,7 +308,7 @@ object IdleStatus extends ActorSerializerSuport {
               )
             )
           }
-          case MarketTradeBehavior.SubResponse(source) => {
+          case MarketTradeBehavior.SubOk(source) => {
             source
               .throttle(1, config.getDuration("engine.position.speed").toMillis.milliseconds)
               .buffer(1, OverflowStrategy.dropHead)

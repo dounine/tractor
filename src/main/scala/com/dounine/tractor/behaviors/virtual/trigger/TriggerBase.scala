@@ -12,6 +12,7 @@ import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
 import com.dounine.tractor.model.types.currency.OrderPriceType.OrderPriceType
 import com.dounine.tractor.model.types.currency.TriggerCancelFailStatus.TriggerCancelFailStatus
+import com.dounine.tractor.model.types.currency.TriggerCreateFailStatus.TriggerCreateFailStatus
 import com.dounine.tractor.model.types.currency.TriggerStatus.TriggerStatus
 import com.dounine.tractor.model.types.currency.TriggerType.TriggerType
 import com.dounine.tractor.tools.json.ActorSerializerSuport
@@ -100,16 +101,17 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case class Create(
                            orderId: String,
-                           leverRate: LeverRate,
                            offset: Offset,
                            orderPriceType: OrderPriceType,
                            triggerType: TriggerType,
                            orderPrice: Double,
                            triggerPrice: Double,
                            volume: Int
-                         )(val replyTo: ActorRef[BaseSerializer]) extends Command
+                         )(var replyTo: ActorRef[BaseSerializer]) extends Command
 
-  final case class CreateOk(orderId: String) extends Command
+  final case class CreateOk(request: Create) extends Command
+
+  final case class CreateFail(request: Create, status: TriggerCreateFailStatus) extends Command
 
   final case class Cancel(orderId: String)(val replyTo: ActorRef[BaseSerializer]) extends Command
 

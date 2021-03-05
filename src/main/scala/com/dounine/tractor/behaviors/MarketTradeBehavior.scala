@@ -30,7 +30,9 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   case class Sub(symbol: CoinSymbol, contractType: ContractType)(val replyTo: ActorRef[BaseSerializer]) extends Event
 
-  case class SubResponse(source: SourceRef[TradeDetail]) extends Event
+  case class SubOk(source: SourceRef[TradeDetail]) extends Event
+
+  case class SubFail(exception: Throwable) extends Event
 
   case class SendMessage(data: String) extends Event
 
@@ -194,7 +196,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
           val sourceRef: SourceRef[TradeDetail] = brocastHub
             .filter(detail => detail.symbol == symbol && detail.contractType == contractType)
             .runWith(StreamRefs.sourceRef())
-          e.replyTo.tell(SubResponse(sourceRef))
+          e.replyTo.tell(SubOk(sourceRef))
           Behaviors.same
         }
         case e@Shutdown => {

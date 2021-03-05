@@ -175,7 +175,6 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         triggerType = TriggerType.ge,
@@ -184,7 +183,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessageType[TriggerBase.CreateOk]
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -242,7 +241,6 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         triggerType = TriggerType.ge,
@@ -251,7 +249,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessageType[TriggerBase.CreateOk]
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
       triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
@@ -286,7 +284,6 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         triggerType = TriggerType.ge,
@@ -295,7 +292,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessageType[TriggerBase.CreateOk]
 
       triggerBehavior.tell(TriggerBase.Cancel(orderId)(testKit.createTestProbe[BaseSerializer]().ref))
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
@@ -331,7 +328,6 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         triggerType = TriggerType.ge,
@@ -340,7 +336,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessageType[TriggerBase.CreateOk]
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -399,7 +395,6 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         triggerType = TriggerType.ge,
@@ -408,7 +403,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessageType[TriggerBase.CreateOk]
 
       val leverRateProbe = testKit.createTestProbe[BaseSerializer]()
       triggerBehavior.tell(TriggerBase.IsCanChangeLeverRate()(leverRateProbe.ref))

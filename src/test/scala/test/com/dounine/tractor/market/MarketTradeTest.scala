@@ -136,7 +136,7 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
 
       marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource.ref))
 
-      val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
+      val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubOk]
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -237,8 +237,8 @@ class MarketTradeTest extends ScalaTestWithActorTestKit(ManualTime.config) with 
       val probeSource2 = testKit.createTestProbe[BaseSerializer]()
       marketTradeBehavior.tell(MarketTradeBehavior.Sub(CoinSymbol.BTC, ContractType.quarter)(probeSource2.ref))
 
-      val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
-      val subResponse2 = probeSource2.receiveMessage().asInstanceOf[MarketTradeBehavior.SubResponse]
+      val subResponse = probeSource.receiveMessage().asInstanceOf[MarketTradeBehavior.SubOk]
+      val subResponse2 = probeSource2.receiveMessage().asInstanceOf[MarketTradeBehavior.SubOk]
       subResponse.source.runWith(TestSink()).request(1).expectNext(tradeDetail)
       subResponse2.source.runWith(TestSink()).request(1).expectNext(tradeDetail)
 

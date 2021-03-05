@@ -171,7 +171,6 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
       val orderId = orderIdGlobal.incrementAndGet().toString
       triggerBehavior.tell(TriggerBase.Create(
         orderId = orderId,
-        leverRate = LeverRate.x20,
         offset = Offset.open,
         orderPriceType = OrderPriceType.limit,
         triggerType = TriggerType.ge,
@@ -180,7 +179,7 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(TriggerBase.CreateOk(orderId))
+      createProbe.expectMessageType[TriggerBase.CreateOk]
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",

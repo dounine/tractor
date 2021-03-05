@@ -6,4 +6,5 @@ object TriggerCancelFailStatus extends Enumeration {
   val cancelAlreadyCanceled = Value("trigger_cancel_already_canceled")
   val cancelAlreadyMatched = Value("trigger_cancel_already_matched")
   val cancelAlreadyFailed = Value("trigger_cancel_already_failed")
+  val cancelTimeout = Value("trigger_cancel_timeout")
 }
