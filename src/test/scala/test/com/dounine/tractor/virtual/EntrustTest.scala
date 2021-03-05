@@ -475,7 +475,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
 
       val subProbe = testKit.createTestProbe[BaseSerializer]()
       entrustNotifyBehavior.tell(EntrustNotifyBehavior.Sub(CoinSymbol.BTC, ContractType.quarter, Direction.buy)(subProbe.ref))
-      val subResponse = subProbe.receiveMessage(3.seconds).asInstanceOf[EntrustNotifyBehavior.SubResponse]
+      val subResponse = subProbe.receiveMessage(3.seconds).asInstanceOf[EntrustNotifyBehavior.SubOk]
       val notifyInfo = subResponse.source.runWith(TestSink[NotifyModel.NotifyInfo]).request(1).expectNext(3.seconds)
       notifyInfo.orderId shouldBe orderId
     }

@@ -96,9 +96,9 @@ object StopedStatus extends ActorSerializerSuport {
                 )(_))(3.seconds)
               )
                 .flatMapConcat {
-                  case EntrustNotifyBehavior.SubResponse(source) => source
+                  case EntrustNotifyBehavior.SubOk(source) => source
                 }
-                .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => MarketTradeBehavior.SubFail(e)))(materializer)
+                .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => EntrustNotifyBehavior.SubFail(e)))(materializer)
 
               context.self.tell(Trigger())
             })

@@ -26,23 +26,23 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   val typeKey: EntityTypeKey[BaseSerializer] = EntityTypeKey[BaseSerializer]("MarketTradeBehavior")
 
-  trait Event extends BaseSerializer
+  trait Command extends BaseSerializer
 
-  case class Sub(symbol: CoinSymbol, contractType: ContractType)(val replyTo: ActorRef[BaseSerializer]) extends Event
+  case class Sub(symbol: CoinSymbol, contractType: ContractType)(val replyTo: ActorRef[BaseSerializer]) extends Command
 
-  case class SubOk(source: SourceRef[TradeDetail]) extends Event
+  case class SubOk(source: SourceRef[TradeDetail]) extends Command
 
-  case class SubFail(exception: Throwable) extends Event
+  case class SubFail(exception: Throwable) extends Command
 
-  case class SendMessage(data: String) extends Event
+  case class SendMessage(data: String) extends Command
 
-  case class SocketConnect(url: Option[String] = Option.empty)(val replyTo: ActorRef[BaseSerializer]) extends Event
+  case class SocketConnect(url: Option[String] = Option.empty)(val replyTo: ActorRef[BaseSerializer]) extends Command
 
-  case class SocketConnectAccept() extends Event
+  case class SocketConnectAccept() extends Command
 
-  case class SocketConnectReject(msg: Option[String]) extends Event
+  case class SocketConnectReject(msg: Option[String]) extends Command
 
-  case class SocketMessage(data: String) extends Event
+  case class SocketMessage(data: String) extends Command
 
   case class TradeDetail(
                           symbol: CoinSymbol,
@@ -53,24 +53,24 @@ object MarketTradeBehavior extends ActorSerializerSuport {
                           time: Long,
                         ) extends BaseSerializer
 
-  case class SocketConnectFail(msg: String) extends Event
+  case class SocketConnectFail(msg: String) extends Command
 
-  case class SocketConnected(serverActor: ActorRef[Event]) extends Event
+  case class SocketConnected(serverActor: ActorRef[Command]) extends Command
 
-  case class SocketCloseFail(msg: String) extends Event
+  case class SocketCloseFail(msg: String) extends Command
 
-  case class SocketClosed(url: Option[String], msg: Option[String]) extends Event
+  case class SocketClosed(url: Option[String], msg: Option[String]) extends Command
 
-  case object Shutdown extends Event
+  case object Shutdown extends Command
 
-  case object SocketComplete extends Event
+  case object SocketComplete extends Command
 
   def apply(): Behavior[BaseSerializer] = Behaviors.setup {
     context => {
       implicit val materializer = SystemMaterializer(context.system).materializer
       val http = Http(context.system)
       val source = ActorSource
-        .actorRef[Event](
+        .actorRef[Command](
           completionMatcher = PartialFunction.empty,
           failureMatcher = PartialFunction.empty,
           bufferSize = 100,
@@ -84,7 +84,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
         .named("socket source")
 
       val sink = ActorSink
-        .actorRef[Event](
+        .actorRef[Command](
           ref = context.self,
           onCompleteMessage = SocketClosed(None, None),
           onFailureMessage = (e: Throwable) => SocketCloseFail(e.getMessage)
@@ -142,7 +142,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
       val brocastHub = subTradeDetailSource.runWith(BroadcastHub.sink)
 
-      def data(serverActor: Option[ActorRef[Event]]): Behavior[BaseSerializer] = Behaviors.receiveMessage {
+      def data(serverActor: Option[ActorRef[Command]]): Behavior[BaseSerializer] = Behaviors.receiveMessage {
         case e@SocketConnect(url) => {
           logger.info(e.logJson)
           socket.offer(url.getOrElse("wss://api.hbdm.com/ws")) match {

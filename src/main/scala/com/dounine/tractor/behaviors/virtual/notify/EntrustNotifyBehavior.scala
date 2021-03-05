@@ -17,17 +17,19 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
   private val logger = LoggerFactory.getLogger(EntrustNotifyBehavior.getClass)
   val typeKey: EntityTypeKey[BaseSerializer] = EntityTypeKey[BaseSerializer]("EntrustNotifyBehavior")
 
-  trait Event extends BaseSerializer
+  trait Command extends BaseSerializer
 
-  case class Sub(symbol: CoinSymbol, contractType: ContractType, direction: Direction)(val replyTo: ActorRef[BaseSerializer]) extends Event
+  case class Sub(symbol: CoinSymbol, contractType: ContractType, direction: Direction)(val replyTo: ActorRef[BaseSerializer]) extends Command
 
-  case class SubResponse(source: SourceRef[NotifyModel.NotifyInfo]) extends Event
+  case class SubOk(source: SourceRef[NotifyModel.NotifyInfo]) extends Command
 
-  case class Push(notif: NotifyModel.NotifyInfo)(val replyTo: ActorRef[BaseSerializer]) extends Event
+  case class SubFail(exception: Throwable) extends Command
 
-  case class PushOk() extends Event
+  case class Push(notif: NotifyModel.NotifyInfo)(val replyTo: ActorRef[BaseSerializer]) extends Command
 
-  case class PushFail(result: QueueOfferResult) extends Event
+  case class PushOk() extends Command
+
+  case class PushFail(result: QueueOfferResult) extends Command
 
   def apply(): Behavior[BaseSerializer] = Behaviors.setup[BaseSerializer] {
     context => {
@@ -65,7 +67,7 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
           val sourceRef: SourceRef[NotifyModel.NotifyInfo] = brocastHub
             .filter(detail => detail.symbol == symbol && detail.contractType == contractType && detail.direction == direction)
             .runWith(StreamRefs.sourceRef())
-          e.replyTo.tell(SubResponse(sourceRef))
+          e.replyTo.tell(SubOk(sourceRef))
           Behaviors.same
         }
       }

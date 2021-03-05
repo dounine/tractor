@@ -10,7 +10,6 @@ import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direc
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 import UpDownBase._
-import akka.cluster.sharding.typed.javadsl.ShardedDaemonProcess
 import akka.stream.{OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.{BroadcastHub, Source, SourceQueueWithComplete}
 
@@ -61,6 +60,10 @@ object UpDownBehavior extends ActorSerializerSuport {
                 case Shutdown() => {
                   logger.info(command.logJson)
                   Effect.none.thenStop()
+                }
+                case StreamComplete() => {
+                  logger.info(command.logJson)
+                  Effect.none
                 }
               }
 
