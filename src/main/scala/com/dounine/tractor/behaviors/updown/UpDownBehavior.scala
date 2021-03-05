@@ -10,8 +10,8 @@ import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direc
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 import UpDownBase._
-import akka.stream.{OverflowStrategy, SystemMaterializer}
-import akka.stream.scaladsl.{BroadcastHub, Source, SourceQueueWithComplete}
+import akka.stream.{OverflowStrategy, SourceRef, SystemMaterializer}
+import akka.stream.scaladsl.{BroadcastHub, Source, SourceQueueWithComplete, StreamRefs}
 
 import scala.concurrent.duration._
 
@@ -43,7 +43,8 @@ object UpDownBehavior extends ActorSerializerSuport {
             )
             val statusList = Seq(
               status.StopedStatus(context, shard, timers, shareData),
-              status.OpenTriggeringStatus(context, shard, timers, shareData)
+              status.OpenTriggeringStatus(context, shard, timers, shareData),
+              status.OpenPartEntrustedStatus(context, shard, timers, shareData)
             )
 
             val commandDefaultHandler: (
@@ -64,6 +65,14 @@ object UpDownBehavior extends ActorSerializerSuport {
                 case StreamComplete() => {
                   logger.info(command.logJson)
                   Effect.none
+                }
+                case e@Sub() => {
+                  logger.info(command.logJson)
+                  Effect.none.thenRun((_: State) => {
+                    val sourceRef: SourceRef[PushDataInfo] = infoBrocastHub
+                      .runWith(StreamRefs.sourceRef())(materializer)
+                    e.replyTo.tell(SubOk(sourceRef))
+                  })
                 }
               }
 

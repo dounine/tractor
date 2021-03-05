@@ -88,6 +88,10 @@ object EntrustBase extends ActorSerializerSuport {
                            volume: Int
                          )(val replyTo: ActorRef[BaseSerializer]) extends Command
 
+  final case class CreateOk(request: Create) extends Command
+
+  final case class CreateFail(request: Create) extends Command
+
   final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
 
   final case class ChangeLeverRateYes() extends Command
@@ -99,8 +103,6 @@ object EntrustBase extends ActorSerializerSuport {
   final case class UpdateLeverRateOk() extends Command
 
   final case class UpdateLeverRateFail() extends Command
-
-  final case class CreateOk(orderId: String) extends Command
 
   final case class Cancel(orderId: String)(val replyTo: ActorRef[BaseSerializer]) extends Command
 

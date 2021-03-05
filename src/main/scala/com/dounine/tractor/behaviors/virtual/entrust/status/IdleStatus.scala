@@ -89,7 +89,7 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
             .thenRun((state: State) => {
-              e.replyTo.tell(CreateOk(orderId))
+              e.replyTo.tell(CreateOk(e))
               val result = Source.future(
                 sharding.entityRefFor(EntrustNotifyBehavior.typeKey, state.data.config.entrustNotifyId)
                   .ask[BaseSerializer](ref => EntrustNotifyBehavior.Push(

@@ -46,12 +46,6 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
     ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val materializer = SystemMaterializer(context.system).materializer
-    val cancelTrigger: () => Unit = () => {
-      timers.cancel(key = triggerName)
-    }
-    val cancelEntrustTimeout: () => Unit = () => {
-      timers.cancel(key = entrustTimeoutName)
-    }
     val pushStatus: (ShareData, UpDownStatus) => Unit = (data, status) => {
       pushInfos(
         data = data,
@@ -348,7 +342,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                 notif.entrustStatus match {
                   case EntrustStatus.canceled => state
                   case EntrustStatus.submit =>
-                    OpenEntrusted(
+                    OpenPartEntrusted(
                       data = data.copy(
                         info = data.info.copy(
                           openTriggerSubmitOrder = Option.empty,
@@ -368,7 +362,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                       )
                     )
                   case EntrustStatus.matchPart =>
-                    OpenMatched(
+                    OpenPartEntrusted(
                       data = data.copy(
                         info = data.info.copy(
                           openTriggerSubmitOrder = Option.empty,
@@ -408,7 +402,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             status match {
               case TriggerCancelFailStatus.cancelOrderNotExit => OpenErrored(data)
               case TriggerCancelFailStatus.cancelAlreadyCanceled => state
-              case TriggerCancelFailStatus.cancelAlreadyMatched => OpenEntrusted(data)
+              case TriggerCancelFailStatus.cancelAlreadyMatched => OpenAllEntrusted(data)
               case TriggerCancelFailStatus.cancelAlreadyFailed => OpenErrored(data)
               case TriggerCancelFailStatus.cancelTimeout => OpenErrored(data)
             }

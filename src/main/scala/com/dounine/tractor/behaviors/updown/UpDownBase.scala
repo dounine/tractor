@@ -1,8 +1,9 @@
 package com.dounine.tractor.behaviors.updown
 
+import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import akka.stream.{QueueCompletionResult, QueueOfferResult}
+import akka.stream.{QueueCompletionResult, QueueOfferResult, SourceRef}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
 import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
@@ -97,9 +98,9 @@ object UpDownBase {
 
   final case class OpenTriggering(data: DataStore) extends State
 
-  final case class OpenEntrusted(data: DataStore) extends State
+  final case class OpenPartEntrusted(data: DataStore) extends State
 
-  final case class OpenMatched(data: DataStore) extends State
+  final case class OpenAllEntrusted(data: DataStore) extends State
 
   final case class Opened(data: DataStore) extends State
 
@@ -107,9 +108,9 @@ object UpDownBase {
 
   final case class CloseTriggering(data: DataStore) extends State
 
-  final case class CloseEntrusted(data: DataStore) extends State
+  final case class ClosePartEntrusted(data: DataStore) extends State
 
-  final case class CloseMatched(data: DataStore) extends State
+  final case class CloseAllEntrusted(data: DataStore) extends State
 
   final case class Closed(data: DataStore) extends State
 
@@ -163,6 +164,12 @@ object UpDownBase {
                                    status: EntrustStatus,
                                    orderId: String
                                  ) extends Command
+
+  case class Sub()(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  case class SubOk(source: SourceRef[PushDataInfo]) extends Command
+
+  case class SubFail(exception: Throwable) extends Command
 
 
   final val triggerName: String = "Trigger"

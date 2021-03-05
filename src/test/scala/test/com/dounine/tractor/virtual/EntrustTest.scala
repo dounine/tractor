@@ -179,7 +179,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
+      createProbe.expectMessageType[EntrustBase.CreateOk]
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -246,7 +246,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
+      createProbe.expectMessageType[EntrustBase.CreateOk]
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
       entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))
@@ -293,7 +293,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
+      createProbe.expectMessageType[EntrustBase.CreateOk]
 
       entrustBehavior.tell(EntrustBase.Cancel(orderId)(testKit.createTestProbe[BaseSerializer]().ref))
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
@@ -342,7 +342,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
+      createProbe.expectMessageType[EntrustBase.CreateOk]
 
       val triggerMessage = MarketTradeModel.WsPrice(
         ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
@@ -412,7 +412,7 @@ class EntrustTest extends ScalaTestWithActorTestKit(
         volume = 1
       )(createProbe.ref))
 
-      createProbe.expectMessage(EntrustBase.CreateOk(orderId))
+      createProbe.expectMessageType[EntrustBase.CreateOk]
 
       val leverRateProbe = testKit.createTestProbe[BaseSerializer]()
       entrustBehavior.tell(EntrustBase.IsCanChangeLeverRate()(leverRateProbe.ref))
