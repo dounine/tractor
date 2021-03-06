@@ -6,12 +6,17 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed._
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, UpDownStatus, UpDownUpdateType}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 import UpDownBase._
-import akka.stream.{OverflowStrategy, SourceRef, SystemMaterializer}
+import akka.stream.{OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
 import akka.stream.scaladsl.{BroadcastHub, Source, SourceQueueWithComplete, StreamRefs}
+import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
+import com.dounine.tractor.model.types.currency.ContractType.ContractType
+import com.dounine.tractor.model.types.currency.Direction.Direction
+import com.dounine.tractor.tools.util.CopyUtil
 
 import scala.concurrent.duration._
 
@@ -44,7 +49,10 @@ object UpDownBehavior extends ActorSerializerSuport {
             val statusList = Seq(
               status.StopedStatus(context, shard, timers, shareData),
               status.OpenTriggeringStatus(context, shard, timers, shareData),
-              status.OpenPartEntrustedStatus(context, shard, timers, shareData)
+              status.OpenEntrustedStatus(context, shard, timers, shareData),
+              status.OpenPartMatchedStatus(context, shard, timers, shareData),
+              status.OpenErroredStatus(context, shard, timers, shareData),
+              status.OpenedStatus(context, shard, timers, shareData)
             )
 
             val commandDefaultHandler: (
@@ -52,11 +60,22 @@ object UpDownBehavior extends ActorSerializerSuport {
                 BaseSerializer
               ) => Effect[BaseSerializer, State] = (state, command) =>
               command match {
+                case e@Query() => {
+                  logger.info(command.logJson)
+                  Effect.none.thenRun(_ => {
+                    e.replyTo.tell(
+                      msg = QuerySuccess(
+                        status = UpDownStatus.withName(
+                          state.getClass().getSimpleName()
+                        ),
+                        info = state.data
+                      )
+                    )
+                  })
+                }
                 case Stop() => {
                   logger.info(command.logJson)
-                  Effect.reply(shard)(
-                    ClusterSharding.Passivate(entity = context.self)
-                  )
+                  Effect.none
                 }
                 case Shutdown() => {
                   logger.info(command.logJson)
@@ -68,18 +87,83 @@ object UpDownBehavior extends ActorSerializerSuport {
                 }
                 case e@Sub() => {
                   logger.info(command.logJson)
-                  Effect.none.thenRun((_: State) => {
+                  Effect.none.thenRun((updateState: State) => {
+                    val pushInfos = Map(
+                      UpDownUpdateType.run -> updateState.data.info.run.toString,
+                      UpDownUpdateType.runLoading -> updateState.data.info.runLoading,
+                      UpDownUpdateType.status -> updateState.data.info,
+                      UpDownUpdateType.openEntrustTimeout -> updateState.data.info.openEntrustTimeout,
+                      UpDownUpdateType.openLeverRate -> updateState.data.leverRate,
+                      UpDownUpdateType.openReboundPrice -> updateState.data.info.openReboundPrice,
+                      UpDownUpdateType.openScheduling -> updateState.data.info.openScheduling,
+                      UpDownUpdateType.openTriggerPriceSpread -> updateState.data.info.openTriggerPriceSpread,
+                      UpDownUpdateType.openVolume -> updateState.data.info.openVolume,
+                      UpDownUpdateType.closeEntrustTimeout -> updateState.data.info.closeEntrustTimeout,
+                      UpDownUpdateType.closeReboundPrice -> updateState.data.info.closeReboundPrice,
+                      UpDownUpdateType.closeScheduling -> updateState.data.info.closeScheduling,
+                      UpDownUpdateType.closeTriggerPriceSpread -> updateState.data.info.closeTriggerPriceSpread,
+                      UpDownUpdateType.closeZoom -> updateState.data.info.closeZoom,
+                      UpDownUpdateType.closeVolume -> updateState.data.info.closeVolume
+                    )
+                    val info = PushDataInfo(
+                      info = pushInfos.foldLeft(PushInfo())((sum, next) => {
+                        CopyUtil.copy[PushInfo](sum)(
+                          values = Map(next._1.toString -> Option(next._2))
+                        )
+                      })
+                    )
                     val sourceRef: SourceRef[PushDataInfo] = infoBrocastHub
+                      .concat(Source.single(info))
                       .runWith(StreamRefs.sourceRef())(materializer)
                     e.replyTo.tell(SubOk(sourceRef))
                   })
+                }
+                case e@MarketTradeBehavior.TradeDetail(
+                symbol: CoinSymbol,
+                contractType: ContractType,
+                direction: Direction,
+                price: Double,
+                amount: Int,
+                time: Long,
+                ) => {
+                  logger.info(command.logJson)
+                  Effect.persist(command)
                 }
               }
 
             def eventDefaultHandler(state: State, command: BaseSerializer)
             : State = {
               command match {
-                case _ => throw new Exception(s"unknown command ${command}")
+                case _ => {
+                  val data: DataStore = state.data
+                  CopyUtil.copy[State](state)(
+                    values = Map(
+                      "data" -> (
+                        command match {
+                          case e@MarketTradeBehavior.TradeDetail(
+                          symbol: CoinSymbol,
+                          contractType: ContractType,
+                          direction: Direction,
+                          price: Double,
+                          amount: Int,
+                          time: Long,
+                          ) => {
+                            data.preTradePrice match {
+                              case Some(_) => data.copy(
+                                tradePrice = Option(price),
+                                preTradePrice = data.tradePrice
+                              )
+                              case None => data.copy(
+                                tradePrice = Option(price),
+                                preTradePrice = Option(price)
+                              )
+                            }
+                          }
+                        }
+                        )
+                    )
+                  )
+                }
               }
             }
 

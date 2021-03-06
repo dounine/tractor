@@ -32,7 +32,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   case class SubOk(source: SourceRef[TradeDetail]) extends Command
 
-  case class SubFail(exception: Throwable) extends Command
+  case class SubFail(msg: String) extends Command
 
   case class SendMessage(data: String) extends Command
 

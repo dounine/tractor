@@ -12,7 +12,7 @@ import com.dounine.tractor.behaviors.updown.UpDownBase._
 import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.tools.json.ActorSerializerSuport
+import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.duration._
@@ -83,7 +83,7 @@ object StopedStatus extends ActorSerializerSuport {
                 }
                 .throttle(1, 100.milliseconds)
                 .buffer(1, OverflowStrategy.dropHead)
-                .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => MarketTradeBehavior.SubFail(e)))(materializer)
+                .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => MarketTradeBehavior.SubFail(e.getMessage)))(materializer)
 
               Source.future(
                 sharding.entityRefFor(
@@ -98,7 +98,7 @@ object StopedStatus extends ActorSerializerSuport {
                 .flatMapConcat {
                   case EntrustNotifyBehavior.SubOk(source) => source
                 }
-                .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => EntrustNotifyBehavior.SubFail(e)))(materializer)
+                .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => EntrustNotifyBehavior.SubFail(e.getMessage)))(materializer)
 
               context.self.tell(Trigger())
             })

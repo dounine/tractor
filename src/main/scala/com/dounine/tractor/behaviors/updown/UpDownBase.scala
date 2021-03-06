@@ -98,9 +98,9 @@ object UpDownBase {
 
   final case class OpenTriggering(data: DataStore) extends State
 
-  final case class OpenPartEntrusted(data: DataStore) extends State
+  final case class OpenPartMatched(data: DataStore) extends State
 
-  final case class OpenAllEntrusted(data: DataStore) extends State
+  final case class OpenEntrusted(data: DataStore) extends State
 
   final case class Opened(data: DataStore) extends State
 
@@ -108,9 +108,9 @@ object UpDownBase {
 
   final case class CloseTriggering(data: DataStore) extends State
 
-  final case class ClosePartEntrusted(data: DataStore) extends State
+  final case class ClosePartMatched(data: DataStore) extends State
 
-  final case class CloseAllEntrusted(data: DataStore) extends State
+  final case class CloseEntrusted(data: DataStore) extends State
 
   final case class Closed(data: DataStore) extends State
 
@@ -119,6 +119,11 @@ object UpDownBase {
   final case class Stop() extends Command
 
   final case class Shutdown() extends Command
+
+  final case class Query()(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class QuerySuccess(status: UpDownStatus, info: DataStore) extends Command
+
 
   final case class Run(
                         marketTradeId: String = MarketTradeBehavior.typeKey.name,
@@ -171,6 +176,9 @@ object UpDownBase {
 
   case class SubFail(exception: Throwable) extends Command
 
+  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+    s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
+  }
 
   final val triggerName: String = "Trigger"
   final val entrustTimeoutName: String = "EntrustTimeout"

@@ -20,10 +20,10 @@ import com.dounine.tractor.model.types.currency.{EntrustCancelFailStatus, Entrus
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-object OpenPartEntrustedStatus extends ActorSerializerSuport {
+object OpenPartMatchedStatus extends ActorSerializerSuport {
 
   private final val logger: Logger =
-    LoggerFactory.getLogger(OpenPartEntrustedStatus.getClass)
+    LoggerFactory.getLogger(OpenPartMatchedStatus.getClass)
 
   def apply(
              context: ActorContext[BaseSerializer],
@@ -257,7 +257,7 @@ object OpenPartEntrustedStatus extends ActorSerializerSuport {
                       )
                     )
                   case EntrustStatus.matchPart =>
-                    OpenPartEntrusted(
+                    OpenPartMatched(
                       data = data.copy(
                         info = data.info.copy(
                           openTriggerSubmitOrder = Option.empty,
@@ -312,6 +312,6 @@ object OpenPartEntrustedStatus extends ActorSerializerSuport {
         }
       }
 
-    (commandHandler, defaultEvent, classOf[OpenPartEntrusted])
+    (commandHandler, defaultEvent, classOf[OpenPartMatched])
   }
 }

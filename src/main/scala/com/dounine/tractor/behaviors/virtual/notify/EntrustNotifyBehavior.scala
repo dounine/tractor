@@ -23,7 +23,7 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
 
   case class SubOk(source: SourceRef[NotifyModel.NotifyInfo]) extends Command
 
-  case class SubFail(exception: Throwable) extends Command
+  case class SubFail(msg: String) extends Command
 
   case class Push(notif: NotifyModel.NotifyInfo)(val replyTo: ActorRef[BaseSerializer]) extends Command
 

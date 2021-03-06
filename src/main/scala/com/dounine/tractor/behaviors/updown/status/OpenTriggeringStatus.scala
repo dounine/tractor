@@ -88,7 +88,6 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                     ),
                     context = context
                   )
-
                   Source.future(
                     sharding.entityRefFor(
                       TriggerBase.typeKey,
@@ -155,7 +154,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                         ),
                         delay = data.info.openEntrustTimeout
                       )
-                      pushStatus(shareData, UpDownStatus.OpenMatched)
+                      pushStatus(shareData, UpDownStatus.OpenPartMatched)
                     }
                     case EntrustStatus.matchPartOtherCancel => {
                       timers.cancel(triggerName)
@@ -165,7 +164,6 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                   }
                 case _ =>
               }
-
             })
         }
 
@@ -342,7 +340,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                 notif.entrustStatus match {
                   case EntrustStatus.canceled => state
                   case EntrustStatus.submit =>
-                    OpenPartEntrusted(
+                    OpenEntrusted(
                       data = data.copy(
                         info = data.info.copy(
                           openTriggerSubmitOrder = Option.empty,
@@ -362,7 +360,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                       )
                     )
                   case EntrustStatus.matchPart =>
-                    OpenPartEntrusted(
+                    OpenPartMatched(
                       data = data.copy(
                         info = data.info.copy(
                           openTriggerSubmitOrder = Option.empty,
@@ -402,7 +400,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             status match {
               case TriggerCancelFailStatus.cancelOrderNotExit => OpenErrored(data)
               case TriggerCancelFailStatus.cancelAlreadyCanceled => state
-              case TriggerCancelFailStatus.cancelAlreadyMatched => OpenAllEntrusted(data)
+              case TriggerCancelFailStatus.cancelAlreadyMatched => OpenEntrusted(data)
               case TriggerCancelFailStatus.cancelAlreadyFailed => OpenErrored(data)
               case TriggerCancelFailStatus.cancelTimeout => OpenErrored(data)
             }
