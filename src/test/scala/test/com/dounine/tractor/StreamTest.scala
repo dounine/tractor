@@ -54,6 +54,28 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
     }
 
+    "broadcast sink throttle" in {
+      val cc = Source.queue[Int](100, OverflowStrategy.dropHead)
+        .preMaterialize()
+
+      val broadcastHub = cc._2.toMat(BroadcastHub.sink(bufferSize = 256))(Keep.right).run()
+
+      cc._1.offer(1)
+
+      broadcastHub
+        .runForeach(println)
+
+      broadcastHub
+        .runForeach(println)
+
+      broadcastHub
+        .throttle(1, 100.milliseconds)
+        .buffer(1, OverflowStrategy.dropHead)
+        .runWith(TestSink[Int]()).request(1).expectNext(1)
+
+
+    }
+
   }
 
 }

@@ -227,7 +227,6 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                     val triggerPrice: Double =
                       handlePrice.getOrElse(triggerPriceDouble)
 
-
                     val createInfo = TriggerBase.Create(
                       orderId = UUID.randomUUID().toString.replaceAll("-", ""),
                       offset = Offset.open,
@@ -245,7 +244,6 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                       triggerPrice = triggerPrice,
                       volume = state.data.info.openVolume
                     )(null)
-
 
                     Source.future(
                       sharding.entityRefFor(

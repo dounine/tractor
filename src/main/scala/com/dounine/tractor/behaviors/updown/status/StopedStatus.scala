@@ -67,32 +67,34 @@ object StopedStatus extends ActorSerializerSuport {
         ) => {
           logger.info(command.logJson)
           Effect.persist(command)
-            .thenRun((state: State) => {
+            .thenRun((updateState: State) => {
               Source
                 .future(
                   sharding.entityRefFor(
                     MarketTradeBehavior.typeKey,
-                    state.data.config.marketTradeId
+                    updateState.data.config.marketTradeId
                   ).ask[BaseSerializer](MarketTradeBehavior.Sub(
-                    symbol = state.data.symbol,
-                    contractType = state.data.contractType
+                    symbol = updateState.data.symbol,
+                    contractType = updateState.data.contractType
                   )(_))(3.seconds)
                 )
                 .flatMapConcat {
-                  case MarketTradeBehavior.SubOk(source) => source
+                  case MarketTradeBehavior.SubOk(source) => {
+                    source
+                  }
                 }
+                .buffer(2, OverflowStrategy.dropHead)
                 .throttle(1, 100.milliseconds)
-                .buffer(1, OverflowStrategy.dropHead)
                 .runWith(ActorSink.actorRef(context.self, StreamComplete(), e => MarketTradeBehavior.SubFail(e.getMessage)))(materializer)
 
               Source.future(
                 sharding.entityRefFor(
                   EntrustNotifyBehavior.typeKey,
-                  state.data.config.entrustNotifyId
+                  updateState.data.config.entrustNotifyId
                 ).ask[BaseSerializer](EntrustNotifyBehavior.Sub(
-                  symbol = state.data.symbol,
-                  contractType = state.data.contractType,
-                  direction = state.data.direction
+                  symbol = updateState.data.symbol,
+                  contractType = updateState.data.contractType,
+                  direction = updateState.data.direction
                 )(_))(3.seconds)
               )
                 .flatMapConcat {

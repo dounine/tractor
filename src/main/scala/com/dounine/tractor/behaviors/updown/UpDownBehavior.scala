@@ -118,13 +118,8 @@ object UpDownBehavior extends ActorSerializerSuport {
                     e.replyTo.tell(SubOk(sourceRef))
                   })
                 }
-                case e@MarketTradeBehavior.TradeDetail(
-                symbol: CoinSymbol,
-                contractType: ContractType,
-                direction: Direction,
-                price: Double,
-                amount: Int,
-                time: Long,
+                case MarketTradeBehavior.TradeDetail(
+                _, _, _, _, _, _
                 ) => {
                   logger.info(command.logJson)
                   Effect.persist(command)
@@ -148,6 +143,7 @@ object UpDownBehavior extends ActorSerializerSuport {
                           amount: Int,
                           time: Long,
                           ) => {
+                            logger.info(command.logJson)
                             data.preTradePrice match {
                               case Some(_) => data.copy(
                                 tradePrice = Option(price),
