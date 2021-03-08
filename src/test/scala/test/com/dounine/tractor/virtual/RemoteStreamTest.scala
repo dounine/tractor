@@ -77,7 +77,7 @@ class RemoteStreamTest extends ScalaTestWithActorTestKit(
 ) with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
   val materializer = SystemMaterializer(system).materializer
   val sharding = ClusterSharding(system)
-  val portGlobal = new AtomicInteger(8200)
+  val portGlobal = new AtomicInteger(8500)
   val orderIdGlobal = new AtomicInteger(1)
   val pingMessage = (time: Option[Long]) => Await.result(Source.single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""").map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
   val dataMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
