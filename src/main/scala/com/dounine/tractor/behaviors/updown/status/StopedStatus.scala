@@ -18,7 +18,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContextExecutor
 
-object StopedStatus extends ActorSerializerSuport {
+object StopedStatus extends JsonParse {
 
   private final val logger: Logger =
     LoggerFactory.getLogger(StopedStatus.getClass)

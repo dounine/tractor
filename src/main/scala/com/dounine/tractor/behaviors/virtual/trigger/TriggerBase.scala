@@ -45,6 +45,7 @@ object TriggerBase extends ActorSerializerSuport {
                         ) extends BaseSerializer
 
   case class DataStore(
+                        price: Option[Double],
                         triggers: Map[String, TriggerInfo],
                         config: Config,
                         phone: String,
@@ -113,11 +114,15 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case class CreateFail(request: Create, status: TriggerCreateFailStatus) extends Command
 
+  final case class StreamComplete() extends Command
+
   final case class Cancel(orderId: String)(val replyTo: ActorRef[BaseSerializer]) extends Command
 
   final case class CancelOk(orderId: String) extends Command
 
   final case class CancelFail(orderId: String, status: TriggerCancelFailStatus) extends Command
+
+  final case class Trigger(price: Double) extends Command
 
   final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
 

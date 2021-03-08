@@ -176,6 +176,16 @@ object UpDownBase {
 
   case class SubFail(exception: Throwable) extends Command
 
+  case class Update(
+                     name: UpDownUpdateType,
+                     value: Any,
+                     replyTo: ActorRef[BaseSerializer]
+                   ) extends Command
+
+  final case class UpdateOk() extends Command
+
+  final case class UpdateFail(msg: String) extends Command
+
   def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
     s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }

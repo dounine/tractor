@@ -76,7 +76,7 @@ object IdleStatus extends ActorSerializerSuport {
         case e@IsCanChangeLeverRate() => {
           logger.info(command.logJson)
           Effect.none.thenRun((state: State) => {
-            if (state.data.position.isDefined){
+            if (state.data.position.isDefined) {
               e.replyTo.tell(ChangeLeverRateNo())
             } else {
               e.replyTo.tell(ChangeLeverRateYes())
@@ -261,7 +261,7 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case MarketTradeBehavior.TradeDetail(_, _, _, _, price, _) => {
+        case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
           logger.info(command.logJson)
           Effect.none
         }

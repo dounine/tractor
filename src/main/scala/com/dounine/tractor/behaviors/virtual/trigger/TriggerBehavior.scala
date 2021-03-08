@@ -7,13 +7,13 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionC
 import akka.persistence.typed._
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate}
-import com.dounine.tractor.tools.json.ActorSerializerSuport
+import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import TriggerBase._
 
 import scala.concurrent.duration._
 import org.slf4j.LoggerFactory
 
-object TriggerBehavior extends ActorSerializerSuport {
+object TriggerBehavior extends JsonParse {
   private val logger = LoggerFactory.getLogger(TriggerBehavior.getClass)
 
   def apply(
@@ -79,6 +79,7 @@ object TriggerBehavior extends ActorSerializerSuport {
               persistenceId = entityId,
               emptyState = Stoped(
                 data = DataStore(
+                  price = Option.empty,
                   triggers = Map.empty,
                   config = Config(),
                   phone = phone,

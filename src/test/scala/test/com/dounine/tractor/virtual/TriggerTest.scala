@@ -204,7 +204,7 @@ class TriggerTest extends ScalaTestWithActorTestKit(
       ).toJson
 
       LoggingTestKit
-        .info(classOf[TriggerBase.Triggers].getSimpleName)
+        .info(classOf[TriggerBase.Triggers].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }
@@ -356,16 +356,17 @@ class TriggerTest extends ScalaTestWithActorTestKit(
         ts = System.currentTimeMillis()
       ).toJson
 
+      LoggingTestKit.info(
+       classOf[TriggerBase.Triggers].getName
+      ).expect(
       socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
-
-      TimeUnit.MILLISECONDS.sleep(50)
+      )
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
       triggerBehavior.tell(TriggerBase.Cancel(orderId)(cancelProbe.ref))
       cancelProbe.expectMessage(TriggerBase.CancelFail(orderId, TriggerCancelFailStatus.cancelAlreadyMatched))
 
     }
-
 
     "leverRate fun test" in {
       val (socketClient, socketPort) = createSocket()

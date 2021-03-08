@@ -117,6 +117,7 @@ object OpenEntrustedStatus extends ActorSerializerSuport {
             })
         }
         case EntrustNotifyBehavior.Push(notif) => {
+          logger.info(command.logJson)
           Effect
             .persist(command)
             .thenRun((updateState: State) => {

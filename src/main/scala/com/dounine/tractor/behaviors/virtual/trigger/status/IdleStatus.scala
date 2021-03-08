@@ -6,14 +6,17 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.stream.typed.scaladsl.ActorFlow
+import akka.stream.typed.scaladsl.{ActorFlow, ActorSink}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
-import com.dounine.tractor.model.types.currency.{TriggerCancelFailStatus, TriggerStatus, TriggerType}
+import com.dounine.tractor.model.types.currency.Offset.Offset
+import com.dounine.tractor.model.types.currency.OrderPriceType.OrderPriceType
+import com.dounine.tractor.model.types.currency.TriggerType.TriggerType
+import com.dounine.tractor.model.types.currency.{Offset, TriggerCancelFailStatus, TriggerCreateFailStatus, TriggerStatus, TriggerType}
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
@@ -21,7 +24,7 @@ import java.time.LocalDateTime
 import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
-object IdleStatus extends ActorSerializerSuport {
+object IdleStatus extends JsonParse {
 
   private final val logger: Logger =
     LoggerFactory.getLogger(IdleStatus.getClass)
@@ -86,19 +89,41 @@ object IdleStatus extends ActorSerializerSuport {
         }
 
         case e@Create(
-        orderId,
-        offset,
-        orderPriceType,
-        triggerType,
-        orderPrice,
-        triggerPrice,
-        volume
+        orderId: String,
+        offset: Offset,
+        orderPriceType: OrderPriceType,
+        triggerType: TriggerType,
+        orderPrice: Double,
+        triggerPrice: Double,
+        volume: Int
         ) => {
           logger.info(command.logJson)
-          Effect.persist(command)
-            .thenRun((_: State) => {
-              e.replyTo.tell(CreateOk(e))
-            })
+          state.data.price match {
+            case Some(price) => {
+              val fireTrigger = triggerType match {
+                case TriggerType.le => {
+                  price <= triggerPrice
+                }
+                case TriggerType.ge => price >= triggerPrice
+              }
+              if (fireTrigger) {
+                Effect.none.thenRun((_: State) => {
+                  e.replyTo.tell(CreateFail(e, TriggerCreateFailStatus.createFireTrigger))
+                })
+              } else {
+                Effect.persist(command)
+                  .thenRun((_: State) => {
+                    e.replyTo.tell(CreateOk(e))
+                  })
+              }
+            }
+            case None => {
+              Effect.persist(command)
+                .thenRun((_: State) => {
+                  e.replyTo.tell(CreateOk(e))
+                })
+            }
+          }
         }
         case e@Cancel(orderId) => {
           logger.info(command.logJson)
@@ -131,24 +156,20 @@ object IdleStatus extends ActorSerializerSuport {
             })
           }
         }
-        case MarketTradeBehavior.SubOk(_) => {
-          logger.info(command.logJson)
-          Effect.persist(command)
-        }
-        case MarketTradeBehavior.TradeDetail(_, _, _, _, price, _) => {
+        case Trigger(price) => {
           logger.info(command.logJson)
           val triggers = state.data.triggers
             .filter(_._2.status == TriggerStatus.submit)
             .filter(trigger => {
               val info = trigger._2.trigger
               info.triggerType match {
-                case TriggerType.le => price >= info.triggerPrice
-                case TriggerType.ge => price <= info.triggerPrice
+                case TriggerType.le => price <= info.triggerPrice
+                case TriggerType.ge => price >= info.triggerPrice
               }
             })
 
           if (triggers.nonEmpty) {
-            val future = Source(triggers)
+            Source(triggers)
               .log("entrust create")
               .mapAsync(1)(trigger => {
                 val info = trigger._2.trigger
@@ -163,30 +184,30 @@ object IdleStatus extends ActorSerializerSuport {
                   volume = info.volume
                 )(ref))(3.seconds)
               })
-              .runWith(Sink.seq)(materializer)
+              .runWith(ActorSink.actorRef(
+                ref = context.self,
+                onCompleteMessage = StreamComplete(),
+                onFailureMessage = e => EntrustBase.CreateFail(null)
+              ))(materializer)
 
-            val result = future.transform({
-              case Failure(exception) => {
-                logger.error(exception.getMessage)
-                Success(Effect.none[BaseSerializer, State])
-              }
-              case Success(value) => {
-                Success(
-                  Effect.persist[BaseSerializer, State](Triggers(
-                    triggers = triggers.map(trigger => {
-                      (trigger._1, trigger._2.copy(
-                        trigger = trigger._2.trigger,
-                        status = TriggerStatus.matchs
-                      ))
-                    })
-                  ))
-                )
-              }
-            })(context.executionContext)
-            Await.result(result, Duration.Inf)
+            Effect.persist[BaseSerializer, State](Triggers(
+              triggers = triggers.map(trigger => {
+                (trigger._1, trigger._2.copy(
+                  trigger = trigger._2.trigger,
+                  status = TriggerStatus.matchs
+                ))
+              })
+            ))
           } else {
             Effect.none
           }
+        }
+        case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+            .thenRun((updateState: State) => {
+              context.self.tell(Trigger(price))
+            })
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
@@ -243,12 +264,10 @@ object IdleStatus extends ActorSerializerSuport {
               })
             ))
           }
-          case MarketTradeBehavior.SubOk(source) => {
-            source
-              .throttle(1, config.getDuration("engine.trigger.speed").toMillis.milliseconds)
-              .buffer(1, OverflowStrategy.dropHead)
-              .runWith(Sink.foreach(context.self.tell))(materializer)
-            state
+          case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
+            Idle(state.data.copy(
+              price = Option(price)
+            ))
           }
           case e@Triggers(triggers) => {
             logger.info(e.logJson)

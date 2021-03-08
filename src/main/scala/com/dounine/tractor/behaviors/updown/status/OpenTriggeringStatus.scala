@@ -177,7 +177,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
         }
 
         case TriggerBase.CancelFail(orderId, status) => {
-          logger.info(command.logJson)
+          logger.error(command.logJson)
           Effect.persist(command)
             .thenRun((updateState: State) => {
               pushStatus(shareData, UpDownStatus.OpenErrored)
@@ -297,7 +297,11 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                   pushStatus(shareData, UpDownStatus.OpenErrored)
                 }
                 case TriggerCreateFailStatus.createFireTrigger => {
-                  context.self.tell(Trigger())
+                  timers.startSingleTimer(
+                    key = triggerName,
+                    msg = Trigger(),
+                    delay = 1.seconds
+                  )
                 }
               }
             })

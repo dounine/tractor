@@ -9,7 +9,7 @@ import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
 
-object StopedStatus extends ActorSerializerSuport {
+object StopedStatus extends JsonParse {
 
   private final val logger: Logger =
     LoggerFactory.getLogger(StopedStatus.getClass)

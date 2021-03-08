@@ -240,7 +240,7 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case MarketTradeBehavior.TradeDetail(_, _, _, _, price, _) => {
+        case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
           logger.info(command.logJson)
           val entrusts = state.data.entrusts
             .filter(_._2.status == EntrustStatus.submit)

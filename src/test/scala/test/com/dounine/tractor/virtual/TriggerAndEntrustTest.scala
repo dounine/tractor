@@ -200,7 +200,7 @@ class TriggerAndEntrustTest extends ScalaTestWithActorTestKit(
       ).toJson
 
       LoggingTestKit
-        .info(classOf[EntrustBase.Create].getName)
+        .info(classOf[TriggerBase.Triggers].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }

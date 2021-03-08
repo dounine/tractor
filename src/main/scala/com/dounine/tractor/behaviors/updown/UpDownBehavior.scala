@@ -7,7 +7,7 @@ import akka.persistence.typed._
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, UpDownStatus, UpDownUpdateType}
-import com.dounine.tractor.tools.json.ActorSerializerSuport
+import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.LoggerFactory
 import UpDownBase._
 import akka.stream.{OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
@@ -20,7 +20,7 @@ import com.dounine.tractor.tools.util.CopyUtil
 
 import scala.concurrent.duration._
 
-object UpDownBehavior extends ActorSerializerSuport {
+object UpDownBehavior extends JsonParse {
   private val logger = LoggerFactory.getLogger(UpDownBehavior.getClass)
 
   final case class ShareData(
@@ -118,6 +118,10 @@ object UpDownBehavior extends ActorSerializerSuport {
                     e.replyTo.tell(SubOk(sourceRef))
                   })
                 }
+                case Update(_, _, _) => {
+                  logger.info(command.logJson)
+                  Effect.persist(command)
+                }
                 case MarketTradeBehavior.TradeDetail(
                 _, _, _, _, _, _
                 ) => {
@@ -135,6 +139,20 @@ object UpDownBehavior extends ActorSerializerSuport {
                     values = Map(
                       "data" -> (
                         command match {
+                          case Update(name, value, replyTo) => {
+                            val copyInfo: Info = CopyUtil.copy[Info](data.info)(
+                              values = Map(name.toString -> value)
+                            )
+                            if (name == UpDownUpdateType.openScheduling) {
+                              timers.startSingleTimer(
+                                key = triggerName,
+                                msg = Trigger(),
+                                delay = copyInfo.openScheduling
+                              )
+                            }
+                            replyTo.tell(UpdateOk())
+                            CopyUtil.copy[DataStore](data)(Map("info" -> copyInfo))
+                          }
                           case e@MarketTradeBehavior.TradeDetail(
                           symbol: CoinSymbol,
                           contractType: ContractType,

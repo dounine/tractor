@@ -6,6 +6,11 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.{KillSwitches, OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
+import com.dounine.tractor.behaviors.updown.UpDownBase
+import com.dounine.tractor.behaviors.updown.UpDownBase.Command
+import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency.UpDownUpdateType
+import com.dounine.tractor.model.types.currency.UpDownUpdateType.UpDownUpdateType
 import com.dounine.tractor.tools.json.JsonParse
 import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
@@ -16,8 +21,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-
-class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing {
+class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
   implicit val ec = system.executionContext
   val manualTime: ManualTime = ManualTime()
 
@@ -52,28 +56,6 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
 
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
-    }
-
-    "broadcast sink throttle" in {
-      val cc = Source.queue[Int](100, OverflowStrategy.dropHead)
-        .preMaterialize()
-
-      val broadcastHub = cc._2.toMat(BroadcastHub.sink(bufferSize = 256))(Keep.right).run()
-
-      cc._1.offer(1)
-
-      broadcastHub
-        .runForeach(println)
-
-      broadcastHub
-        .runForeach(println)
-
-      broadcastHub
-        .throttle(1, 100.milliseconds)
-        .buffer(1, OverflowStrategy.dropHead)
-        .runWith(TestSink[Int]()).request(1).expectNext(1)
-
-
     }
 
   }

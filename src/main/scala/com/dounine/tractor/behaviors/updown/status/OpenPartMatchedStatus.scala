@@ -160,7 +160,7 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
             })
         }
         case EntrustBase.CancelFail(orderId, status) => {
-          logger.info(command.logJson)
+          logger.error(command.logJson)
           Effect
             .persist(command)
             .thenRun((updateState: State) => {
