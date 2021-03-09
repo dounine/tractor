@@ -21,11 +21,13 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
 
   case class Sub(symbol: CoinSymbol, contractType: ContractType, direction: Direction)(val replyTo: ActorRef[BaseSerializer]) extends Command
 
-  case class SubOk(source: SourceRef[NotifyModel.NotifyInfo]) extends Command
+  case class SubOk(source: SourceRef[Receive]) extends Command
 
   case class SubFail(msg: String) extends Command
 
   case class Push(notif: NotifyModel.NotifyInfo)(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  case class Receive(notif: NotifyModel.NotifyInfo) extends Command
 
   case class PushOk() extends Command
 
@@ -64,8 +66,9 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
         }
         case e@Sub(symbol, contractType, direction) => {
           logger.info(e.logJson)
-          val sourceRef: SourceRef[NotifyModel.NotifyInfo] = brocastHub
+          val sourceRef: SourceRef[Receive] = brocastHub
             .filter(detail => detail.symbol == symbol && detail.contractType == contractType && detail.direction == direction)
+            .map(Receive(_))
             .runWith(StreamRefs.sourceRef())
           e.replyTo.tell(SubOk(sourceRef))
           Behaviors.same

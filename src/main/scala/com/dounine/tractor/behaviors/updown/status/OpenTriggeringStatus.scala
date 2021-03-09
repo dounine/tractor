@@ -11,11 +11,12 @@ import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.updown.UpDownBase._
 import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
-import com.dounine.tractor.model.types.currency.{Direction, EntrustStatus, Offset, OrderPriceType, TriggerCancelFailStatus, TriggerCreateFailStatus, TriggerType, UpDownStatus, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{Direction, EntrustCancelFailStatus, EntrustStatus, Offset, OrderPriceType, TriggerCancelFailStatus, TriggerCreateFailStatus, TriggerType, UpDownStatus, UpDownUpdateType}
 
 import java.util.UUID
 import scala.concurrent.duration._
@@ -117,7 +118,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             })
         }
 
-        case EntrustNotifyBehavior.Push(notif) => {
+        case EntrustNotifyBehavior.Receive(notif) => {
           logger.info(command.logJson)
           Effect
             .persist(command)
@@ -269,6 +270,53 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             })
         }
 
+        case e@EntrustBase.CancelOk(orderId) => {
+          logger.info(command.logJson)
+          Effect.none
+            .thenRun((updateState: State) => {
+              context.self.tell(Trigger())
+              pushInfos(
+                data = shareData,
+                infos = Map(
+                  UpDownUpdateType.status -> UpDownStatus.OpenTriggering
+                ),
+                context = context
+              )
+            })
+        }
+        case e@EntrustBase.CancelFail(orderId, status) => {
+          logger.info(command.logJson)
+          status match {
+            case EntrustCancelFailStatus.cancelOrderNotExit | EntrustCancelFailStatus.cancelAlreadyCanceled | EntrustCancelFailStatus.cancelAlreadyFailed | EntrustCancelFailStatus.cancelTimeout => {
+              Effect.persist(command)
+                .thenRun((updateState: State) => {
+                  pushInfos(
+                    data = shareData,
+                    infos = Map(
+                      UpDownUpdateType.status -> UpDownStatus.OpenErrored
+                    ),
+                    context = context
+                  )
+                })
+            }
+            case EntrustCancelFailStatus.cancelAlreadyMatchAll | EntrustCancelFailStatus.cancelAlreadyMatchPartCancel => {
+              /**
+               * convert to OpenEntrusted
+               * but must receive message matchAll or matchPart from EntrustNotifyBehavior.Receive
+               */
+              Effect.persist(command)
+                .thenRun((updateState: State) => {
+                  pushInfos(
+                    data = shareData,
+                    infos = Map(
+                      UpDownUpdateType.status -> UpDownStatus.OpenEntrusted
+                    ),
+                    context = context
+                  )
+                })
+            }
+          }
+        }
         case e@TriggerBase.CreateOk(orderId) => {
           logger.info(command.logJson)
           Effect
@@ -336,7 +384,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             }
           }
 
-          case EntrustNotifyBehavior.Push(notif) => {
+          case EntrustNotifyBehavior.Receive(notif) => {
             (notif.direction, notif.offset) match {
               case (data.direction, Offset.open) =>
                 notif.entrustStatus match {
@@ -405,6 +453,39 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
               case TriggerCancelFailStatus.cancelAlreadyMatched => OpenEntrusted(data)
               case TriggerCancelFailStatus.cancelAlreadyFailed => OpenErrored(data)
               case TriggerCancelFailStatus.cancelTimeout => OpenErrored(data)
+            }
+          }
+
+          case EntrustBase.CancelOk(orderId) => {
+            OpenTriggering(
+              data = data.copy(
+                info = data.info.copy(
+                  openEntrustSubmitOrder = Option.empty
+                )
+              )
+            )
+          }
+
+          case EntrustBase.CancelFail(orderId, status) => {
+            status match {
+              case EntrustCancelFailStatus.cancelOrderNotExit | EntrustCancelFailStatus.cancelAlreadyCanceled | EntrustCancelFailStatus.cancelAlreadyFailed | EntrustCancelFailStatus.cancelTimeout => {
+                OpenErrored(
+                  data = data.copy(
+                    info = data.info.copy(
+                      openEntrustSubmitOrder = Option.empty
+                    )
+                  )
+                )
+              }
+              case EntrustCancelFailStatus.cancelAlreadyMatchAll | EntrustCancelFailStatus.cancelAlreadyMatchPartCancel => {
+                OpenEntrusted(
+                  data = data.copy(
+                    info = data.info.copy(
+                      openEntrustSubmitOrder = Option.empty
+                    )
+                  )
+                )
+              }
             }
           }
 

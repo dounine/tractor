@@ -368,11 +368,16 @@ class UpDownTest extends ScalaTestWithActorTestKit(
       ))
       updateProbe.expectMessage(UpDownBase.UpdateOk())
 
-      socketClient.offer(
-        BinaryMessage.Strict(
-          dataMessage(triggerMessage)
+      LoggingTestKit.info(
+        classOf[TriggerBase.Create].getName
+      ).expect(
+        socketClient.offer(
+          BinaryMessage.Strict(
+            dataMessage(triggerMessage)
+          )
         )
       )
+
 
       LoggingTestKit.error(
         classOf[TriggerBase.CreateFail].getName
@@ -384,6 +389,131 @@ class UpDownTest extends ScalaTestWithActorTestKit(
             )
           )
         }
+
+    }
+
+    "run and opened" in {
+      val (socketClient, socketPort) = createSocket()
+      val time = System.currentTimeMillis()
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val phone = "123456789"
+      val symbol = CoinSymbol.BTC
+      val contractType = ContractType.quarter
+      val direction = Direction.buy
+
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
+
+      val marketTrade = sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(testKit.createTestProbe[BaseSerializer]().ref)
+      )
+
+      val positionId = TriggerBase.createEntityId(phone, symbol, contractType, direction, socketPort)
+      val positionBehavior = sharding.entityRefFor(PositionBase.typeKey, positionId)
+      positionBehavior.tell(PositionBase.Run(
+        marketTradeId = socketPort
+      ))
+
+      val entrustId = EntrustBase.createEntityId(phone, symbol, contractType, direction, socketPort)
+      val entrustBehavior = sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(EntrustBase.Run(
+        marketTradeId = socketPort,
+        positionId = positionId,
+        entrustNotifyId = socketPort
+      ))
+
+      val triggerId = TriggerBase.createEntityId(phone, symbol, contractType, direction, socketPort)
+      val triggerBehavior = sharding.entityRefFor(TriggerBase.typeKey, triggerId)
+      triggerBehavior.tell(TriggerBase.Run(
+        marketTradeId = socketPort,
+        entrustId = entrustId
+      ))
+
+      val updownId = UpDownBase.createEntityId(phone, symbol, contractType, direction, socketPort)
+      val updownBehavior = sharding.entityRefFor(UpDownBase.typeKey, updownId)
+
+      updownBehavior.tell(
+        UpDownBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          triggerId = triggerId,
+          entrustNotifyId = socketPort
+        )
+      )
+
+      val triggerMessage = MarketTradeModel.WsPrice(
+        ch = s"market.${CoinSymbol.BTC}_${ContractType.getAlias(ContractType.quarter)}",
+        tick = MarketTradeModel.WsTick(
+          id = 123L,
+          ts = System.currentTimeMillis(),
+          data = Seq(
+            MarketTradeModel.WsData(
+              amount = 1,
+              direction = Direction.buy,
+              id = 123L,
+              price = 100,
+              ts = System.currentTimeMillis()
+            )
+          )
+        ),
+        ts = System.currentTimeMillis()
+      )
+
+      val updateProbe = testKit.createTestProbe[BaseSerializer]()
+      updownBehavior.tell(UpDownBase.Update(
+        UpDownUpdateType.openReboundPrice,
+        1,
+        updateProbe.ref
+      ))
+      updateProbe.expectMessage(UpDownBase.UpdateOk())
+
+
+      LoggingTestKit.info(
+        classOf[TriggerBase.CreateOk].getName
+      ).expect(
+        socketClient.offer(
+          BinaryMessage.Strict(
+            dataMessage(triggerMessage.toJson)
+          )
+        )
+      )
+
+      LoggingTestKit.info(
+        classOf[TriggerBase.Triggers].getName
+      )
+        .expect {
+          socketClient.offer(
+            BinaryMessage.Strict(
+              dataMessage(triggerMessage.copy(
+                tick = triggerMessage.tick.copy(
+                  data = Seq(triggerMessage.tick.data.head.copy(
+                    price = 103
+                  ))
+                )
+              ).toJson)
+            )
+          )
+        }
+
+//      LoggingTestKit.info(
+//        classOf[EntrustNotifyBehavior.Receive].getName
+//      )
+//        .expect {
+//          socketClient.offer(
+//            BinaryMessage.Strict(
+//              dataMessage(triggerMessage.copy(
+//                tick = triggerMessage.tick.copy(
+//                  data = Seq(triggerMessage.tick.data.head.copy(
+//                    price = 103
+//                  ))
+//                )
+//              ).toJson)
+//            )
+//          )
+//        }
 
     }
 

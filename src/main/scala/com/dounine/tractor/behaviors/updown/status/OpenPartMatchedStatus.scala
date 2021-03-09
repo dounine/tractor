@@ -113,7 +113,7 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
             })
         }
 
-        case EntrustNotifyBehavior.Push(notif) => {
+        case EntrustNotifyBehavior.Receive(notif) => {
           logger.info(command.logJson)
           Effect
             .persist(command)
@@ -241,7 +241,7 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
             }
           }
 
-          case EntrustNotifyBehavior.Push(notif) => {
+          case EntrustNotifyBehavior.Receive(notif) => {
             (notif.direction, notif.offset) match {
               case (data.direction, Offset.open) =>
                 notif.entrustStatus match {

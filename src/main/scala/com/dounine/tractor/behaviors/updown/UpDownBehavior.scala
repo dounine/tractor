@@ -161,7 +161,6 @@ object UpDownBehavior extends JsonParse {
                           amount: Int,
                           time: Long,
                           ) => {
-                            logger.info(command.logJson)
                             data.preTradePrice match {
                               case Some(_) => data.copy(
                                 tradePrice = Option(price),

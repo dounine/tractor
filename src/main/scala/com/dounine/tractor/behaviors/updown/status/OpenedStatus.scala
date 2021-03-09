@@ -80,7 +80,7 @@ object OpenedStatus extends ActorSerializerSuport {
               )
             })
         }
-        case EntrustNotifyBehavior.Push(notif) => {
+        case EntrustNotifyBehavior.Receive(notif) => {
           logger.info(command.logJson)
           Effect.none
         }

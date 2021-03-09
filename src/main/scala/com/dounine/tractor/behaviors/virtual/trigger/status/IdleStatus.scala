@@ -180,7 +180,7 @@ object IdleStatus extends JsonParse {
                   orderId = trigger._1,
                   offset = info.offset,
                   orderPriceType = info.orderPriceType,
-                  price = info.orderPrice,
+                  price = price,
                   volume = info.volume
                 )(ref))(3.seconds)
               })
@@ -270,7 +270,7 @@ object IdleStatus extends JsonParse {
             ))
           }
           case e@Triggers(triggers) => {
-            logger.info(e.logJson)
+            logger.info(command.logJson)
             Idle(state.data.copy(
               triggers = state.data.triggers ++ triggers
             ))

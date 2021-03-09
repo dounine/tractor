@@ -116,7 +116,7 @@ object OpenEntrustedStatus extends ActorSerializerSuport {
               }
             })
         }
-        case EntrustNotifyBehavior.Push(notif) => {
+        case EntrustNotifyBehavior.Receive(notif) => {
           logger.info(command.logJson)
           Effect
             .persist(command)
@@ -203,6 +203,22 @@ object OpenEntrustedStatus extends ActorSerializerSuport {
             .persist(command)
             .thenRun((updateState: State) => {
               status match {
+                case EntrustStatus.submit => {
+                   Source.future(
+                    sharding.entityRefFor(
+                      EntrustBase.typeKey,
+                      updateState.data.config.entrustId
+                    ).ask[BaseSerializer](
+                      EntrustBase.Cancel(orderId)(_)
+                    )(3.seconds)
+                  ).runWith(
+                    ActorSink.actorRef(
+                      ref = context.self,
+                      onCompleteMessage = StreamComplete(),
+                      onFailureMessage = e => EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelTimeout)
+                    )
+                  )(materializer)
+                }
                 case EntrustStatus.matchPart => {
                   Source.future(
                     sharding.entityRefFor(
@@ -250,7 +266,7 @@ object OpenEntrustedStatus extends ActorSerializerSuport {
             }
           }
 
-          case EntrustNotifyBehavior.Push(notif) => {
+          case EntrustNotifyBehavior.Receive(notif) => {
             (notif.direction, notif.offset) match {
               case (data.direction, Offset.open) =>
                 notif.entrustStatus match {
@@ -327,6 +343,9 @@ object OpenEntrustedStatus extends ActorSerializerSuport {
 
           case EntrustTimeout(status, orderId) => {
             status match {
+              case EntrustStatus.submit => {
+                OpenTriggering(state.data)
+              }
               case EntrustStatus.matchPart => {
                 Opened(state.data)
               }
