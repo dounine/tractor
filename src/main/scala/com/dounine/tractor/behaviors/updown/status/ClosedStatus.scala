@@ -8,15 +8,14 @@ import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.updown.UpDownBase._
 import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
 import com.dounine.tractor.model.types.currency.{UpDownStatus, UpDownUpdateType}
-
-object OpenedStatus extends ActorSerializerSuport {
+object ClosedStatus extends ActorSerializerSuport {
 
   private final val logger: Logger =
-    LoggerFactory.getLogger(OpenedStatus.getClass)
+    LoggerFactory.getLogger(ClosedStatus.getClass)
 
   def apply(
       context: ActorContext[BaseSerializer],
@@ -36,18 +35,6 @@ object OpenedStatus extends ActorSerializerSuport {
       ) => State,
       Class[_]
   ) = {
-    val cancelTrigger: () => Unit = () => {
-      timers.cancel(key = triggerName)
-    }
-    val pushStatus: (ShareData, UpDownStatus) => Unit = (data, status) => {
-      pushInfos(
-        data = data,
-        infos = Map(
-          UpDownUpdateType.status -> status
-        ),
-        context = context
-      )
-    }
     val commandHandler: (
         State,
         BaseSerializer,
@@ -67,8 +54,6 @@ object OpenedStatus extends ActorSerializerSuport {
           Effect
             .persist(command)
             .thenRun((updateState: State) => {
-              val data: DataStore = updateState.data
-              cancelTrigger()
               pushInfos(
                 data = shareData,
                 infos = Map(
@@ -84,18 +69,17 @@ object OpenedStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.none
         }
-        case EntrustTimeout(status, orderId) => {
+        case EntrustBase.CancelOk(_) => {
           logger.info(command.logJson)
           Effect.none
         }
-        case Trigger(handlePrice) => {
+        case Trigger(_) => {
           logger.info(command.logJson)
-          Effect
-            .persist(command)
-            .thenRun((updateState: State) => {
-              context.self.tell(Trigger())
-              pushStatus(shareData, UpDownStatus.CloseTriggering)
-            })
+          Effect.none
+        }
+        case EntrustTimeout(_, _) => {
+          logger.info(command.logJson)
+          Effect.none
         }
         case _ => defaultCommand(state, command)
       }
@@ -109,6 +93,7 @@ object OpenedStatus extends ActorSerializerSuport {
       ) => {
         val data: DataStore = state.data
         command match {
+
           case Stop() => {
             Stoped(data =
               data.copy(
@@ -119,13 +104,10 @@ object OpenedStatus extends ActorSerializerSuport {
             )
           }
 
-          case Trigger(handlePrice) => {
-            CloseTriggering(data)
-          }
           case _ => defaultEvent(state, command)
         }
       }
 
-    (commandHandler, defaultEvent, classOf[Opened])
+    (commandHandler, defaultEvent, classOf[Closed])
   }
 }

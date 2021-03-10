@@ -4,14 +4,36 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PreRestart, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed._
-import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
+import akka.persistence.typed.scaladsl.{
+  Effect,
+  EventSourcedBehavior,
+  RetentionCriteria
+}
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, UpDownStatus, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  CoinSymbol,
+  ContractType,
+  Direction,
+  LeverRate,
+  UpDownStatus,
+  UpDownUpdateType
+}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.LoggerFactory
 import UpDownBase._
-import akka.stream.{OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
-import akka.stream.scaladsl.{BroadcastHub, Source, SourceQueueWithComplete, StreamRefs}
+import akka.stream.{
+  OverflowStrategy,
+  QueueCompletionResult,
+  QueueOfferResult,
+  SourceRef,
+  SystemMaterializer
+}
+import akka.stream.scaladsl.{
+  BroadcastHub,
+  Source,
+  SourceQueueWithComplete,
+  StreamRefs
+}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
@@ -24,24 +46,32 @@ object UpDownBehavior extends JsonParse {
   private val logger = LoggerFactory.getLogger(UpDownBehavior.getClass)
 
   final case class ShareData(
-                              infoQueue: SourceQueueWithComplete[PushDataInfo]
-                            )
+      infoQueue: SourceQueueWithComplete[PushDataInfo]
+  )
 
   def apply(
-             entityId: PersistenceId,
-             shard: ActorRef[ClusterSharding.ShardCommand]
-           ): Behavior[BaseSerializer] =
+      entityId: PersistenceId,
+      shard: ActorRef[ClusterSharding.ShardCommand]
+  ): Behavior[BaseSerializer] =
     Behaviors.setup { context: ActorContext[BaseSerializer] =>
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
         entityId.id.split("\\|").last.split("-") match {
-          case Array(phone, symbolStr, contractTypeStr, directionStr, randomId) => {
+          case Array(
+                phone,
+                symbolStr,
+                contractTypeStr,
+                directionStr,
+                randomId
+              ) => {
             val materializer = SystemMaterializer(context.system).materializer
-            val (infoQueue, infoSource) = Source.queue[PushDataInfo](
-              100,
-              OverflowStrategy.fail
-            )
+            val (infoQueue, infoSource) = Source
+              .queue[PushDataInfo](
+                100,
+                OverflowStrategy.fail
+              )
               .preMaterialize()(materializer)
-            val infoBrocastHub = infoSource.runWith(BroadcastHub.sink)(materializer)
+            val infoBrocastHub =
+              infoSource.runWith(BroadcastHub.sink)(materializer)
 
             val shareData = ShareData(
               infoQueue = infoQueue
@@ -52,15 +82,20 @@ object UpDownBehavior extends JsonParse {
               status.OpenEntrustedStatus(context, shard, timers, shareData),
               status.OpenPartMatchedStatus(context, shard, timers, shareData),
               status.OpenErroredStatus(context, shard, timers, shareData),
-              status.OpenedStatus(context, shard, timers, shareData)
+              status.OpenedStatus(context, shard, timers, shareData),
+              status.CloseTriggeringStatus(context, shard, timers, shareData),
+              status.CloseEntrustedStatus(context, shard, timers, shareData),
+              status.ClosePartMatchedStatus(context, shard, timers, shareData),
+              status.CloseErroredStatus(context, shard, timers, shareData),
+              status.ClosedStatus(context, shard, timers, shareData)
             )
 
             val commandDefaultHandler: (
-              State,
+                State,
                 BaseSerializer
-              ) => Effect[BaseSerializer, State] = (state, command) =>
+            ) => Effect[BaseSerializer, State] = (state, command) =>
               command match {
-                case e@Query() => {
+                case e @ Query() => {
                   logger.info(command.logJson)
                   Effect.none.thenRun(_ => {
                     e.replyTo.tell(
@@ -85,7 +120,7 @@ object UpDownBehavior extends JsonParse {
                   logger.info(command.logJson)
                   Effect.none
                 }
-                case e@Sub() => {
+                case e @ Sub() => {
                   logger.info(command.logJson)
                   Effect.none.thenRun((updateState: State) => {
                     val pushInfos = Map(
@@ -123,15 +158,22 @@ object UpDownBehavior extends JsonParse {
                   Effect.persist(command)
                 }
                 case MarketTradeBehavior.TradeDetail(
-                _, _, _, _, _, _
-                ) => {
+                      _,
+                      _,
+                      _,
+                      _,
+                      _,
+                      _
+                    ) => {
                   logger.info(command.logJson)
                   Effect.persist(command)
                 }
               }
 
-            def eventDefaultHandler(state: State, command: BaseSerializer)
-            : State = {
+            def eventDefaultHandler(
+                state: State,
+                command: BaseSerializer
+            ): State = {
               command match {
                 case _ => {
                   val data: DataStore = state.data
@@ -151,29 +193,33 @@ object UpDownBehavior extends JsonParse {
                               )
                             }
                             replyTo.tell(UpdateOk())
-                            CopyUtil.copy[DataStore](data)(Map("info" -> copyInfo))
+                            CopyUtil.copy[DataStore](data)(
+                              Map("info" -> copyInfo)
+                            )
                           }
-                          case e@MarketTradeBehavior.TradeDetail(
-                          symbol: CoinSymbol,
-                          contractType: ContractType,
-                          direction: Direction,
-                          price: Double,
-                          amount: Int,
-                          time: Long,
-                          ) => {
+                          case e @ MarketTradeBehavior.TradeDetail(
+                                symbol: CoinSymbol,
+                                contractType: ContractType,
+                                direction: Direction,
+                                price: Double,
+                                amount: Int,
+                                time: Long
+                              ) => {
                             data.preTradePrice match {
-                              case Some(_) => data.copy(
-                                tradePrice = Option(price),
-                                preTradePrice = data.tradePrice
-                              )
-                              case None => data.copy(
-                                tradePrice = Option(price),
-                                preTradePrice = Option(price)
-                              )
+                              case Some(_) =>
+                                data.copy(
+                                  tradePrice = Option(price),
+                                  preTradePrice = data.tradePrice
+                                )
+                              case None =>
+                                data.copy(
+                                  tradePrice = Option(price),
+                                  preTradePrice = Option(price)
+                                )
                             }
                           }
                         }
-                        )
+                      )
                     )
                   )
                 }
@@ -181,9 +227,9 @@ object UpDownBehavior extends JsonParse {
             }
 
             val commandHandler: (
-              State,
+                State,
                 BaseSerializer
-              ) => Effect[BaseSerializer, State] = (state, command) =>
+            ) => Effect[BaseSerializer, State] = (state, command) =>
               statusList.find(_._3 == state.getClass) match {
                 case Some(status) =>
                   status._1(state, command, commandDefaultHandler)
@@ -215,43 +261,45 @@ object UpDownBehavior extends JsonParse {
               commandHandler = commandHandler,
               eventHandler = eventHandler
             ).onPersistFailure(
-              backoffStrategy = SupervisorStrategy
-                .restartWithBackoff(
-                  minBackoff = 1.seconds,
-                  maxBackoff = 10.seconds,
-                  randomFactor = 0.2
-                )
-                .withMaxRestarts(maxRestarts = 3)
-                .withResetBackoffAfter(10.seconds)
-            ).receiveSignal({
-              case (state, RecoveryCompleted) =>
-                logger.debug(
-                  "Recovery Completed with state: {}",
-                  state
-                )
-              case (state, RecoveryFailed(err)) =>
-                logger.error(
-                  "Recovery failed with: {}",
-                  err.getMessage
-                )
-              case (state, SnapshotCompleted(meta)) =>
-                logger.debug(
-                  "Snapshot Completed with state: {},id({},{})",
-                  state,
-                  meta.persistenceId,
-                  meta.sequenceNr
-                )
-              case (state, SnapshotFailed(meta, err)) =>
-                logger.error(
-                  "Snapshot failed with: {}",
-                  err.getMessage
-                )
-              case (_, PreRestart) =>
-                logger.info(s"PreRestart")
-                context.self.tell(Recovery())
-              case (_, single) =>
-                logger.debug(single.logJson)
-            }).snapshotWhen((state, event, _) => true)
+                backoffStrategy = SupervisorStrategy
+                  .restartWithBackoff(
+                    minBackoff = 1.seconds,
+                    maxBackoff = 10.seconds,
+                    randomFactor = 0.2
+                  )
+                  .withMaxRestarts(maxRestarts = 3)
+                  .withResetBackoffAfter(10.seconds)
+              )
+              .receiveSignal({
+                case (state, RecoveryCompleted) =>
+                  logger.debug(
+                    "Recovery Completed with state: {}",
+                    state
+                  )
+                case (state, RecoveryFailed(err)) =>
+                  logger.error(
+                    "Recovery failed with: {}",
+                    err.getMessage
+                  )
+                case (state, SnapshotCompleted(meta)) =>
+                  logger.debug(
+                    "Snapshot Completed with state: {},id({},{})",
+                    state,
+                    meta.persistenceId,
+                    meta.sequenceNr
+                  )
+                case (state, SnapshotFailed(meta, err)) =>
+                  logger.error(
+                    "Snapshot failed with: {}",
+                    err.getMessage
+                  )
+                case (_, PreRestart) =>
+                  logger.info(s"PreRestart")
+                  context.self.tell(Recovery())
+                case (_, single) =>
+                  logger.debug(single.logJson)
+              })
+              .snapshotWhen((state, event, _) => true)
               .withRetention(
                 criteria = RetentionCriteria
                   .snapshotEvery(numberOfEvents = 2, keepNSnapshots = 1)
