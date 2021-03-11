@@ -25,45 +25,44 @@ object TriggerBase extends ActorSerializerSuport {
     EntityTypeKey[BaseSerializer]("TriggerBehavior")
 
   case class TriggerItem(
-                          offset: Offset,
-                          orderPriceType: OrderPriceType,
-                          triggerType: TriggerType,
-                          orderPrice: Double,
-                          triggerPrice: Double,
-                          volume: Int,
-                          time: LocalDateTime
-                        ) extends BaseSerializer
+      offset: Offset,
+      orderPriceType: OrderPriceType,
+      triggerType: TriggerType,
+      orderPrice: Double,
+      triggerPrice: Double,
+      volume: Int,
+      time: LocalDateTime
+  ) extends BaseSerializer
 
   case class Config(
-                     marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                     entrustId: String = EntrustBase.typeKey.name
-                   ) extends BaseSerializer
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      entrustId: String = EntrustBase.typeKey.name
+  ) extends BaseSerializer
 
   case class TriggerInfo(
-                          trigger: TriggerItem,
-                          status: TriggerStatus
-                        ) extends BaseSerializer
+      trigger: TriggerItem,
+      status: TriggerStatus
+  ) extends BaseSerializer
 
   case class DataStore(
-                        price: Option[Double],
-                        triggers: Map[String, TriggerInfo],
-                        config: Config,
-                        phone: String,
-                        symbol: CoinSymbol,
-                        contractType: ContractType,
-                        direction: Direction,
-                        leverRate: LeverRate,
-                        contractSize: Int
-                      ) extends BaseSerializer
+      price: Option[Double],
+      triggers: Map[String, TriggerInfo],
+      config: Config,
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      leverRate: LeverRate,
+      contractSize: Int
+  ) extends BaseSerializer
 
   abstract class State() extends BaseSerializer {
     val data: DataStore
   }
 
-
   /**
-   * status
-   */
+    * status
+    */
   final case class Stoped(data: DataStore) extends State
 
   final case class Idle(data: DataStore) extends State
@@ -71,22 +70,26 @@ object TriggerBase extends ActorSerializerSuport {
   final case class Busy(data: DataStore) extends State
 
   /**
-   * command
-   */
+    * command
+    */
   trait Command extends BaseSerializer
 
   final case class Run(
-                        marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                        entrustId: String = EntrustBase.typeKey.name
-                      ) extends Command
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      entrustId: String = EntrustBase.typeKey.name,
+      contractSize: Int
+  ) extends Command
 
-  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
 
   final case class ChangeLeverRateYes() extends Command
 
   final case class ChangeLeverRateNo() extends Command
 
-  final case class UpdateLeverRate(value: LeverRate)(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class UpdateLeverRate(value: LeverRate)(
+      val replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   final case class UpdateLeverRateOk() extends Command
 
@@ -101,32 +104,43 @@ object TriggerBase extends ActorSerializerSuport {
   final case class RunSelfOk() extends Command
 
   final case class Create(
-                           orderId: String,
-                           offset: Offset,
-                           orderPriceType: OrderPriceType,
-                           triggerType: TriggerType,
-                           orderPrice: Double,
-                           triggerPrice: Double,
-                           volume: Int
-                         )(var replyTo: ActorRef[BaseSerializer]) extends Command
+      orderId: String,
+      offset: Offset,
+      orderPriceType: OrderPriceType,
+      triggerType: TriggerType,
+      orderPrice: Double,
+      triggerPrice: Double,
+      volume: Int
+  )(var replyTo: ActorRef[BaseSerializer])
+      extends Command
 
   final case class CreateOk(request: Create) extends Command
 
-  final case class CreateFail(request: Create, status: TriggerCreateFailStatus) extends Command
+  final case class CreateFail(request: Create, status: TriggerCreateFailStatus)
+      extends Command
 
   final case class StreamComplete() extends Command
 
-  final case class Cancel(orderId: String)(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class Cancel(orderId: String)(
+      val replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   final case class CancelOk(orderId: String) extends Command
 
-  final case class CancelFail(orderId: String, status: TriggerCancelFailStatus) extends Command
+  final case class CancelFail(orderId: String, status: TriggerCancelFailStatus)
+      extends Command
 
   final case class Trigger(price: Double) extends Command
 
   final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+  def createEntityId(
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      randomId: String = ""
+  ): String = {
     s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }
 

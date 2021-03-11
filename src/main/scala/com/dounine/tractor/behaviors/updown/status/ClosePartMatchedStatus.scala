@@ -138,6 +138,7 @@ object ClosePartMatchedStatus extends ActorSerializerSuport {
             })
         }
         case EntrustNotifyBehavior.Receive(notif) => {
+          logger.info(command.logJson)
           Effect
             .persist(command)
             .thenRun((updateState: State) => {

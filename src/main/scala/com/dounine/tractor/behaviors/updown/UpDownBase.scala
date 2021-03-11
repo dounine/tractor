@@ -6,7 +6,10 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.stream.{QueueCompletionResult, QueueOfferResult, SourceRef}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
-import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.entrust.{
+  EntrustBase,
+  EntrustBehavior
+}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase
 import com.dounine.tractor.model.models.BaseSerializer
@@ -31,62 +34,60 @@ object UpDownBase {
   sealed trait Command extends BaseSerializer
 
   final case class Config(
-                           marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                           entrustId: String = EntrustBase.typeKey.name,
-                           triggerId: String = TriggerBase.typeKey.name,
-                           entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
-                         ) extends BaseSerializer
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      entrustId: String = EntrustBase.typeKey.name,
+      triggerId: String = TriggerBase.typeKey.name,
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
+  ) extends BaseSerializer
 
   final case class UserInfo(
-                             accessKey: Option[String] = Option.empty,
-                             accessSecret: Option[String] = Option.empty
-                           ) extends BaseSerializer
+      accessKey: Option[String] = Option.empty,
+      accessSecret: Option[String] = Option.empty
+  ) extends BaseSerializer
 
   final case class Info(
-                         run: Boolean = false,
-                         runLoading: Boolean = false,
-                         openTriggerPrice: Double = 0,
-                         openReboundPrice: Double = 0,
-                         openTriggerPriceSpread: Double = 0,
-                         openVolume: Int = 1,
-                         openEntrustTimeout: FiniteDuration = 3.seconds,
-                         openScheduling: FiniteDuration = 10.seconds,
-                         openTriggerSubmitOrder: Option[String] = Option.empty,
-                         openEntrustSubmitOrder: Option[String] = Option.empty,
-                         openAvgPrice: Double = 0,
-                         openFee: Double = 0,
-                         closeZoom: Boolean = true,
-                         closeTriggerPrice: Double = 0,
-                         closeReboundPrice: Double = 0,
-                         closeTriggerPriceSpread: Double = 0,
-                         closeVolume: Int = 0,
-                         closeGetInProfit: Double = 0,
-                         closeEntrustTimeout: FiniteDuration = 3.seconds,
-                         closeScheduling: FiniteDuration = 500.milliseconds,
-                         closeTriggerSubmitOrder: Option[String] = Option.empty,
-                         closeEntrustSubmitOrder: Option[String] = Option.empty,
-                         closeFee: Double = 0,
-                         closeProfit: Double = 0
-                       ) extends BaseSerializer
+      run: Boolean = false,
+      runLoading: Boolean = false,
+      openTriggerPrice: Double = 0,
+      openReboundPrice: Double = 0,
+      openTriggerPriceSpread: Double = 0,
+      openVolume: Int = 1,
+      openEntrustTimeout: FiniteDuration = 3.seconds,
+      openScheduling: FiniteDuration = 10.seconds,
+      openTriggerSubmitOrder: Option[String] = Option.empty,
+      openEntrustSubmitOrder: Option[String] = Option.empty,
+      openAvgPrice: Double = 0,
+      openFee: Double = 0,
+      closeZoom: Boolean = true,
+      closeTriggerPrice: Double = 0,
+      closeReboundPrice: Double = 0,
+      closeTriggerPriceSpread: Double = 0,
+      closeVolume: Int = 0,
+      closeGetInProfit: Double = 0,
+      closeEntrustTimeout: FiniteDuration = 3.seconds,
+      closeScheduling: FiniteDuration = 500.milliseconds,
+      closeTriggerSubmitOrder: Option[String] = Option.empty,
+      closeEntrustSubmitOrder: Option[String] = Option.empty,
+      closeFee: Double = 0,
+      closeProfit: Double = 0
+  ) extends BaseSerializer
 
   final case class DataStore(
-                              tradePrice: Option[Double] = Option.empty,
-                              preTradePrice: Option[Double] = Option.empty,
-                              phone: String,
-                              symbol: CoinSymbol,
-                              contractType: ContractType,
-                              direction: Direction,
-                              leverRate: LeverRate = LeverRate.x20,
-                              info: Info = Info(),
-                              config: Config = Config(),
-                              userInfo: UserInfo
-                            ) extends BaseSerializer
-
+      tradePrice: Option[Double] = Option.empty,
+      preTradePrice: Option[Double] = Option.empty,
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      leverRate: LeverRate = LeverRate.x20,
+      info: Info = Info(),
+      config: Config = Config(),
+      userInfo: UserInfo
+  ) extends BaseSerializer
 
   abstract class State() extends BaseSerializer {
     val data: DataStore
   }
-
 
   final case class Inited(data: DataStore) extends State
 
@@ -120,55 +121,56 @@ object UpDownBase {
 
   final case class Shutdown() extends Command
 
-  final case class Query()(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class Query()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
 
-  final case class QuerySuccess(status: UpDownStatus, info: DataStore) extends Command
-
+  final case class QuerySuccess(status: UpDownStatus, info: DataStore)
+      extends Command
 
   final case class Run(
-                        marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                        entrustId: String = EntrustBase.typeKey.name,
-                        triggerId: String = TriggerBase.typeKey.name,
-                        entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
-                      ) extends Command
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      entrustId: String = EntrustBase.typeKey.name,
+      triggerId: String = TriggerBase.typeKey.name,
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
+  ) extends Command
 
   final case class Trigger(
-                            handPrice: Option[Double] = Option.empty
-                          ) extends Command
+      handPrice: Option[Double] = Option.empty
+  ) extends Command
 
   final case class Recovery() extends Command
 
   final case class StreamComplete() extends Command
 
   final case class PushInfo(
-                             run: Option[Boolean] = Option.empty,
-                             runLoading: Option[Boolean] = Option.empty,
-                             status: Option[UpDownStatus] = Option.empty,
-                             openReboundPrice: Option[Double] = Option.empty,
-                             openTriggerPriceSpread: Option[Double] = Option.empty,
-                             openVolume: Option[Int] = Option.empty,
-                             openEntrustTimeout: Option[FiniteDuration] = Option.empty,
-                             openScheduling: Option[FiniteDuration] = Option.empty,
-                             openLeverRate: Option[LeverRate] = Option.empty,
-                             openFee: Option[Double] = Option.empty,
-                             closeStatus: Option[UpDownStatus] = Option.empty,
-                             closeZoom: Option[Boolean] = Option.empty,
-                             closeReboundPrice: Option[Double] = Option.empty,
-                             closeTriggerPriceSpread: Option[Double] = Option.empty,
-                             closeVolume: Option[Int] = Option.empty,
-                             closeGetInProfit: Option[Double] = Option.empty,
-                             closeEntrustTimeout: Option[FiniteDuration] = Option.empty,
-                             closeScheduling: Option[FiniteDuration] = Option.empty,
-                             closeFee: Option[Double] = Option.empty,
-                             closeProfit: Option[Double] = Option.empty
-                           ) extends BaseSerializer
+      run: Option[Boolean] = Option.empty,
+      runLoading: Option[Boolean] = Option.empty,
+      status: Option[UpDownStatus] = Option.empty,
+      openReboundPrice: Option[Double] = Option.empty,
+      openTriggerPriceSpread: Option[Double] = Option.empty,
+      openVolume: Option[Int] = Option.empty,
+      openEntrustTimeout: Option[FiniteDuration] = Option.empty,
+      openScheduling: Option[FiniteDuration] = Option.empty,
+      openLeverRate: Option[LeverRate] = Option.empty,
+      openFee: Option[Double] = Option.empty,
+      closeStatus: Option[UpDownStatus] = Option.empty,
+      closeZoom: Option[Boolean] = Option.empty,
+      closeReboundPrice: Option[Double] = Option.empty,
+      closeTriggerPriceSpread: Option[Double] = Option.empty,
+      closeVolume: Option[Int] = Option.empty,
+      closeGetInProfit: Option[Double] = Option.empty,
+      closeEntrustTimeout: Option[FiniteDuration] = Option.empty,
+      closeScheduling: Option[FiniteDuration] = Option.empty,
+      closeFee: Option[Double] = Option.empty,
+      closeProfit: Option[Double] = Option.empty
+  ) extends BaseSerializer
 
   final case class PushDataInfo(info: PushInfo) extends Command
 
   final case class EntrustTimeout(
-                                   status: EntrustStatus,
-                                   orderId: String
-                                 ) extends Command
+      status: EntrustStatus,
+      orderId: String
+  ) extends Command
 
   case class Sub()(val replyTo: ActorRef[BaseSerializer]) extends Command
 
@@ -177,16 +179,22 @@ object UpDownBase {
   case class SubFail(exception: Throwable) extends Command
 
   case class Update(
-                     name: UpDownUpdateType,
-                     value: Any,
-                     replyTo: ActorRef[BaseSerializer]
-                   ) extends Command
+      name: UpDownUpdateType,
+      value: Any,
+      replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   final case class UpdateOk() extends Command
 
   final case class UpdateFail(msg: String) extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+  def createEntityId(
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      randomId: String = ""
+  ): String = {
     s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }
 
@@ -194,10 +202,10 @@ object UpDownBase {
   final val entrustTimeoutName: String = "EntrustTimeout"
 
   def pushInfos(
-                 data: ShareData,
-                 infos: Map[UpDownUpdateType, Any],
-                 context: ActorContext[BaseSerializer]
-               ): Unit = {
+      data: ShareData,
+      infos: Map[UpDownUpdateType, Any],
+      context: ActorContext[BaseSerializer]
+  ): Unit = {
     val pushInfos: Map[UpDownUpdateType, Any] =
       infos.filterNot(p =>
         Seq(
@@ -213,13 +221,14 @@ object UpDownBase {
           )
         })
       )
-      data.infoQueue.offer(info).foreach {
-        case result: QueueCompletionResult =>
-        case QueueOfferResult.Enqueued =>
-        case QueueOfferResult.Dropped =>
-      }(context.executionContext)
+      data.infoQueue
+        .offer(info)
+        .foreach {
+          case result: QueueCompletionResult =>
+          case QueueOfferResult.Enqueued     =>
+          case QueueOfferResult.Dropped      =>
+        }(context.executionContext)
     }
   }
-
 
 }

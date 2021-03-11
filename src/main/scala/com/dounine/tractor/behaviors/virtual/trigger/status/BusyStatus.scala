@@ -22,36 +22,36 @@ object BusyStatus extends JsonParse {
     LoggerFactory.getLogger(BusyStatus.getClass)
 
   def apply(
-             context: ActorContext[BaseSerializer],
-             shard: ActorRef[ClusterSharding.ShardCommand],
-             timers: TimerScheduler[BaseSerializer]
-           ): (
-    (
-      State,
-        BaseSerializer,
-        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      context: ActorContext[BaseSerializer],
+      shard: ActorRef[ClusterSharding.ShardCommand],
+      timers: TimerScheduler[BaseSerializer]
+  ): (
+      (
+          State,
+          BaseSerializer,
+          (State, BaseSerializer) => Effect[BaseSerializer, State]
       ) => Effect[BaseSerializer, State],
       (
-        State,
+          State,
           BaseSerializer,
           (State, BaseSerializer) => State
-        ) => State,
+      ) => State,
       Class[_]
-    ) = {
+  ) = {
     val config = context.system.settings.config.getConfig("app")
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val materializer = SystemMaterializer(context.system).materializer
     val commandHandler: (
-      State,
+        State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State] = (
-                                             state: State,
-                                             command: BaseSerializer,
-                                             _: (State, BaseSerializer) => Effect[BaseSerializer, State]
-                                           ) =>
+    ) => Effect[BaseSerializer, State] = (
+        state: State,
+        command: BaseSerializer,
+        _: (State, BaseSerializer) => Effect[BaseSerializer, State]
+    ) =>
       command match {
-        case Run(_, _) => {
+        case Run(_, _, _) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -61,29 +61,40 @@ object BusyStatus extends JsonParse {
         }
         case RunSelfOk() => {
           logger.info(command.logJson)
-          Effect.persist(command)
+          Effect
+            .persist(command)
             .thenRun((_: State) => {
-              Source.future(
-                sharding.entityRefFor(
-                  typeKey = MarketTradeBehavior.typeKey,
-                  entityId = state.data.config.marketTradeId
-                ).ask[BaseSerializer](
-                  MarketTradeBehavior.Sub(
-                    symbol = state.data.symbol,
-                    contractType = state.data.contractType
-                  )(_)
-                )(3.seconds)
-              )
+              Source
+                .future(
+                  sharding
+                    .entityRefFor(
+                      typeKey = MarketTradeBehavior.typeKey,
+                      entityId = state.data.config.marketTradeId
+                    )
+                    .ask[BaseSerializer](
+                      MarketTradeBehavior.Sub(
+                        symbol = state.data.symbol,
+                        contractType = state.data.contractType
+                      )(_)
+                    )(3.seconds)
+                )
                 .flatMapConcat {
                   case MarketTradeBehavior.SubOk(source) => source
                 }
-                .throttle(1, config.getDuration("engine.trigger.speed").toMillis.milliseconds)
+                .throttle(
+                  1,
+                  config
+                    .getDuration("engine.trigger.speed")
+                    .toMillis
+                    .milliseconds
+                )
                 .buffer(2, OverflowStrategy.dropHead)
                 .runWith(
                   ActorSink.actorRef(
                     ref = context.self,
                     onCompleteMessage = StreamComplete(),
-                    onFailureMessage = e => MarketTradeBehavior.SubFail(e.getMessage)
+                    onFailureMessage =
+                      e => MarketTradeBehavior.SubFail(e.getMessage)
                   )
                 )(materializer)
             })
@@ -97,15 +108,15 @@ object BusyStatus extends JsonParse {
       }
 
     val defaultEvent
-    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-        state: State,
-        command: BaseSerializer,
-        defaultEvent: (State, BaseSerializer) => State
+          state: State,
+          command: BaseSerializer,
+          defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
           case RunSelfOk() => Idle(state.data)
-          case e@_ => defaultEvent(state, e)
+          case e @ _       => defaultEvent(state, e)
         }
       }
 

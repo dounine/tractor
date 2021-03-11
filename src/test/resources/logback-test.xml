@@ -6,7 +6,7 @@
             <level>INFO</level>
         </filter>
         <encoder>
-            <pattern>[%date{HH:mm:ss.SSS}] [%level] [%thread] [%logger{50}:%line]  %msg%n%n</pattern>
+            <pattern>[%date{HH:mm:ss.SSS}] [%level] [%thread] [%logger:%line]  %msg%n%n</pattern>
         </encoder>
     </appender>
 

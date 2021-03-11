@@ -1,6 +1,11 @@
 package test.com.dounine.tractor
 
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ManualTime, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  LoggingTestKit,
+  ManualTime,
+  ScalaTestWithActorTestKit
+}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.{KillSwitches, OverflowStrategy, SystemMaterializer}
@@ -21,7 +26,12 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Matchers with AnyWordSpecLike with LogCapturing with JsonParse {
+class StreamTest
+    extends ScalaTestWithActorTestKit(ManualTime.config)
+    with Matchers
+    with AnyWordSpecLike
+    with LogCapturing
+    with JsonParse {
   implicit val ec = system.executionContext
   val manualTime: ManualTime = ManualTime()
 
@@ -57,7 +67,5 @@ class StreamTest extends ScalaTestWithActorTestKit(ManualTime.config) with Match
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
     }
-
   }
-
 }

@@ -12,7 +12,10 @@ import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.headers.CacheDirectives.`no-cache`
 import akka.http.scaladsl.model.headers.{Authorization, `Cache-Control`}
 import akka.http.scaladsl.model.{StatusCodes, Uri}
-import akka.http.scaladsl.server.directives.CachingDirectives.{cache, routeCache}
+import akka.http.scaladsl.server.directives.CachingDirectives.{
+  cache,
+  routeCache
+}
 import com.dounine.tractor.router.routers.CachingRouter
 import com.typesafe.config.ConfigFactory
 
@@ -42,6 +45,5 @@ class CachingTest extends AnyWordSpec with Matchers with ScalatestRouteTest {
       }
     }
   }
-
 
 }

@@ -16,7 +16,18 @@ import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
-import com.dounine.tractor.model.types.currency.{Direction, EntrustCancelFailStatus, EntrustStatus, Offset, OrderPriceType, TriggerCancelFailStatus, TriggerCreateFailStatus, TriggerType, UpDownStatus, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  Direction,
+  EntrustCancelFailStatus,
+  EntrustStatus,
+  Offset,
+  OrderPriceType,
+  TriggerCancelFailStatus,
+  TriggerCreateFailStatus,
+  TriggerType,
+  UpDownStatus,
+  UpDownUpdateType
+}
 
 import java.util.UUID
 import scala.concurrent.duration._
@@ -28,23 +39,23 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
     LoggerFactory.getLogger(OpenTriggeringStatus.getClass)
 
   def apply(
-             context: ActorContext[BaseSerializer],
-             shard: ActorRef[ClusterSharding.ShardCommand],
-             timers: TimerScheduler[BaseSerializer],
-             shareData: ShareData
-           ): (
-    (
-      State,
-        BaseSerializer,
-        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      context: ActorContext[BaseSerializer],
+      shard: ActorRef[ClusterSharding.ShardCommand],
+      timers: TimerScheduler[BaseSerializer],
+      shareData: ShareData
+  ): (
+      (
+          State,
+          BaseSerializer,
+          (State, BaseSerializer) => Effect[BaseSerializer, State]
       ) => Effect[BaseSerializer, State],
       (
-        State,
+          State,
           BaseSerializer,
           (State, BaseSerializer) => State
-        ) => State,
+      ) => State,
       Class[_]
-    ) = {
+  ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val materializer = SystemMaterializer(context.system).materializer
     val pushStatus: (ShareData, UpDownStatus) => Unit = (data, status) => {
@@ -57,14 +68,14 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
       )
     }
     val commandHandler: (
-      State,
+        State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State] = (
-                                             state: State,
-                                             command: BaseSerializer,
-                                             defaultCommand: (State, BaseSerializer) => Effect[BaseSerializer, State]
-                                           ) => {
+    ) => Effect[BaseSerializer, State] = (
+        state: State,
+        command: BaseSerializer,
+        defaultCommand: (State, BaseSerializer) => Effect[BaseSerializer, State]
+    ) => {
       command match {
         case Run(_, _, _, _) => {
           logger.info(command.logJson)
@@ -89,20 +100,30 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                     ),
                     context = context
                   )
-                  Source.future(
-                    sharding.entityRefFor(
-                      TriggerBase.typeKey,
-                      updateState.data.config.triggerId
-                    ).ask[BaseSerializer](TriggerBase.Cancel(orderId)(_))(3.seconds)
-                  )
-                    .runWith(ActorSink.actorRef(
-                      ref = context.self,
-                      onCompleteMessage = StreamComplete(),
-                      onFailureMessage = e => {
-                        logger.error(e.logJson)
-                        TriggerBase.CancelFail(orderId, TriggerCancelFailStatus.cancelTimeout)
-                      }
-                    ))(materializer)
+                  Source
+                    .future(
+                      sharding
+                        .entityRefFor(
+                          TriggerBase.typeKey,
+                          updateState.data.config.triggerId
+                        )
+                        .ask[BaseSerializer](TriggerBase.Cancel(orderId)(_))(
+                          3.seconds
+                        )
+                    )
+                    .runWith(
+                      ActorSink.actorRef(
+                        ref = context.self,
+                        onCompleteMessage = StreamComplete(),
+                        onFailureMessage = e => {
+                          logger.error(e.logJson)
+                          TriggerBase.CancelFail(
+                            orderId,
+                            TriggerCancelFailStatus.cancelTimeout
+                          )
+                        }
+                      )
+                    )(materializer)
 
                 case None =>
                   pushInfos(
@@ -179,7 +200,8 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
 
         case TriggerBase.CancelFail(orderId, status) => {
           logger.error(command.logJson)
-          Effect.persist(command)
+          Effect
+            .persist(command)
             .thenRun((updateState: State) => {
               pushStatus(shareData, UpDownStatus.OpenErrored)
             })
@@ -199,23 +221,32 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
               } else {
                 data.info.openTriggerSubmitOrder match {
                   case Some(orderId) => {
-                    Source.future(
-                      sharding.entityRefFor(
-                        TriggerBase.typeKey,
-                        state.data.config.triggerId
-                      ).ask[BaseSerializer](
-                        TriggerBase.Cancel(
-                          orderId
-                        )(_)
-                      )(3.seconds)
-                    ).runWith(ActorSink.actorRef(
-                      ref = context.self,
-                      onCompleteMessage = StreamComplete(),
-                      onFailureMessage = e => {
-                        logger.error(e.logJson)
-                        TriggerBase.CancelFail(orderId, TriggerCancelFailStatus.cancelTimeout)
-                      }
-                    ))(materializer)
+                    Source
+                      .future(
+                        sharding
+                          .entityRefFor(
+                            TriggerBase.typeKey,
+                            state.data.config.triggerId
+                          )
+                          .ask[BaseSerializer](
+                            TriggerBase.Cancel(
+                              orderId
+                            )(_)
+                          )(3.seconds)
+                      )
+                      .runWith(
+                        ActorSink.actorRef(
+                          ref = context.self,
+                          onCompleteMessage = StreamComplete(),
+                          onFailureMessage = e => {
+                            logger.error(e.logJson)
+                            TriggerBase.CancelFail(
+                              orderId,
+                              TriggerCancelFailStatus.cancelTimeout
+                            )
+                          }
+                        )
+                      )(materializer)
                   }
                   case None =>
                     val triggerPriceDouble: Double =
@@ -234,7 +265,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                       orderPriceType = OrderPriceType.limit,
                       triggerType = data.direction match {
                         case Direction.sell => TriggerType.le
-                        case Direction.buy => TriggerType.ge
+                        case Direction.buy  => TriggerType.ge
                       },
                       orderPrice = data.direction match {
                         case Direction.sell =>
@@ -246,31 +277,37 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                       volume = state.data.info.openVolume
                     )(null)
 
-                    Source.future(
-                      sharding.entityRefFor(
-                        TriggerBase.typeKey,
-                        state.data.config.triggerId
-                      ).ask[BaseSerializer](
-                        ref => {
-                          createInfo.replyTo = ref
-                          createInfo
-                        }
-                      )(3.seconds)
-                    )
-                      .runWith(ActorSink.actorRef(
-                        ref = context.self,
-                        onCompleteMessage = StreamComplete(),
-                        onFailureMessage = e => {
-                          logger.error(e.logJson)
-                          TriggerBase.CreateFail(createInfo, TriggerCreateFailStatus.createTimeout)
-                        }
-                      ))(materializer)
+                    Source
+                      .future(
+                        sharding
+                          .entityRefFor(
+                            TriggerBase.typeKey,
+                            state.data.config.triggerId
+                          )
+                          .ask[BaseSerializer](ref => {
+                            createInfo.replyTo = ref
+                            createInfo
+                          })(3.seconds)
+                      )
+                      .runWith(
+                        ActorSink.actorRef(
+                          ref = context.self,
+                          onCompleteMessage = StreamComplete(),
+                          onFailureMessage = e => {
+                            logger.error(e.logJson)
+                            TriggerBase.CreateFail(
+                              createInfo,
+                              TriggerCreateFailStatus.createTimeout
+                            )
+                          }
+                        )
+                      )(materializer)
                 }
               }
             })
         }
 
-        case e@EntrustBase.CancelOk(orderId) => {
+        case e @ EntrustBase.CancelOk(orderId) => {
           logger.info(command.logJson)
           Effect.none
             .thenRun((updateState: State) => {
@@ -284,11 +321,15 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
               )
             })
         }
-        case e@EntrustBase.CancelFail(orderId, status) => {
+        case e @ EntrustBase.CancelFail(orderId, status) => {
           logger.info(command.logJson)
           status match {
-            case EntrustCancelFailStatus.cancelOrderNotExit | EntrustCancelFailStatus.cancelAlreadyCanceled | EntrustCancelFailStatus.cancelAlreadyFailed | EntrustCancelFailStatus.cancelTimeout => {
-              Effect.persist(command)
+            case EntrustCancelFailStatus.cancelOrderNotExit |
+                EntrustCancelFailStatus.cancelAlreadyCanceled |
+                EntrustCancelFailStatus.cancelAlreadyFailed |
+                EntrustCancelFailStatus.cancelTimeout => {
+              Effect
+                .persist(command)
                 .thenRun((updateState: State) => {
                   pushInfos(
                     data = shareData,
@@ -299,12 +340,15 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                   )
                 })
             }
-            case EntrustCancelFailStatus.cancelAlreadyMatchAll | EntrustCancelFailStatus.cancelAlreadyMatchPartCancel => {
+            case EntrustCancelFailStatus.cancelAlreadyMatchAll |
+                EntrustCancelFailStatus.cancelAlreadyMatchPartCancel => {
+
               /**
-               * convert to OpenEntrusted
-               * but must receive message matchAll or matchPart from EntrustNotifyBehavior.Receive
-               */
-              Effect.persist(command)
+                * convert to OpenEntrusted
+                * but must receive message matchAll or matchPart from EntrustNotifyBehavior.Receive
+                */
+              Effect
+                .persist(command)
                 .thenRun((updateState: State) => {
                   pushInfos(
                     data = shareData,
@@ -317,7 +361,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             }
           }
         }
-        case e@TriggerBase.CreateOk(orderId) => {
+        case e @ TriggerBase.CreateOk(orderId) => {
           logger.info(command.logJson)
           Effect
             .persist(command)
@@ -338,7 +382,8 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
         }
         case TriggerBase.CreateFail(request, status) => {
           logger.error(command.logJson)
-          Effect.persist(command)
+          Effect
+            .persist(command)
             .thenRun((updateState: State) => {
               status match {
                 case TriggerCreateFailStatus.createTimeout => {
@@ -359,11 +404,11 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
       }
     }
     val defaultEvent
-    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-        state: State,
-        command: BaseSerializer,
-        defaultEvent: (State, BaseSerializer) => State
+          state: State,
+          command: BaseSerializer,
+          defaultEvent: (State, BaseSerializer) => State
       ) => {
         val data: DataStore = state.data
         command match {
@@ -448,10 +493,13 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
 
           case TriggerBase.CancelFail(orderId, status) => {
             status match {
-              case TriggerCancelFailStatus.cancelOrderNotExit => OpenErrored(data)
+              case TriggerCancelFailStatus.cancelOrderNotExit =>
+                OpenErrored(data)
               case TriggerCancelFailStatus.cancelAlreadyCanceled => state
-              case TriggerCancelFailStatus.cancelAlreadyMatched => OpenEntrusted(data)
-              case TriggerCancelFailStatus.cancelAlreadyFailed => OpenErrored(data)
+              case TriggerCancelFailStatus.cancelAlreadyMatched =>
+                OpenEntrusted(data)
+              case TriggerCancelFailStatus.cancelAlreadyFailed =>
+                OpenErrored(data)
               case TriggerCancelFailStatus.cancelTimeout => OpenErrored(data)
             }
           }
@@ -468,7 +516,10 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
 
           case EntrustBase.CancelFail(orderId, status) => {
             status match {
-              case EntrustCancelFailStatus.cancelOrderNotExit | EntrustCancelFailStatus.cancelAlreadyCanceled | EntrustCancelFailStatus.cancelAlreadyFailed | EntrustCancelFailStatus.cancelTimeout => {
+              case EntrustCancelFailStatus.cancelOrderNotExit |
+                  EntrustCancelFailStatus.cancelAlreadyCanceled |
+                  EntrustCancelFailStatus.cancelAlreadyFailed |
+                  EntrustCancelFailStatus.cancelTimeout => {
                 OpenErrored(
                   data = data.copy(
                     info = data.info.copy(
@@ -477,7 +528,8 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                   )
                 )
               }
-              case EntrustCancelFailStatus.cancelAlreadyMatchAll | EntrustCancelFailStatus.cancelAlreadyMatchPartCancel => {
+              case EntrustCancelFailStatus.cancelAlreadyMatchAll |
+                  EntrustCancelFailStatus.cancelAlreadyMatchPartCancel => {
                 OpenEntrusted(
                   data = data.copy(
                     info = data.info.copy(
@@ -502,7 +554,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
 
           case TriggerBase.CreateFail(request, status) => {
             status match {
-              case TriggerCreateFailStatus.createTimeout => OpenErrored(data)
+              case TriggerCreateFailStatus.createTimeout     => OpenErrored(data)
               case TriggerCreateFailStatus.createFireTrigger => state
             }
           }

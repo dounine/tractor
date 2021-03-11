@@ -12,7 +12,13 @@ import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
-import com.dounine.tractor.model.types.currency.{Direction, EntrustCancelFailStatus, EntrustStatus, Offset, PositionCreateFailStatus}
+import com.dounine.tractor.model.types.currency.{
+  Direction,
+  EntrustCancelFailStatus,
+  EntrustStatus,
+  Offset,
+  PositionCreateFailStatus
+}
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
@@ -28,36 +34,38 @@ object IdleStatus extends ActorSerializerSuport {
     LoggerFactory.getLogger(IdleStatus.getClass)
 
   def apply(
-             context: ActorContext[BaseSerializer],
-             shard: ActorRef[ClusterSharding.ShardCommand],
-             timers: TimerScheduler[BaseSerializer]
-           ): (
-    (
-      State,
-        BaseSerializer,
-        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      context: ActorContext[BaseSerializer],
+      shard: ActorRef[ClusterSharding.ShardCommand],
+      timers: TimerScheduler[BaseSerializer]
+  ): (
+      (
+          State,
+          BaseSerializer,
+          (State, BaseSerializer) => Effect[BaseSerializer, State]
       ) => Effect[BaseSerializer, State],
       (
-        State,
+          State,
           BaseSerializer,
           (State, BaseSerializer) => State
-        ) => State,
+      ) => State,
       Class[_]
-    ) = {
-    val materializer: Materializer = SystemMaterializer(context.system).materializer
+  ) = {
+    val materializer: Materializer = SystemMaterializer(
+      context.system
+    ).materializer
     val config = context.system.settings.config.getConfig("app")
 
     val commandHandler: (
-      State,
+        State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State] = (
-                                             state: State,
-                                             command: BaseSerializer,
-                                             _: (State, BaseSerializer) => Effect[BaseSerializer, State]
-                                           ) =>
+    ) => Effect[BaseSerializer, State] = (
+        state: State,
+        command: BaseSerializer,
+        _: (State, BaseSerializer) => Effect[BaseSerializer, State]
+    ) =>
       command match {
-        case Run(_) => {
+        case Run(_, _) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -73,7 +81,7 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case e@IsCanChangeLeverRate() => {
+        case e @ IsCanChangeLeverRate() => {
           logger.info(command.logJson)
           Effect.none.thenRun((state: State) => {
             if (state.data.position.isDefined) {
@@ -84,18 +92,19 @@ object IdleStatus extends ActorSerializerSuport {
           })
         }
 
-        case e@Create(
-        offset: Offset,
-        volume: Int,
-        latestPrice: Double
-        ) => {
+        case e @ Create(
+              offset: Offset,
+              volume: Int,
+              latestPrice: Double
+            ) => {
           logger.info(command.logJson)
           val takeRate = 0.0004
           offset match {
             case Offset.open => {
               state.data.position match {
                 case Some(position) => {
-                  val fee = volume * state.data.contractSize / latestPrice * takeRate
+                  val fee =
+                    volume * state.data.contractSize / latestPrice * takeRate
 
                   val costHold: Double =
                     state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
@@ -117,24 +126,29 @@ object IdleStatus extends ActorSerializerSuport {
 
                 }
                 case None => {
-                  val marginFrozen = state.data.contractSize * volume / latestPrice / state.data.leverRate.toString.toInt
-                  val fee = volume * state.data.contractSize / latestPrice * takeRate
-                  Effect.persist(NewPosition(
-                    PositionInfo(
-                      volume = volume,
-                      available = volume,
-                      frozen = 0,
-                      openFee = fee,
-                      closeFee = 0,
-                      costOpen = latestPrice,
-                      costHold = latestPrice,
-                      profitUnreal = 0,
-                      profitRate = 0,
-                      profit = 0,
-                      positionMargin = marginFrozen,
-                      createTime = LocalDateTime.now()
+                  val marginFrozen =
+                    state.data.contractSize * volume / latestPrice / state.data.leverRate.toString.toInt
+                  val fee =
+                    volume * state.data.contractSize / latestPrice * takeRate
+                  Effect
+                    .persist(
+                      NewPosition(
+                        PositionInfo(
+                          volume = volume,
+                          available = volume,
+                          frozen = 0,
+                          openFee = fee,
+                          closeFee = 0,
+                          costOpen = latestPrice,
+                          costHold = latestPrice,
+                          profitUnreal = 0,
+                          profitRate = 0,
+                          profit = 0,
+                          positionMargin = marginFrozen,
+                          createTime = LocalDateTime.now()
+                        )
+                      )
                     )
-                  ))
                     .thenRun((_: State) => {
                       logger.info(OpenOk().logJson)
                       e.replyTo.tell(
@@ -147,22 +161,28 @@ object IdleStatus extends ActorSerializerSuport {
             case Offset.close => {
               state.data.position match {
                 case Some(position) => {
-                  val costHold = state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
-                  val closeFee = volume * state.data.contractSize / costHold * takeRate
-                  val balanceService = ServiceSingleton.get(classOf[BalanceRepository])
+                  val costHold =
+                    state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
+                  val closeFee =
+                    volume * state.data.contractSize / costHold * takeRate
+                  val balanceService =
+                    ServiceSingleton.get(classOf[BalanceRepository])
                   if (position.volume == volume) {
-                    val result = Source.future(
-                      balanceService.mergeBalance(
-                        phone = state.data.phone,
-                        symbol = state.data.symbol,
-                        balance = (state.data.direction match {
-                          case Direction.buy =>
-                            (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
-                          case Direction.sell =>
-                            (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
-                        }) - position.openFee + position.closeFee + closeFee
+                    val updateBalance = (state.data.direction match {
+                      case Direction.buy =>
+                        (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
+                      case Direction.sell =>
+                        (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
+                    }) - position.openFee + position.closeFee + closeFee
+                    logger.info(updateBalance.toString)
+                    val result = Source
+                      .future(
+                        balanceService.mergeBalance(
+                          phone = state.data.phone,
+                          symbol = state.data.symbol,
+                          balance = updateBalance
+                        )
                       )
-                    )
                       .idleTimeout(3.seconds)
                       .log("update balance")
                       .map(item => {
@@ -177,8 +197,16 @@ object IdleStatus extends ActorSerializerSuport {
                         logger.error(ee.getMessage)
                         Effect.none
                           .thenRun((_: State) => {
-                            logger.info(CreateFail(PositionCreateFailStatus.createSystemError).logJson)
-                            e.replyTo.tell(CreateFail(PositionCreateFailStatus.createSystemError))
+                            logger.info(
+                              CreateFail(
+                                PositionCreateFailStatus.createSystemError
+                              ).logJson
+                            )
+                            e.replyTo.tell(
+                              CreateFail(
+                                PositionCreateFailStatus.createSystemError
+                              )
+                            )
                           })
                       })
                       .runWith(Sink.head)(materializer)
@@ -189,29 +217,32 @@ object IdleStatus extends ActorSerializerSuport {
                     val sumPositionMargin =
                       state.data.contractSize * (position.volume - volume) / position.costHold / state.data.leverRate.toString.toInt
 
-                    val result = Source.future(
-                      balanceService.mergeBalance(
-                        phone = state.data.phone,
-                        symbol = state.data.symbol,
-                        balance = (state.data.direction match {
-                          case Direction.buy =>
-                            (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
-                          case Direction.sell =>
-                            (state.data.contractSize * volume / costHold) - (state.data.contractSize * volume / position.costHold)
-                        })
+                    val result = Source
+                      .future(
+                        balanceService.mergeBalance(
+                          phone = state.data.phone,
+                          symbol = state.data.symbol,
+                          balance = (state.data.direction match {
+                            case Direction.buy =>
+                              (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
+                            case Direction.sell =>
+                              (state.data.contractSize * volume / costHold) - (state.data.contractSize * volume / position.costHold)
+                          })
+                        )
                       )
-                    )
                       .idleTimeout(3.seconds)
                       .log("update balance")
                       .map(item => {
                         Effect
-                          .persist(MergePosition(
-                            position = position.copy(
-                              volume = sumVolume,
-                              closeFee = sumCloseFee,
-                              positionMargin = sumPositionMargin
+                          .persist(
+                            MergePosition(
+                              position = position.copy(
+                                volume = sumVolume,
+                                closeFee = sumCloseFee,
+                                positionMargin = sumPositionMargin
+                              )
                             )
-                          ))
+                          )
                           .thenRun((_: State) => {
                             logger.info(CloseOk().logJson)
                             e.replyTo.tell(CloseOk())
@@ -221,19 +252,28 @@ object IdleStatus extends ActorSerializerSuport {
                         logger.error(ee.getMessage)
                         Effect.none
                           .thenRun((_: State) => {
-                            logger.info(CreateFail(PositionCreateFailStatus.createSystemError).logJson)
-                            e.replyTo.tell(CreateFail(PositionCreateFailStatus.createSystemError))
+                            logger.info(
+                              CreateFail(
+                                PositionCreateFailStatus.createSystemError
+                              ).logJson
+                            )
+                            e.replyTo.tell(
+                              CreateFail(
+                                PositionCreateFailStatus.createSystemError
+                              )
+                            )
                           })
                       })
                       .runWith(Sink.head)(materializer)
                     Await.result(result, Duration.Inf)
                   } else {
-                    Effect
-                      .none
+                    Effect.none
                       .thenRun((_: State) => {
-                        logger.info(CreateFail(
-                          PositionCreateFailStatus.createCloseNotEnoughIsAvailable
-                        ).logJson)
+                        logger.info(
+                          CreateFail(
+                            PositionCreateFailStatus.createCloseNotEnoughIsAvailable
+                          ).logJson
+                        )
                         e.replyTo.tell(
                           CreateFail(
                             PositionCreateFailStatus.createCloseNotEnoughIsAvailable
@@ -244,12 +284,16 @@ object IdleStatus extends ActorSerializerSuport {
                 }
                 case None => {
                   Effect.none.thenRun((_: State) => {
-                    logger.info(CreateFail(
-                      PositionCreateFailStatus.createClosePositionNotExit
-                    ).logJson)
-                    e.replyTo.tell(CreateFail(
-                      PositionCreateFailStatus.createClosePositionNotExit
-                    ))
+                    logger.info(
+                      CreateFail(
+                        PositionCreateFailStatus.createClosePositionNotExit
+                      ).logJson
+                    )
+                    e.replyTo.tell(
+                      CreateFail(
+                        PositionCreateFailStatus.createClosePositionNotExit
+                      )
+                    )
                   })
                 }
               }
@@ -272,17 +316,19 @@ object IdleStatus extends ActorSerializerSuport {
       }
 
     val defaultEvent
-    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-        state: State,
-        command: BaseSerializer,
-        defaultEvent: (State, BaseSerializer) => State
+          state: State,
+          command: BaseSerializer,
+          defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
           case UpdateLeverRate(value) => {
-            Idle(state.data.copy(
-              leverRate = value
-            ))
+            Idle(
+              state.data.copy(
+                leverRate = value
+              )
+            )
           }
           case ReplaceData(data) => {
             Idle(data)
@@ -310,12 +356,18 @@ object IdleStatus extends ActorSerializerSuport {
           }
           case MarketTradeBehavior.SubOk(source) => {
             source
-              .throttle(1, config.getDuration("engine.position.speed").toMillis.milliseconds)
+              .throttle(
+                1,
+                config
+                  .getDuration("engine.position.speed")
+                  .toMillis
+                  .milliseconds
+              )
               .buffer(1, OverflowStrategy.dropHead)
               .runWith(Sink.foreach(context.self.tell))(materializer)
             state
           }
-          case e@_ => defaultEvent(state, e)
+          case e @ _ => defaultEvent(state, e)
         }
       }
 

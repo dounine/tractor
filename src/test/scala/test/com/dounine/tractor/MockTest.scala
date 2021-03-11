@@ -1,6 +1,10 @@
 package test.com.dounine.tractor
 
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, ManualTime, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  ManualTime,
+  ScalaTestWithActorTestKit
+}
 import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
 import com.dounine.tractor.model.models.BalanceModel
@@ -16,7 +20,12 @@ import java.time.LocalDateTime
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
-class MockTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpecLike with LogCapturing with MockitoSugar {
+class MockTest
+    extends ScalaTestWithActorTestKit()
+    with Matchers
+    with AnyWordSpecLike
+    with LogCapturing
+    with MockitoSugar {
   implicit val ec = system.executionContext
   "mock test" should {
     "hello mock" in {
@@ -28,14 +37,21 @@ class MockTest extends ScalaTestWithActorTestKit() with Matchers with AnyWordSpe
         balance = 1.0,
         createTime = nowTime
       )
-      when(mockBalanceService.balance("123456789", CoinSymbol.BTC)).thenReturn(Future(
-        Option(
-          balanceInfo
+      when(mockBalanceService.balance("123456789", CoinSymbol.BTC)).thenReturn(
+        Future(
+          Option(
+            balanceInfo
+          )
         )
-      ))
+      )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
-      val result = Await.result(ServiceSingleton.get(classOf[BalanceRepository]).balance("123456789", CoinSymbol.BTC), Duration.Inf)
+      val result = Await.result(
+        ServiceSingleton
+          .get(classOf[BalanceRepository])
+          .balance("123456789", CoinSymbol.BTC),
+        Duration.Inf
+      )
 
       result.shouldBe(Option(balanceInfo))
 

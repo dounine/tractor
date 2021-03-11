@@ -16,34 +16,34 @@ object BusyStatus extends ActorSerializerSuport {
     LoggerFactory.getLogger(BusyStatus.getClass)
 
   def apply(
-             context: ActorContext[BaseSerializer],
-             shard: ActorRef[ClusterSharding.ShardCommand],
-             timers: TimerScheduler[BaseSerializer]
-           ): (
-    (
-      State,
-        BaseSerializer,
-        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      context: ActorContext[BaseSerializer],
+      shard: ActorRef[ClusterSharding.ShardCommand],
+      timers: TimerScheduler[BaseSerializer]
+  ): (
+      (
+          State,
+          BaseSerializer,
+          (State, BaseSerializer) => Effect[BaseSerializer, State]
       ) => Effect[BaseSerializer, State],
       (
-        State,
+          State,
           BaseSerializer,
           (State, BaseSerializer) => State
-        ) => State,
+      ) => State,
       Class[_]
-    ) = {
+  ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val commandHandler: (
-      State,
+        State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State] = (
-                                             state: State,
-                                             command: BaseSerializer,
-                                             _: (State, BaseSerializer) => Effect[BaseSerializer, State]
-                                           ) =>
+    ) => Effect[BaseSerializer, State] = (
+        state: State,
+        command: BaseSerializer,
+        _: (State, BaseSerializer) => Effect[BaseSerializer, State]
+    ) =>
       command match {
-        case Run(_) => {
+        case Run(_, _) => {
           logger.info(command.logJson)
           Effect.none
         }
@@ -53,17 +53,20 @@ object BusyStatus extends ActorSerializerSuport {
         }
         case RunSelfOk() => {
           logger.info(command.logJson)
-          Effect.persist(command)
+          Effect
+            .persist(command)
             .thenRun((_: State) => {
-              sharding.entityRefFor(
-                typeKey = MarketTradeBehavior.typeKey,
-                entityId = state.data.config.marketTradeId
-              ).tell(
-                MarketTradeBehavior.Sub(
-                  symbol = state.data.symbol,
-                  contractType = state.data.contractType
-                )(context.self)
-              )
+              sharding
+                .entityRefFor(
+                  typeKey = MarketTradeBehavior.typeKey,
+                  entityId = state.data.config.marketTradeId
+                )
+                .tell(
+                  MarketTradeBehavior.Sub(
+                    symbol = state.data.symbol,
+                    contractType = state.data.contractType
+                  )(context.self)
+                )
             })
             .thenUnstashAll()
 
@@ -75,15 +78,15 @@ object BusyStatus extends ActorSerializerSuport {
       }
 
     val defaultEvent
-    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-        state: State,
-        command: BaseSerializer,
-        defaultEvent: (State, BaseSerializer) => State
+          state: State,
+          command: BaseSerializer,
+          defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
           case RunSelfOk() => Idle(state.data)
-          case e@_ => defaultEvent(state, e)
+          case e @ _       => defaultEvent(state, e)
         }
       }
 

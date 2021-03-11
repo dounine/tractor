@@ -128,7 +128,8 @@ class PositionTest extends ScalaTestWithActorTestKit(
       )
       val positionBehavior = sharding.entityRefFor(PositionBase.typeKey, positionId)
       positionBehavior.tell(PositionBase.Run(
-        marketTradeId = socketPort
+        marketTradeId = socketPort,
+        contractSize = 100
       ))
 
       positionBehavior.tell(PositionBase.ReplaceData(

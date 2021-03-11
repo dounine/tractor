@@ -24,35 +24,35 @@ object EntrustBase extends ActorSerializerSuport {
     EntityTypeKey[BaseSerializer]("EntrustBehavior")
 
   final case class EntrustItem(
-                                offset: Offset,
-                                orderPriceType: OrderPriceType,
-                                price: Double,
-                                marginFrozen: Double,
-                                volume: Int,
-                                time: LocalDateTime
-                              ) extends BaseSerializer
+      offset: Offset,
+      orderPriceType: OrderPriceType,
+      price: Double,
+      marginFrozen: Double,
+      volume: Int,
+      time: LocalDateTime
+  ) extends BaseSerializer
 
   final case class Config(
-                           marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                           positionId: String = PositionBase.typeKey.name,
-                           entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
-                         ) extends BaseSerializer
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      positionId: String = PositionBase.typeKey.name,
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
+  ) extends BaseSerializer
 
   final case class EntrustInfo(
-                                entrust: EntrustItem,
-                                status: EntrustStatus
-                              ) extends BaseSerializer
+      entrust: EntrustItem,
+      status: EntrustStatus
+  ) extends BaseSerializer
 
   case class DataStore(
-                        entrusts: Map[String, EntrustInfo],
-                        config: Config,
-                        phone: String,
-                        symbol: CoinSymbol,
-                        contractType: ContractType,
-                        direction: Direction,
-                        leverRate: LeverRate,
-                        contractSize: Int
-                      ) extends BaseSerializer
+      entrusts: Map[String, EntrustInfo],
+      config: Config,
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      leverRate: LeverRate,
+      contractSize: Int
+  ) extends BaseSerializer
 
   sealed trait Command extends BaseSerializer
 
@@ -67,10 +67,11 @@ object EntrustBase extends ActorSerializerSuport {
   final case class Busy(data: DataStore) extends State
 
   final case class Run(
-                        marketTradeId: String = MarketTradeBehavior.typeKey.name,
-                        positionId: String = PositionBase.typeKey.name,
-                        entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
-                      ) extends Command
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      positionId: String = PositionBase.typeKey.name,
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name,
+      contractSize: Int
+  ) extends Command
 
   final case class RunSelfOk() extends Command
 
@@ -81,40 +82,53 @@ object EntrustBase extends ActorSerializerSuport {
   final case object Recovery extends Command
 
   final case class Create(
-                           orderId: String,
-                           offset: Offset,
-                           orderPriceType: OrderPriceType,
-                           price: Double,
-                           volume: Int
-                         )(val replyTo: ActorRef[BaseSerializer]) extends Command
+      orderId: String,
+      offset: Offset,
+      orderPriceType: OrderPriceType,
+      price: Double,
+      volume: Int
+  )(val replyTo: ActorRef[BaseSerializer])
+      extends Command
 
   final case class CreateOk(request: Create) extends Command
 
   final case class CreateFail(request: Create) extends Command
 
-  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
 
   final case class ChangeLeverRateYes() extends Command
 
   final case class ChangeLeverRateNo() extends Command
 
-  final case class UpdateLeverRate(value: LeverRate)(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class UpdateLeverRate(value: LeverRate)(
+      val replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   final case class UpdateLeverRateOk() extends Command
 
   final case class UpdateLeverRateFail() extends Command
 
-  final case class Cancel(orderId: String)(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class Cancel(orderId: String)(
+      val replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   final case class CancelOk(orderId: String) extends Command
 
-  final case class CancelFail(orderId: String, status: EntrustCancelFailStatus) extends Command
+  final case class CancelFail(orderId: String, status: EntrustCancelFailStatus)
+      extends Command
 
   final case class Entrusts(
-                             entrusts: Map[String, EntrustInfo]
-                           ) extends Command
+      entrusts: Map[String, EntrustInfo]
+  ) extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+  def createEntityId(
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      randomId: String = ""
+  ): String = {
     s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }
 

@@ -21,34 +21,34 @@ object PositionBase {
     EntityTypeKey[BaseSerializer]("PositionBehavior")
 
   final case class PositionInfo(
-                                 volume: Int,
-                                 available: Int,
-                                 frozen: Int,
-                                 openFee: Double,
-                                 closeFee: Double,
-                                 costOpen: Double,
-                                 costHold: Double,
-                                 profitUnreal: Double,
-                                 profitRate: Double,
-                                 profit: Double,
-                                 positionMargin: Double,
-                                 createTime: LocalDateTime
-                               ) extends BaseSerializer
+      volume: Int,
+      available: Int,
+      frozen: Int,
+      openFee: Double,
+      closeFee: Double,
+      costOpen: Double,
+      costHold: Double,
+      profitUnreal: Double,
+      profitRate: Double,
+      profit: Double,
+      positionMargin: Double,
+      createTime: LocalDateTime
+  ) extends BaseSerializer
 
   final case class Config(
-                           marketTradeId: String = MarketTradeBehavior.typeKey.name
-                         ) extends BaseSerializer
+      marketTradeId: String = MarketTradeBehavior.typeKey.name
+  ) extends BaseSerializer
 
   case class DataStore(
-                        position: Option[PositionInfo],
-                        config: Config,
-                        phone: String,
-                        symbol: CoinSymbol,
-                        contractType: ContractType,
-                        direction: Direction,
-                        leverRate: LeverRate,
-                        contractSize: Int
-                      ) extends BaseSerializer
+      position: Option[PositionInfo],
+      config: Config,
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      leverRate: LeverRate,
+      contractSize: Int
+  ) extends BaseSerializer
 
   sealed trait Command extends BaseSerializer
 
@@ -63,21 +63,24 @@ object PositionBase {
   final case class Busy(data: DataStore) extends State
 
   final case class Run(
-                        marketTradeId: String = MarketTradeBehavior.typeKey.name
-                      ) extends Command
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      contractSize: Int
+  ) extends Command
 
-  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
 
   final case class ChangeLeverRateYes() extends Command
 
   final case class ChangeLeverRateNo() extends Command
 
-  final case class UpdateLeverRate(value: LeverRate)(val replyTo: ActorRef[BaseSerializer]) extends Command
+  final case class UpdateLeverRate(value: LeverRate)(
+      val replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   final case class UpdateLeverRateOk() extends Command
 
   final case class UpdateLeverRateFail() extends Command
-
 
   final case class ReplaceData(data: DataStore) extends Command
 
@@ -90,10 +93,11 @@ object PositionBase {
   final case object Recovery extends Command
 
   final case class Create(
-                           offset: Offset,
-                           volume: Int,
-                           latestPrice: Double
-                         )(val replyTo: ActorRef[BaseSerializer]) extends Command
+      offset: Offset,
+      volume: Int,
+      latestPrice: Double
+  )(val replyTo: ActorRef[BaseSerializer])
+      extends Command
 
   final case class CreateFail(status: PositionCreateFailStatus) extends Command
 
@@ -104,16 +108,22 @@ object PositionBase {
   final case class CloseOk() extends Command
 
   final case class NewPosition(
-                                position: PositionInfo
-                              ) extends Command
+      position: PositionInfo
+  ) extends Command
 
   final case class MergePosition(
-                                  position: PositionInfo
-                                ) extends Command
+      position: PositionInfo
+  ) extends Command
 
   final case class RemovePosition() extends Command
 
-  def createEntityId(phone: String, symbol: CoinSymbol, contractType: ContractType, direction: Direction, randomId: String = ""): String = {
+  def createEntityId(
+      phone: String,
+      symbol: CoinSymbol,
+      contractType: ContractType,
+      direction: Direction,
+      randomId: String = ""
+  ): String = {
     s"${phone}-${symbol}-${contractType}-${direction}-${randomId}"
   }
 

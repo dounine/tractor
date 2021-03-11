@@ -136,6 +136,7 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
             })
         }
         case EntrustNotifyBehavior.Receive(notif) => {
+          logger.info(command.logJson)
           Effect
             .persist(command)
             .thenRun((updateState: State) => {
@@ -184,7 +185,8 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
         }
         case TriggerBase.CancelOk(orderId) => {
           logger.info(command.logJson)
-          Effect.none
+          Effect
+            .persist(command)
             .thenRun((updateState: State) => {
               context.self.tell(Trigger())
             })
@@ -439,9 +441,25 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
                 CloseErrored(data)
               }
               case TriggerCancelFailStatus.cancelAlreadyMatched => {
-                CloseEntrusted(data)
+                CloseEntrusted(
+                  data.copy(
+                    info = data.info.copy(
+                      closeTriggerSubmitOrder = Option.empty
+                    )
+                  )
+                )
               }
             }
+          }
+
+          case TriggerBase.CancelOk(orderId) => {
+            CloseTriggering(
+              data = data.copy(
+                info = data.info.copy(
+                  closeTriggerSubmitOrder = Option.empty
+                )
+              )
+            )
           }
 
           case TriggerBase.CreateOk(request) => {

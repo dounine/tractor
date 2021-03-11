@@ -8,15 +8,13 @@ import scala.concurrent.Future
 trait BalanceRepository {
 
   def balance(
-               phone: String,
-               symbol: CoinSymbol
-             ): Future[Option[BalanceModel.Info]]
+      phone: String,
+      symbol: CoinSymbol
+  ): Future[Option[BalanceModel.Info]]
 
   def mergeBalance(
-                    phone: String,
-                    symbol: CoinSymbol,
-                    balance: Double
-                  ): Future[Option[Double]]
+      phone: String,
+      symbol: CoinSymbol,
+      balance: Double
+  ): Future[Option[Double]]
 }
-
-

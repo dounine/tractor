@@ -15,35 +15,36 @@ object StopedStatus extends ActorSerializerSuport {
     LoggerFactory.getLogger(StopedStatus.getClass)
 
   def apply(
-             context: ActorContext[BaseSerializer],
-             shard: ActorRef[ClusterSharding.ShardCommand],
-             timers: TimerScheduler[BaseSerializer]
-           ): (
-    (
-      State,
-        BaseSerializer,
-        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      context: ActorContext[BaseSerializer],
+      shard: ActorRef[ClusterSharding.ShardCommand],
+      timers: TimerScheduler[BaseSerializer]
+  ): (
+      (
+          State,
+          BaseSerializer,
+          (State, BaseSerializer) => Effect[BaseSerializer, State]
       ) => Effect[BaseSerializer, State],
       (
-        State,
+          State,
           BaseSerializer,
           (State, BaseSerializer) => State
-        ) => State,
+      ) => State,
       Class[_]
-    ) = {
+  ) = {
     val commandHandler: (
-      State,
+        State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State] = (
-                                             state: State,
-                                             command: BaseSerializer,
-                                             _: (State, BaseSerializer) => Effect[BaseSerializer, State]
-                                           ) =>
+    ) => Effect[BaseSerializer, State] = (
+        state: State,
+        command: BaseSerializer,
+        _: (State, BaseSerializer) => Effect[BaseSerializer, State]
+    ) =>
       command match {
-        case Run(_, _, _) => {
+        case Run(_, _, _, _) => {
           logger.info(command.logJson)
-          Effect.persist(command)
+          Effect
+            .persist(command)
             .thenRun((_: State) => {
               context.self.tell(RunSelfOk())
             })
@@ -55,21 +56,25 @@ object StopedStatus extends ActorSerializerSuport {
       }
 
     val defaultEvent
-    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-        state: State,
-        command: BaseSerializer,
-        defaultEvent: (State, BaseSerializer) => State
+          state: State,
+          command: BaseSerializer,
+          defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case Run(marketTradeId, positionId, entrustNotifyId) => Busy(state.data.copy(
-            config = state.data.config.copy(
-              marketTradeId = marketTradeId,
-              positionId = positionId,
-              entrustNotifyId = entrustNotifyId
+          case Run(marketTradeId, positionId, entrustNotifyId, contractSize) =>
+            Busy(
+              state.data.copy(
+                contractSize = contractSize,
+                config = state.data.config.copy(
+                  marketTradeId = marketTradeId,
+                  positionId = positionId,
+                  entrustNotifyId = entrustNotifyId
+                )
+              )
             )
-          ))
-          case e@_ => defaultEvent(state, e)
+          case e @ _ => defaultEvent(state, e)
         }
       }
 

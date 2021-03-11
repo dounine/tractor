@@ -15,7 +15,13 @@ import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
-import com.dounine.tractor.model.types.currency.{EntrustCancelFailStatus, EntrustStatus, Offset, UpDownStatus, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  EntrustCancelFailStatus,
+  EntrustStatus,
+  Offset,
+  UpDownStatus,
+  UpDownUpdateType
+}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -26,23 +32,23 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
     LoggerFactory.getLogger(OpenPartMatchedStatus.getClass)
 
   def apply(
-             context: ActorContext[BaseSerializer],
-             shard: ActorRef[ClusterSharding.ShardCommand],
-             timers: TimerScheduler[BaseSerializer],
-             shareData: ShareData
-           ): (
-    (
-      State,
-        BaseSerializer,
-        (State, BaseSerializer) => Effect[BaseSerializer, State]
+      context: ActorContext[BaseSerializer],
+      shard: ActorRef[ClusterSharding.ShardCommand],
+      timers: TimerScheduler[BaseSerializer],
+      shareData: ShareData
+  ): (
+      (
+          State,
+          BaseSerializer,
+          (State, BaseSerializer) => Effect[BaseSerializer, State]
       ) => Effect[BaseSerializer, State],
       (
-        State,
+          State,
           BaseSerializer,
           (State, BaseSerializer) => State
-        ) => State,
+      ) => State,
       Class[_]
-    ) = {
+  ) = {
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val materializer = SystemMaterializer(context.system).materializer
     val pushStatus: (ShareData, UpDownStatus) => Unit = (data, status) => {
@@ -55,14 +61,14 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
       )
     }
     val commandHandler: (
-      State,
+        State,
         BaseSerializer,
         (State, BaseSerializer) => Effect[BaseSerializer, State]
-      ) => Effect[BaseSerializer, State] = (
-                                             state: State,
-                                             command: BaseSerializer,
-                                             defaultCommand: (State, BaseSerializer) => Effect[BaseSerializer, State]
-                                           ) =>
+    ) => Effect[BaseSerializer, State] = (
+        state: State,
+        command: BaseSerializer,
+        defaultCommand: (State, BaseSerializer) => Effect[BaseSerializer, State]
+    ) =>
       command match {
         case Run(_, _, _, _) => {
           logger.info(command.logJson)
@@ -87,18 +93,26 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
                   )
                   Source
                     .future(
-                      sharding.entityRefFor(
-                        EntrustBase.typeKey,
-                        state.data.config.entrustId
-                      ).ask(
-                        EntrustBase.Cancel(orderId)(_)
-                      )(3.seconds)
+                      sharding
+                        .entityRefFor(
+                          EntrustBase.typeKey,
+                          state.data.config.entrustId
+                        )
+                        .ask(
+                          EntrustBase.Cancel(orderId)(_)
+                        )(3.seconds)
                     )
-                    .runWith(ActorSink.actorRef(
-                      ref = context.self,
-                      onCompleteMessage = StreamComplete(),
-                      onFailureMessage = e => EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelTimeout)
-                    ))(materializer)
+                    .runWith(
+                      ActorSink.actorRef(
+                        ref = context.self,
+                        onCompleteMessage = StreamComplete(),
+                        onFailureMessage = e =>
+                          EntrustBase.CancelFail(
+                            orderId,
+                            EntrustCancelFailStatus.cancelTimeout
+                          )
+                      )
+                    )(materializer)
                 case None =>
                   pushInfos(
                     data = shareData,
@@ -188,26 +202,33 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
         }
         case EntrustTimeout(orderStatus, orderId) => {
           logger.info(command.logJson)
-          Effect
-            .none
+          Effect.none
             .thenRun((updateState: State) => {
               val data: DataStore = updateState.data
               orderStatus match {
                 case EntrustStatus.matchPart => {
                   Source
                     .future(
-                      sharding.entityRefFor(
-                        EntrustBase.typeKey,
-                        updateState.data.config.entrustId
-                      ).ask[BaseSerializer](
-                        EntrustBase.Cancel(orderId)(_)
-                      )(3.seconds)
+                      sharding
+                        .entityRefFor(
+                          EntrustBase.typeKey,
+                          updateState.data.config.entrustId
+                        )
+                        .ask[BaseSerializer](
+                          EntrustBase.Cancel(orderId)(_)
+                        )(3.seconds)
                     )
-                    .runWith(ActorSink.actorRef(
-                      ref = context.self,
-                      onCompleteMessage = StreamComplete(),
-                      onFailureMessage = e => EntrustBase.CancelFail(orderId, EntrustCancelFailStatus.cancelTimeout)
-                    ))(materializer)
+                    .runWith(
+                      ActorSink.actorRef(
+                        ref = context.self,
+                        onCompleteMessage = StreamComplete(),
+                        onFailureMessage = e =>
+                          EntrustBase.CancelFail(
+                            orderId,
+                            EntrustCancelFailStatus.cancelTimeout
+                          )
+                      )
+                    )(materializer)
                 }
               }
             })
@@ -217,11 +238,11 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
       }
 
     val defaultEvent
-    : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
+        : (State, BaseSerializer, (State, BaseSerializer) => State) => State =
       (
-        state: State,
-        command: BaseSerializer,
-        defaultEvent: (State, BaseSerializer) => State
+          state: State,
+          command: BaseSerializer,
+          defaultEvent: (State, BaseSerializer) => State
       ) => {
         val data: DataStore = state.data
         command match {
@@ -287,7 +308,7 @@ object OpenPartMatchedStatus extends ActorSerializerSuport {
 
           case EntrustBase.CancelFail(orderId, status) => {
             status match {
-              case EntrustCancelFailStatus.cancelOrderNotExit =>{
+              case EntrustCancelFailStatus.cancelOrderNotExit => {
                 OpenErrored(data)
               }
               case EntrustCancelFailStatus.cancelAlreadyCanceled => {
