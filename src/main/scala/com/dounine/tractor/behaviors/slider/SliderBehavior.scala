@@ -284,6 +284,7 @@ object SliderBehavior extends ActorSerializerSuport {
                           middleValue + (price - initPrice)
                         var percentage: Double =
                           tradeValue / info.maxValue
+
                         if (percentage <= 0.1 || percentage >= 0.9) {
                           info = info.copy(
                             initPrice = Option(price),
@@ -303,23 +304,20 @@ object SliderBehavior extends ActorSerializerSuport {
                             )
                           )
                         } else {
-                          info.tradeValue match {
-                            case Some(value) =>
-                              if (
-                                tradeValue
-                                  .formatted(formatStyle) != value
-                                  .formatted(formatStyle)
-                              ) {
-                                pushQueue.offer(
-                                  Push(
-                                    tradeValue =
-                                      Option(tradeValue.formatted(formatStyle))
-                                  )
+                          info.tradeValue.foreach(value => {
+                            if (
+                              tradeValue
+                                .formatted(formatStyle) != value
+                                .formatted(formatStyle)
+                            ) {
+                              pushQueue.offer(
+                                Push(
+                                  tradeValue =
+                                    Option(tradeValue.formatted(formatStyle))
                                 )
-                              }
-                            case None =>
-                          }
-
+                              )
+                            }
+                          })
                           info = info.copy(
                             tradeValue = Option(tradeValue)
                           )

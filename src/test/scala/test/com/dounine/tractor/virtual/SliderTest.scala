@@ -48,6 +48,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, _}
@@ -237,8 +238,6 @@ class SliderTest
       val source2 = testKit.createTestProbe[BaseSerializer]()
       sliderBehavior
         .tell(SliderBehavior.Sub()(source2.ref))
-
-
       source2
         .receiveMessage()
         .asInstanceOf[SliderBehavior.SubOk]
@@ -251,6 +250,44 @@ class SliderTest
             initPrice = Option("110.0"),
             tradeValue = Option("50.0"),
             tradePrice = Option("110.0")
+          )
+        )
+
+      socketClient.offer(
+        BinaryMessage.Strict(
+          dataMessage(
+            triggerMessage
+              .copy(
+                tick = triggerMessage.tick.copy(
+                  data = Seq(
+                    triggerMessage.tick.data.head.copy(
+                      price = 111
+                    )
+                  )
+                )
+              )
+              .toJson
+          )
+        )
+      )
+
+      val source3 = testKit.createTestProbe[BaseSerializer]()
+      sliderBehavior
+        .tell(SliderBehavior.Sub()(source3.ref))
+      source3
+        .receiveMessage()
+        .asInstanceOf[SliderBehavior.SubOk]
+        .source
+        .runWith(TestSink[BaseSerializer]())
+        .request(2)
+        .expectNext(
+          SliderBehavior.Push(
+            initPrice = Option("110.0"),
+            tradeValue = Option("50.0"),
+            tradePrice = Option("110.0")
+          ),
+          SliderBehavior.Push(
+            tradeValue = Option("51.0")
           )
         )
 
