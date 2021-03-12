@@ -147,8 +147,9 @@ object UpDownBehavior extends JsonParse {
                         )
                       })
                     )
-                    val sourceRef: SourceRef[PushDataInfo] = infoBrocastHub
-                      .concat(Source.single(info))
+                    val sourceRef: SourceRef[PushDataInfo] = Source
+                      .single(info)
+                      .concat(infoBrocastHub)
                       .runWith(StreamRefs.sourceRef())(materializer)
                     e.replyTo.tell(SubOk(sourceRef))
                   })
