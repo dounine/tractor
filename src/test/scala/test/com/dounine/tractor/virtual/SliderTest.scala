@@ -291,6 +291,45 @@ class SliderTest
           )
         )
 
+      socketClient.offer(
+        BinaryMessage.Strict(
+          dataMessage(
+            triggerMessage
+              .copy(
+                tick = triggerMessage.tick.copy(
+                  data = Seq(
+                    triggerMessage.tick.data.head.copy(
+                      price = 150
+                    )
+                  )
+                )
+              )
+              .toJson
+          )
+        )
+      )
+
+      val source4 = testKit.createTestProbe[BaseSerializer]()
+      sliderBehavior
+        .tell(SliderBehavior.Sub()(source4.ref))
+      source4
+        .receiveMessage()
+        .asInstanceOf[SliderBehavior.SubOk]
+        .source
+        .runWith(TestSink[BaseSerializer]())
+        .request(2)
+        .expectNext(
+          SliderBehavior.Push(
+            initPrice = Option("110.0"),
+            tradeValue = Option("51.0"),
+            tradePrice = Option("111.0")
+          ),
+          SliderBehavior.Push(
+            initPrice = Option("150.0"),
+            tradeValue = Option("50.0")
+          )
+        )
+
     }
   }
 
