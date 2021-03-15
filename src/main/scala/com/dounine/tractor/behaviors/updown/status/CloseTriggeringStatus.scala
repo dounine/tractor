@@ -327,6 +327,13 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
                 msg = Trigger(),
                 delay = updateState.data.info.closeScheduling
               )
+              pushInfos(
+                data = shareData,
+                infos = Map(
+                  UpDownUpdateType.closeTriggerPrice -> request.triggerPrice
+                ),
+                context = context
+              )
             })
         }
         case TriggerBase.CreateFail(request, status) => {

@@ -17,9 +17,14 @@ import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.EntrustStatus.EntrustStatus
-import com.dounine.tractor.model.types.currency.{LeverRate, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  LeverRate,
+  UpDownSubType,
+  UpDownUpdateType
+}
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
+import com.dounine.tractor.model.types.currency.UpDownSubType.UpDownSubType
 import com.dounine.tractor.model.types.currency.UpDownUpdateType.UpDownUpdateType
 import com.dounine.tractor.tools.util.CopyUtil
 
@@ -146,6 +151,7 @@ object UpDownBase {
       run: Option[Boolean] = Option.empty,
       runLoading: Option[Boolean] = Option.empty,
       status: Option[UpDownStatus] = Option.empty,
+      openTriggerPrice: Option[Double] = Option.empty,
       openReboundPrice: Option[Double] = Option.empty,
       openTriggerPriceSpread: Option[Double] = Option.empty,
       openVolume: Option[Int] = Option.empty,
@@ -155,6 +161,7 @@ object UpDownBase {
       openFee: Option[Double] = Option.empty,
       closeStatus: Option[UpDownStatus] = Option.empty,
       closeZoom: Option[Boolean] = Option.empty,
+      closeTriggerPrice: Option[Double] = Option.empty,
       closeReboundPrice: Option[Double] = Option.empty,
       closeTriggerPriceSpread: Option[Double] = Option.empty,
       closeVolume: Option[Int] = Option.empty,
@@ -172,7 +179,9 @@ object UpDownBase {
       orderId: String
   ) extends Command
 
-  case class Sub()(val replyTo: ActorRef[BaseSerializer]) extends Command
+  case class Sub(`type`: UpDownSubType = UpDownSubType.all)(
+      val replyTo: ActorRef[BaseSerializer]
+  ) extends Command
 
   case class SubOk(source: SourceRef[PushDataInfo]) extends Command
 
@@ -206,29 +215,20 @@ object UpDownBase {
       infos: Map[UpDownUpdateType, Any],
       context: ActorContext[BaseSerializer]
   ): Unit = {
-    val pushInfos: Map[UpDownUpdateType, Any] =
-      infos.filterNot(p =>
-        Seq(
-          UpDownUpdateType.openTriggerPrice,
-          UpDownUpdateType.closeTriggerPrice
-        ).contains(p._1)
-      )
-    if (pushInfos.nonEmpty) {
-      val info = PushDataInfo(
-        info = pushInfos.foldLeft(PushInfo())((sum, next) => {
-          CopyUtil.copy[PushInfo](sum)(
-            values = Map(next._1.toString -> Option(next._2))
-          )
-        })
-      )
-      data.infoQueue
-        .offer(info)
-        .foreach {
-          case result: QueueCompletionResult =>
-          case QueueOfferResult.Enqueued     =>
-          case QueueOfferResult.Dropped      =>
-        }(context.executionContext)
-    }
+    val info = PushDataInfo(
+      info = infos.foldLeft(PushInfo())((sum, next) => {
+        CopyUtil.copy[PushInfo](sum)(
+          values = Map(next._1.toString -> Option(next._2))
+        )
+      })
+    )
+    data.infoQueue
+      .offer(info)
+      .foreach {
+        case result: QueueCompletionResult =>
+        case QueueOfferResult.Enqueued     =>
+        case QueueOfferResult.Dropped      =>
+      }(context.executionContext)
   }
 
 }

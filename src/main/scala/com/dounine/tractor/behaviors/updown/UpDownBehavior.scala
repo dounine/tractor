@@ -16,6 +16,7 @@ import com.dounine.tractor.model.types.currency.{
   Direction,
   LeverRate,
   UpDownStatus,
+  UpDownSubType,
   UpDownUpdateType
 }
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
@@ -38,6 +39,7 @@ import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
+import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
 import com.dounine.tractor.tools.util.CopyUtil
 
 import scala.concurrent.duration._
@@ -120,13 +122,15 @@ object UpDownBehavior extends JsonParse {
                   logger.info(command.logJson)
                   Effect.none
                 }
-                case e @ Sub() => {
+                case e @ Sub(typ) => {
                   logger.info(command.logJson)
                   Effect.none.thenRun((updateState: State) => {
+                    val upDownStatus: UpDownStatus = UpDownStatus
+                      .withName(state.getClass().getSimpleName())
                     val pushInfos = Map(
                       UpDownUpdateType.run -> updateState.data.info.run.toString,
                       UpDownUpdateType.runLoading -> updateState.data.info.runLoading,
-                      UpDownUpdateType.status -> updateState.data.info,
+                      UpDownUpdateType.status -> upDownStatus,
                       UpDownUpdateType.openEntrustTimeout -> updateState.data.info.openEntrustTimeout,
                       UpDownUpdateType.openLeverRate -> updateState.data.leverRate,
                       UpDownUpdateType.openReboundPrice -> updateState.data.info.openReboundPrice,
@@ -138,7 +142,9 @@ object UpDownBehavior extends JsonParse {
                       UpDownUpdateType.closeScheduling -> updateState.data.info.closeScheduling,
                       UpDownUpdateType.closeTriggerPriceSpread -> updateState.data.info.closeTriggerPriceSpread,
                       UpDownUpdateType.closeZoom -> updateState.data.info.closeZoom,
-                      UpDownUpdateType.closeVolume -> updateState.data.info.closeVolume
+                      UpDownUpdateType.closeVolume -> updateState.data.info.closeVolume,
+                      UpDownUpdateType.openTriggerPrice -> updateState.data.info.openTriggerPrice,
+                      UpDownUpdateType.closeTriggerPrice -> updateState.data.info.closeTriggerPrice
                     )
                     val info = PushDataInfo(
                       info = pushInfos.foldLeft(PushInfo())((sum, next) => {
@@ -150,6 +156,27 @@ object UpDownBehavior extends JsonParse {
                     val sourceRef: SourceRef[PushDataInfo] = Source
                       .single(info)
                       .concat(infoBrocastHub)
+                      .map(info => {
+                        typ match {
+                          case UpDownSubType.all => info
+                          case UpDownSubType.trigger => {
+                            PushDataInfo(
+                              info = PushInfo(
+                                status = info.info.status,
+                                openTriggerPrice = info.info.openTriggerPrice,
+                                closeTriggerPrice = info.info.closeTriggerPrice
+                              )
+                            )
+                          }
+                        }
+                      })
+                      .filter(info => {
+                        typ match {
+                          case UpDownSubType.all => true
+                          case UpDownSubType.trigger =>
+                            info.info.openTriggerPrice.isDefined || info.info.closeTriggerPrice.isDefined
+                        }
+                      })
                       .runWith(StreamRefs.sourceRef())(materializer)
                     e.replyTo.tell(SubOk(sourceRef))
                   })

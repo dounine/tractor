@@ -423,9 +423,18 @@ class UpDownTest
         )
       )
 
+      val updateProbe = testKit.createTestProbe[BaseSerializer]()
+      updownBehavior.tell(
+        UpDownBase.Update(
+          UpDownUpdateType.openReboundPrice,
+          1.0,
+          updateProbe.ref
+        )
+      )
+
       LoggingTestKit
         .info(
-          classOf[TriggerBase.Create].getName
+          classOf[TriggerBase.CreateOk].getName
         )
         .expect(
           socketClient.offer(

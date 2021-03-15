@@ -2,7 +2,28 @@ package com.dounine.tractor.tools.json
 
 import akka.actor.typed.ActorRef
 import com.dounine.tractor.model.models.TriggerModel
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, EntrustCancelFailStatus, EntrustCreateFailStatus, EntrustStatus, LeverRate, Offset, OrderPriceType, OrderType, PositionCreateFailStatus, Role, Source, TriggerCancelFailStatus, TriggerCreateFailStatus, TriggerStatus, TriggerType, UpDownStatus, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  CoinSymbol,
+  ContractType,
+  Direction,
+  EntrustCancelFailStatus,
+  EntrustCreateFailStatus,
+  EntrustStatus,
+  LeverRate,
+  Offset,
+  OrderPriceType,
+  OrderType,
+  PositionCreateFailStatus,
+  Role,
+  Source,
+  TriggerCancelFailStatus,
+  TriggerCreateFailStatus,
+  TriggerStatus,
+  TriggerType,
+  UpDownStatus,
+  UpDownSubType,
+  UpDownUpdateType
+}
 import com.dounine.tractor.model.types.router.ResponseCode
 import org.json4s.JsonAST.{JField, JLong, JObject, JString}
 import org.json4s.ext.EnumNameSerializer
@@ -16,62 +37,70 @@ import scala.concurrent.duration.FiniteDuration
 object JsonSuport {
 
   object LocalDateTimeSerializer
-    extends CustomSerializer[LocalDateTime](_ =>
-      ( {
-        case JString(dateTime) =>
-          LocalDateTime.parse(dateTime, dateTimeFormatter)
-      }, {
-        case dateTime: LocalDateTime =>
-          JString(dateTime.toString)
-      }
+      extends CustomSerializer[LocalDateTime](_ =>
+        (
+          {
+            case JString(dateTime) =>
+              LocalDateTime.parse(dateTime, dateTimeFormatter)
+          },
+          {
+            case dateTime: LocalDateTime =>
+              JString(dateTime.toString)
+          }
+        )
       )
-    )
 
   object LocalDateSerializer
-    extends CustomSerializer[LocalDate](_ =>
-      ( {
-        case JString(date) =>
-          LocalDate.parse(date)
-      }, {
-        case date: LocalDate =>
-          JString(date.toString)
-      }
+      extends CustomSerializer[LocalDate](_ =>
+        (
+          {
+            case JString(date) =>
+              LocalDate.parse(date)
+          },
+          {
+            case date: LocalDate =>
+              JString(date.toString)
+          }
+        )
       )
-    )
 
   /**
-   * only using for log serialaizer
-   */
+    * only using for log serialaizer
+    */
   object ActorRefSerializer
-    extends CustomSerializer[ActorRef[_]](_ =>
-      ( {
-        case JString(_) => null
-      }, {
-        case actor: ActorRef[_] =>
-          JString(actor.toString)
-      }
+      extends CustomSerializer[ActorRef[_]](_ =>
+        (
+          {
+            case JString(_) => null
+          },
+          {
+            case actor: ActorRef[_] =>
+              JString(actor.toString)
+          }
+        )
       )
-    )
 
   object FiniteDurationSerializer
-    extends CustomSerializer[FiniteDuration](_ =>
-      ( {
-        case JObject(
-        JField("unit", JString(unit)) :: JField(
-        "length",
-        JLong(length)
-        ) :: Nil
-        ) =>
-          FiniteDuration(length.toLong, unit)
-      }, {
-        case time: FiniteDuration =>
-          JObject(
-            "unit" -> JString(time._2.name()),
-            "length" -> JLong(time._1.toLong)
-          )
-      }
+      extends CustomSerializer[FiniteDuration](_ =>
+        (
+          {
+            case JObject(
+                  JField("unit", JString(unit)) :: JField(
+                    "length",
+                    JLong(length)
+                  ) :: Nil
+                ) =>
+              FiniteDuration(length.toLong, unit)
+          },
+          {
+            case time: FiniteDuration =>
+              JObject(
+                "unit" -> JString(time._2.name()),
+                "length" -> JLong(time._1.toLong)
+              )
+          }
+        )
       )
-    )
 
   val dateTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd[' ']['T'][HH:mm[:ss[.SSS]]][X]")
@@ -99,6 +128,7 @@ object JsonSuport {
     OrderType,
     Role,
     UpDownStatus,
-    UpDownUpdateType
+    UpDownUpdateType,
+    UpDownSubType
   ).map(new EnumNameSerializer(_))
 }
