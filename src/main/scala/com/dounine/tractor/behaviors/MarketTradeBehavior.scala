@@ -1,32 +1,15 @@
 package com.dounine.tractor.behaviors
 
 import akka.Done
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.model.{StatusCodes, Uri}
-import akka.stream.scaladsl.{
-  BroadcastHub,
-  Compression,
-  Flow,
-  Keep,
-  RunnableGraph,
-  Sink,
-  Source,
-  SourceQueueWithComplete,
-  StreamRefs
-}
+import akka.stream.scaladsl.{BroadcastHub, Compression, Flow, Keep, RunnableGraph, Sink, Source, SourceQueueWithComplete, StreamRefs}
 import akka.stream.typed.scaladsl.{ActorSink, ActorSource}
-import akka.stream.{
-  KillSwitches,
-  OverflowStrategy,
-  QueueCompletionResult,
-  QueueOfferResult,
-  SourceRef,
-  SystemMaterializer
-}
+import akka.stream.{KillSwitches, OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
 import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
@@ -89,7 +72,7 @@ object MarketTradeBehavior extends ActorSerializerSuport {
   case object SocketComplete extends Command
 
   def apply(): Behavior[BaseSerializer] =
-    Behaviors.setup { context =>
+    Behaviors.setup { context: ActorContext[BaseSerializer] =>
       {
         implicit val materializer =
           SystemMaterializer(context.system).materializer

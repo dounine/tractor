@@ -1,12 +1,8 @@
 package com.dounine.tractor.behaviors.slider
 
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.{Behaviors, StashBuffer, TimerScheduler}
-import akka.cluster.sharding.typed.scaladsl.{
-  ClusterSharding,
-  EntityRef,
-  EntityTypeKey
-}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors, StashBuffer, TimerScheduler}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef, EntityTypeKey}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
@@ -19,13 +15,7 @@ import akka.stream.scaladsl.{BroadcastHub, Source, StreamRefs}
 import akka.stream.typed.scaladsl.ActorSink
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBase
-import com.dounine.tractor.model.types.currency.{
-  CoinSymbol,
-  ContractType,
-  Direction,
-  Offset,
-  UpDownStatus
-}
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, Offset, UpDownStatus}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -95,7 +85,7 @@ object SliderBehavior extends ActorSerializerSuport {
       direction: Direction,
       offset: Offset
   ): Behavior[BaseSerializer] =
-    Behaviors.setup { context =>
+    Behaviors.setup { context: ActorContext[BaseSerializer] =>
       {
         val sharding = ClusterSharding(context.system)
         val materializer = SystemMaterializer(context.system).materializer

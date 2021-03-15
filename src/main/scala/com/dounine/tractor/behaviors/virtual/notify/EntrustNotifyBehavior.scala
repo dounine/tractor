@@ -1,16 +1,10 @@
 package com.dounine.tractor.behaviors.virtual.notify
 
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.stream.scaladsl.{BroadcastHub, Source, StreamRefs}
-import akka.stream.{
-  OverflowStrategy,
-  QueueCompletionResult,
-  QueueOfferResult,
-  SourceRef,
-  SystemMaterializer
-}
+import akka.stream.{OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
@@ -49,7 +43,7 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
   case class PushFail(result: QueueOfferResult) extends Command
 
   def apply(): Behavior[BaseSerializer] =
-    Behaviors.setup[BaseSerializer] { context =>
+    Behaviors.setup[BaseSerializer] { context: ActorContext[BaseSerializer] =>
       {
         implicit val materializer =
           SystemMaterializer(context.system).materializer
