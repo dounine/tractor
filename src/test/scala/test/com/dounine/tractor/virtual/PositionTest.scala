@@ -36,7 +36,7 @@ import scala.concurrent.duration.Duration
 class PositionTest extends ScalaTestWithActorTestKit(
   ConfigFactory.parseString(
     s"""
-       |akka.remote.artery.canonical.port = 25523
+       |akka.remote.artery.canonical.port = 25520
        |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[PositionTest].getSimpleName}"
        |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot_${classOf[PositionTest].getSimpleName}"
        |""".stripMargin)
@@ -45,7 +45,7 @@ class PositionTest extends ScalaTestWithActorTestKit(
     )
     .resolve()
 ) with Matchers with AnyWordSpecLike with JsonParse with MockitoSugar {
-  val portGlobal = new AtomicInteger(8700)
+  val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
   val pingMessage = (time: Option[Long]) => Await.result(Source.single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""").map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)
   val dataMessage = (data: String) => Await.result(Source.single(data).map(ByteString(_)).via(Compression.gzip).runWith(Sink.head), Duration.Inf)

@@ -55,7 +55,7 @@ class TriggerTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-       |akka.remote.artery.canonical.port = 25521
+       |akka.remote.artery.canonical.port = 25520
        |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           TriggerTest
         ].getSimpleName}"
@@ -71,7 +71,7 @@ class TriggerTest
     with Matchers
     with AnyWordSpecLike
     with JsonParse {
-  val portGlobal = new AtomicInteger(8100)
+  val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
   val pingMessage = (time: Option[Long]) =>
     Await.result(

@@ -55,7 +55,7 @@ class UpDownTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-       |akka.remote.artery.canonical.port = 25525
+       |akka.remote.artery.canonical.port = 25520
        |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           UpDownTest
         ].getSimpleName}"

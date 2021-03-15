@@ -72,7 +72,7 @@ class SliderTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-       |akka.remote.artery.canonical.port = 25527
+       |akka.remote.artery.canonical.port = 25520
        |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           SliderTest
         ].getSimpleName}"
@@ -91,7 +91,7 @@ class SliderTest
     with JsonParse {
   val materializer = SystemMaterializer(system).materializer
   val sharding = ClusterSharding(system)
-  val portGlobal = new AtomicInteger(8800)
+  val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
   val pingMessage = (time: Option[Long]) =>
     Await.result(

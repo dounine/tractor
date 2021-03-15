@@ -70,7 +70,7 @@ class EntrustTest
     with JsonParse {
   val materializer = SystemMaterializer(system).materializer
   val sharding = ClusterSharding(system)
-  val portGlobal = new AtomicInteger(8300)
+  val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
   val pingMessage = (time: Option[Long]) =>
     Await.result(

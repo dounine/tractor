@@ -44,7 +44,7 @@ class TriggerAndEntrustTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-       |akka.remote.artery.canonical.port = 25522
+       |akka.remote.artery.canonical.port = 25520
        |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           TriggerAndEntrustTest
         ].getSimpleName}"
@@ -60,7 +60,7 @@ class TriggerAndEntrustTest
     with Matchers
     with AnyWordSpecLike
     with JsonParse {
-  val portGlobal = new AtomicInteger(8400)
+  val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
   val pingMessage = (time: Option[Long]) =>
     Await.result(
