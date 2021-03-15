@@ -17,6 +17,7 @@ import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message}
 import akka.http.scaladsl.server.Directives.handleWebSocketMessages
+import akka.persistence.typed.PersistenceId
 import akka.stream.scaladsl.{
   BroadcastHub,
   Compression,
@@ -36,6 +37,20 @@ import akka.stream.{
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.slider.SliderBehavior
+import com.dounine.tractor.behaviors.updown.{UpDownBase, UpDownBehavior}
+import com.dounine.tractor.behaviors.virtual.entrust.{
+  EntrustBase,
+  EntrustBehavior
+}
+import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
+import com.dounine.tractor.behaviors.virtual.position.{
+  PositionBase,
+  PositionBehavior
+}
+import com.dounine.tractor.behaviors.virtual.trigger.{
+  TriggerBase,
+  TriggerBehavior
+}
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
 import com.dounine.tractor.model.types.currency.{
   CoinSymbol,
@@ -121,6 +136,74 @@ class SliderTest
       )
     )
 
+    sharding.init(
+      Entity(
+        typeKey = PositionBase.typeKey
+      )(
+        createBehavior = entityContext =>
+          PositionBehavior(
+            PersistenceId.of(
+              PositionBase.typeKey.name,
+              entityContext.entityId
+            ),
+            entityContext.shard
+          )
+      )
+    )
+
+    sharding.init(
+      Entity(
+        typeKey = TriggerBase.typeKey
+      )(
+        createBehavior = entityContext =>
+          TriggerBehavior(
+            PersistenceId.of(
+              TriggerBase.typeKey.name,
+              entityContext.entityId
+            ),
+            entityContext.shard
+          )
+      )
+    )
+
+    sharding.init(
+      Entity(
+        typeKey = EntrustNotifyBehavior.typeKey
+      )(
+        createBehavior = entityContext => EntrustNotifyBehavior()
+      )
+    )
+
+    sharding.init(
+      Entity(
+        typeKey = EntrustBase.typeKey
+      )(
+        createBehavior = entityContext =>
+          EntrustBehavior(
+            PersistenceId.of(
+              EntrustBase.typeKey.name,
+              entityContext.entityId
+            ),
+            entityContext.shard
+          )
+      )
+    )
+
+    sharding.init(
+      Entity(
+        typeKey = UpDownBase.typeKey
+      )(
+        createBehavior = entityContext =>
+          UpDownBehavior(
+            PersistenceId.of(
+              UpDownBase.typeKey.name,
+              entityContext.entityId
+            ),
+            entityContext.shard
+          )
+      )
+    )
+
   }
 
   def createSocket(): (BoundedSourceQueue[Message], String) = {
@@ -185,7 +268,7 @@ class SliderTest
           sliderBehavior.tell(
             SliderBehavior.Run(
               marketTradeId = socketPort,
-              upDownId = "",
+              upDownId = Option.empty,
               maxValue = 100
             )
           )
@@ -197,9 +280,6 @@ class SliderTest
       )
       val source =
         subProbe.receiveMessage().asInstanceOf[SliderBehavior.SubOk].source
-
-      val push = SliderBehavior.Push()
-      source.runWith(TestSink[BaseSerializer]()).request(1).expectNext(push)
 
       val triggerMessage = MarketTradeModel
         .WsPrice(
@@ -221,19 +301,13 @@ class SliderTest
           ts = System.currentTimeMillis()
         )
 
-      LoggingTestKit
-        .info(
-          classOf[MarketTradeBehavior.TradeDetail].getName
-        )
-        .expect(
-          socketClient.offer(
-            BinaryMessage.Strict(
-              dataMessage(
-                triggerMessage.toJson
-              )
-            )
+      socketClient.offer(
+        BinaryMessage.Strict(
+          dataMessage(
+            triggerMessage.toJson
           )
         )
+      )
 
       val source2 = testKit.createTestProbe[BaseSerializer]()
       sliderBehavior
@@ -279,15 +353,12 @@ class SliderTest
         .asInstanceOf[SliderBehavior.SubOk]
         .source
         .runWith(TestSink[BaseSerializer]())
-        .request(2)
+        .request(1)
         .expectNext(
           SliderBehavior.Push(
             initPrice = Option("110.0"),
             tradeValue = Option("50.0"),
             tradePrice = Option("110.0")
-          ),
-          SliderBehavior.Push(
-            tradeValue = Option("51.0")
           )
         )
 
@@ -309,6 +380,8 @@ class SliderTest
         )
       )
 
+      TimeUnit.MILLISECONDS.sleep(50)
+
       val source4 = testKit.createTestProbe[BaseSerializer]()
       sliderBehavior
         .tell(SliderBehavior.Sub()(source4.ref))
@@ -317,16 +390,40 @@ class SliderTest
         .asInstanceOf[SliderBehavior.SubOk]
         .source
         .runWith(TestSink[BaseSerializer]())
-        .request(2)
+        .request(1)
         .expectNext(
           SliderBehavior.Push(
-            initPrice = Option("110.0"),
-            tradeValue = Option("51.0"),
-            tradePrice = Option("111.0")
-          ),
+            initPrice = Option("150.0"),
+            tradeValue = Option("50.0"),
+            tradePrice = Option("150.0")
+          )
+        )
+
+      sliderBehavior
+        .tell(
+          UpDownBase.PushDataInfo(
+            UpDownBase.PushInfo(
+              openTriggerPrice = Option(160)
+            )
+          )
+        )
+
+      val source5 = testKit.createTestProbe[BaseSerializer]()
+      sliderBehavior
+        .tell(SliderBehavior.Sub()(source5.ref))
+      source5
+        .receiveMessage()
+        .asInstanceOf[SliderBehavior.SubOk]
+        .source
+        .runWith(TestSink[BaseSerializer]())
+        .request(1)
+        .expectNext(
           SliderBehavior.Push(
             initPrice = Option("150.0"),
-            tradeValue = Option("50.0")
+            tradeValue = Option("50.0"),
+            tradePrice = Option("150.0"),
+            entrustPrice = Option("160.0"),
+            entrustValue = Option("60.0")
           )
         )
 

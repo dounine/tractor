@@ -307,7 +307,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
             })
         }
 
-        case e @ EntrustBase.CancelOk(orderId) => {
+        case EntrustBase.CancelOk(orderId) => {
           logger.info(command.logJson)
           Effect.none
             .thenRun((updateState: State) => {
@@ -321,7 +321,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
               )
             })
         }
-        case e @ EntrustBase.CancelFail(orderId, status) => {
+        case EntrustBase.CancelFail(orderId, status) => {
           logger.info(command.logJson)
           status match {
             case EntrustCancelFailStatus.cancelOrderNotExit |

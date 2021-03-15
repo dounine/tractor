@@ -1,8 +1,18 @@
 package com.dounine.tractor.behaviors.slider
 
+import akka.NotUsed
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors, StashBuffer, TimerScheduler}
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef, EntityTypeKey}
+import akka.actor.typed.scaladsl.{
+  ActorContext,
+  Behaviors,
+  StashBuffer,
+  TimerScheduler
+}
+import akka.cluster.sharding.typed.scaladsl.{
+  ClusterSharding,
+  EntityRef,
+  EntityTypeKey
+}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
@@ -15,7 +25,14 @@ import akka.stream.scaladsl.{BroadcastHub, Source, StreamRefs}
 import akka.stream.typed.scaladsl.ActorSink
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBase
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, Offset, UpDownStatus}
+import com.dounine.tractor.model.types.currency.{
+  CoinSymbol,
+  ContractType,
+  Direction,
+  Offset,
+  UpDownStatus,
+  UpDownSubType
+}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -51,7 +68,7 @@ object SliderBehavior extends ActorSerializerSuport {
 
   final case class Run(
       marketTradeId: String,
-      upDownId: String,
+      upDownId: Option[String],
       maxValue: Double
   ) extends Command
 
@@ -211,6 +228,31 @@ object SliderBehavior extends ActorSerializerSuport {
                         )
                       )(materializer)
 
+                    upDownId.foreach(updown => {
+                      Source
+                        .future(
+                          sharding
+                            .entityRefFor(
+                              UpDownBase.typeKey,
+                              updown
+                            )
+                            .ask[BaseSerializer](
+                              UpDownBase.Sub(`type` = UpDownSubType.trigger)(_)
+                            )(3.seconds)
+                        )
+                        .flatMapConcat {
+                          case UpDownBase.SubOk(source) => source
+                        }
+                        .runWith(
+                          ActorSink.actorRef(
+                            ref = context.self,
+                            onCompleteMessage = StreamComplete(),
+                            onFailureMessage =
+                              e => UpDownBase.SubFail(e.getMessage)
+                          )
+                        )(materializer)
+                    })
+
                     buffer.unstashAll(
                       idle(
                         data = data
@@ -253,8 +295,23 @@ object SliderBehavior extends ActorSerializerSuport {
 
               def idle(data: DataStore): Behavior[BaseSerializer] =
                 Behaviors.receiveMessage {
-                  case e @ Run(_, _, _) => {
+                  case Run(_, _, _) => {
                     Behaviors.same
+                  }
+                  case UpDownBase.PushDataInfo(info) => {
+                    logger.info(info.logJson)
+                    offset match {
+                      case Offset.open => {
+                        if (info.openTriggerPrice.get == 0) {
+                          Behaviors.same
+                        } else handleEntrust(data, info.openTriggerPrice.get)
+                      }
+                      case Offset.close => {
+                        if (info.closeTriggerPrice.get == 0) {
+                          Behaviors.same
+                        } else handleEntrust(data, info.openTriggerPrice.get)
+                      }
+                    }
                   }
                   case e @ MarketTradeBehavior.TradeDetail(
                         _,
@@ -331,18 +388,6 @@ object SliderBehavior extends ActorSerializerSuport {
                     idle(data = data.copy(info = info))
                   }
 
-                  //              case e @ VirtualOrderTriggerNotifyBehavior.Push(_, notify) => {
-                  //                logger.info(e.logJson)
-                  //                val price: Double = notify.triggerPrice
-                  //                if (notify.offset == data.info.offset) {
-                  //                  notify.status match {
-                  //                    case TriggerStatus.submit =>
-                  //                      handleEntrust(data, price)
-                  //                    case _ => Behaviors.same
-                  //                  }
-                  //                } else Behaviors.same
-                  //              }
-
                   case e @ UpDownBase.QuerySuccess(status, info) => {
                     logger.info(e.logJson)
                     offset match {
@@ -382,24 +427,31 @@ object SliderBehavior extends ActorSerializerSuport {
                   }
                   case e @ Sub() => {
                     logger.info(e.logJson)
-                    val sourceRef: SourceRef[Push] =
-                      Source
-                        .single(
-                          Push(
-                            initPrice =
-                              data.info.initPrice.map(_.formatted(formatStyle)),
-                            tradePrice = data.info.tradePrice
-                              .map(_.formatted(formatStyle)),
-                            tradeValue = data.info.tradeValue
-                              .map(_.formatted(formatStyle)),
-                            entrustPrice = data.info.entrustPrice
-                              .map(_.formatted(formatStyle)),
-                            entrustValue = data.info.entrustValue
-                              .map(_.formatted(formatStyle))
-                          )
-                        )
+                    val isDefine =
+                      data.info.initPrice.isDefined || data.info.tradePrice.isDefined || data.info.tradeValue.isDefined || data.info.entrustPrice.isDefined || data.info.entrustValue.isDefined
+                    val sourceRef: SourceRef[Push] = {
+                      (if (isDefine) {
+                         Source
+                           .single(
+                             Push(
+                               initPrice = data.info.initPrice
+                                 .map(_.formatted(formatStyle)),
+                               tradePrice = data.info.tradePrice
+                                 .map(_.formatted(formatStyle)),
+                               tradeValue = data.info.tradeValue
+                                 .map(_.formatted(formatStyle)),
+                               entrustPrice = data.info.entrustPrice
+                                 .map(_.formatted(formatStyle)),
+                               entrustValue = data.info.entrustValue
+                                 .map(_.formatted(formatStyle))
+                             )
+                           )
+                       } else {
+                         Source.empty[Push]
+                       })
                         .concat(pushBrocastHub)
                         .runWith(StreamRefs.sourceRef())(materializer)
+                    }
                     e.replyTo.tell(SubOk(sourceRef))
                     Behaviors.same
                   }

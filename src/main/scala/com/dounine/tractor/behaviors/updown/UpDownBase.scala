@@ -185,7 +185,7 @@ object UpDownBase {
 
   case class SubOk(source: SourceRef[PushDataInfo]) extends Command
 
-  case class SubFail(exception: Throwable) extends Command
+  case class SubFail(msg: String) extends Command
 
   case class Update(
       name: UpDownUpdateType,
