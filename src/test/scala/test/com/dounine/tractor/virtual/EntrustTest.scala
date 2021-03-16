@@ -698,6 +698,82 @@ class EntrustTest
       notifyInfo.notif.orderId shouldBe orderId
     }
 
+    "create order size overflow" in {
+      val (socketClient, socketPort) = createSocket()
+      val time = System.currentTimeMillis()
+      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val marketTrade =
+        sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val positionId = PositionBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        randomId = socketPort
+      )
+      val positionBehavior =
+        sharding.entityRefFor(PositionBase.typeKey, positionId)
+      positionBehavior.tell(
+        PositionBase.Run(
+          marketTradeId = socketPort,
+          contractSize = 100
+        )
+      )
+
+      val entrustNotifyBehavior =
+        sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
+
+      val entrustBehavior = sharding.entityRefFor(
+        EntrustBase.typeKey,
+        EntrustBase.createEntityId(
+          "123456789",
+          CoinSymbol.BTC,
+          ContractType.quarter,
+          Direction.buy,
+          socketPort
+        )
+      )
+      entrustBehavior.tell(
+        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+      )
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      (0 to 10).foreach(_ => {
+        val orderId = orderIdGlobal.getAndIncrement().toString
+        entrustBehavior.tell(
+          EntrustBase.Create(
+            orderId = orderId,
+            offset = Offset.open,
+            orderPriceType = OrderPriceType.limit,
+            price = 100,
+            volume = 1
+          )(createProbe.ref)
+        )
+      })
+
+      val overflowProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      entrustBehavior.tell(
+        EntrustBase.Create(
+          orderId = orderId,
+          offset = Offset.open,
+          orderPriceType = OrderPriceType.limit,
+          price = 100,
+          volume = 1
+        )(overflowProbe.ref)
+      )
+      overflowProbe.expectMessageType[EntrustBase.CreateFail]
+
+    }
+
   }
 
 }

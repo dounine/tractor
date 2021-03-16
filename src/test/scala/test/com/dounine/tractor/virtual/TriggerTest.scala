@@ -624,6 +624,80 @@ class TriggerTest
       leverRateProbeYes.expectMessage(TriggerBase.ChangeLeverRateYes())
     }
 
+    "create order size overflow" in {
+      val (socketClient, socketPort) = createSocket()
+      val marketTrade =
+        sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
+
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        Direction.buy,
+        socketPort
+      )
+      val entrustBehavior =
+        sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      entrustBehavior.tell(
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          entrustNotifyId = socketPort,
+          contractSize = 100
+        )
+      )
+
+      val triggerBehavior = sharding.entityRefFor(
+        TriggerBase.typeKey,
+        TriggerBase.createEntityId(
+          "123456789",
+          CoinSymbol.BTC,
+          ContractType.quarter,
+          Direction.buy,
+          socketPort
+        )
+      )
+      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+
+      (0 to 10).foreach(_ => {
+        val orderId = orderIdGlobal.incrementAndGet().toString
+        triggerBehavior.tell(
+          TriggerBase.Create(
+            orderId = orderId,
+            offset = Offset.open,
+            orderPriceType = OrderPriceType.limit,
+            triggerType = TriggerType.ge,
+            orderPrice = 100,
+            triggerPrice = 90,
+            volume = 1
+          )(createProbe.ref)
+        )
+      })
+      val overflowProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.incrementAndGet().toString
+      triggerBehavior.tell(
+        TriggerBase.Create(
+          orderId = orderId,
+          offset = Offset.open,
+          orderPriceType = OrderPriceType.limit,
+          triggerType = TriggerType.ge,
+          orderPrice = 100,
+          triggerPrice = 90,
+          volume = 1
+        )(overflowProbe.ref)
+      )
+      overflowProbe.expectMessageType[TriggerBase.CreateFail]
+    }
+
   }
 
 }
