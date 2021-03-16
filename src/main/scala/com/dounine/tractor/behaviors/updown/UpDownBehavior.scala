@@ -79,6 +79,7 @@ object UpDownBehavior extends JsonParse {
               infoQueue = infoQueue
             )
             val statusList = Seq(
+              status.StoppingStatus(context, shard, timers, shareData),
               status.StopedStatus(context, shard, timers, shareData),
               status.OpenTriggeringStatus(context, shard, timers, shareData),
               status.OpenEntrustedStatus(context, shard, timers, shareData),
