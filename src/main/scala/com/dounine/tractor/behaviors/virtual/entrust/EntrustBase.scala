@@ -10,6 +10,7 @@ import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.EntrustCancelFailStatus.EntrustCancelFailStatus
+import com.dounine.tractor.model.types.currency.EntrustCreateFailStatus.EntrustCreateFailStatus
 import com.dounine.tractor.model.types.currency.EntrustStatus.EntrustStatus
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
@@ -73,6 +74,8 @@ object EntrustBase extends ActorSerializerSuport {
       contractSize: Int
   ) extends Command
 
+  final case class StreamComplete() extends Command
+
   final case class RunSelfOk() extends Command
 
   final case object Stop extends Command
@@ -87,12 +90,13 @@ object EntrustBase extends ActorSerializerSuport {
       orderPriceType: OrderPriceType,
       price: Double,
       volume: Int
-  )(val replyTo: ActorRef[BaseSerializer])
+  )(var replyTo: ActorRef[BaseSerializer])
       extends Command
 
   final case class CreateOk(request: Create) extends Command
 
-  final case class CreateFail(request: Create) extends Command
+  final case class CreateFail(request: Create, status: EntrustCreateFailStatus)
+      extends Command
 
   final case class IsCanChangeLeverRate()(val replyTo: ActorRef[BaseSerializer])
       extends Command

@@ -17,6 +17,7 @@ import com.dounine.tractor.model.types.currency.Offset.Offset
 import com.dounine.tractor.model.types.currency.OrderPriceType.OrderPriceType
 import com.dounine.tractor.model.types.currency.TriggerType.TriggerType
 import com.dounine.tractor.model.types.currency.{
+  EntrustCreateFailStatus,
   Offset,
   TriggerCancelFailStatus,
   TriggerCreateFailStatus,
@@ -27,6 +28,7 @@ import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration._
 import java.time.LocalDateTime
+import scala.collection.immutable.ListMap
 import scala.concurrent.Await
 import scala.util.{Failure, Success}
 
@@ -57,12 +59,8 @@ object IdleStatus extends JsonParse {
     ).materializer
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val config = context.system.settings.config.getConfig("app")
-    lazy val tradeDetailBehavior: EntityRef[BaseSerializer] =
-      sharding.entityRefFor(
-        typeKey = MarketTradeBehavior.typeKey,
-        entityId = MarketTradeBehavior.typeKey.name
-      )
-
+    val historySize = config.getInt("engine.trigger.historySize")
+    val maxSize = config.getInt("engine.trigger.maxSize")
     val commandHandler: (
         State,
         BaseSerializer,
@@ -109,34 +107,49 @@ object IdleStatus extends JsonParse {
               volume: Int
             ) => {
           logger.info(command.logJson)
-          state.data.price match {
-            case Some(price) => {
-              val fireTrigger = triggerType match {
-                case TriggerType.le => {
-                  price <= triggerPrice
+          if (
+            state.data.triggers.count(
+              _._2.status == TriggerStatus.submit
+            ) > maxSize
+          ) {
+            Effect.none.thenRun((_: State) => {
+              e.replyTo.tell(
+                CreateFail(
+                  e,
+                  TriggerCreateFailStatus.createSizeOverflow
+                )
+              )
+            })
+          } else {
+            state.data.price match {
+              case Some(price) => {
+                val fireTrigger = triggerType match {
+                  case TriggerType.le => {
+                    price <= triggerPrice
+                  }
+                  case TriggerType.ge => price >= triggerPrice
                 }
-                case TriggerType.ge => price >= triggerPrice
+                if (fireTrigger) {
+                  Effect.none.thenRun((_: State) => {
+                    e.replyTo.tell(
+                      CreateFail(e, TriggerCreateFailStatus.createFireTrigger)
+                    )
+                  })
+                } else {
+                  Effect
+                    .persist(command)
+                    .thenRun((_: State) => {
+                      e.replyTo.tell(CreateOk(e))
+                    })
+                }
               }
-              if (fireTrigger) {
-                Effect.none.thenRun((_: State) => {
-                  e.replyTo.tell(
-                    CreateFail(e, TriggerCreateFailStatus.createFireTrigger)
-                  )
-                })
-              } else {
+              case None => {
                 Effect
                   .persist(command)
                   .thenRun((_: State) => {
                     e.replyTo.tell(CreateOk(e))
                   })
               }
-            }
-            case None => {
-              Effect
-                .persist(command)
-                .thenRun((_: State) => {
-                  e.replyTo.tell(CreateOk(e))
-                })
             }
           }
         }
@@ -208,43 +221,54 @@ object IdleStatus extends JsonParse {
           if (triggers.nonEmpty) {
             Source(triggers)
               .log("entrust create")
-              .mapAsync(1)(trigger => {
+              .runForeach(trigger => {
                 val info = trigger._2.trigger
-                sharding
-                  .entityRefFor(
-                    EntrustBase.typeKey,
-                    state.data.config.entrustId
+                var request = EntrustBase.Create(
+                  orderId = trigger._1,
+                  offset = info.offset,
+                  orderPriceType = info.orderPriceType,
+                  price = price,
+                  volume = info.volume
+                )(null)
+                Source
+                  .future(
+                    sharding
+                      .entityRefFor(
+                        EntrustBase.typeKey,
+                        state.data.config.entrustId
+                      )
+                      .ask[BaseSerializer](ref => {
+                        request.replyTo = ref
+                        request
+                      })(3.seconds)
                   )
-                  .ask[BaseSerializer](ref =>
-                    EntrustBase.Create(
-                      orderId = trigger._1,
-                      offset = info.offset,
-                      orderPriceType = info.orderPriceType,
-                      price = price,
-                      volume = info.volume
-                    )(ref)
-                  )(3.seconds)
-              })
-              .runWith(
-                ActorSink.actorRef(
-                  ref = context.self,
-                  onCompleteMessage = StreamComplete(),
-                  onFailureMessage = e => EntrustBase.CreateFail(null)
-                )
-              )(materializer)
-
-            Effect.persist[BaseSerializer, State](
-              Triggers(
-                triggers = triggers.map(trigger => {
-                  (
-                    trigger._1,
-                    trigger._2.copy(
-                      trigger = trigger._2.trigger,
-                      status = TriggerStatus.matchs
+                  .runWith(
+                    ActorSink.actorRef(
+                      ref = context.self,
+                      onCompleteMessage = StreamComplete(),
+                      onFailureMessage = e =>
+                        EntrustBase.CreateFail(
+                          request,
+                          EntrustCreateFailStatus.createTimeout
+                        )
                     )
+                  )(materializer)
+
+              })(materializer)
+            val triggersCommand = Triggers(
+              triggers = triggers.map(trigger => {
+                (
+                  trigger._1,
+                  trigger._2.copy(
+                    trigger = trigger._2.trigger,
+                    status = TriggerStatus.matchs
                   )
-                })
-              )
+                )
+              })
+            )
+            logger.info(triggersCommand.logJson)
+            Effect.persist[BaseSerializer, State](
+              triggersCommand
             )
           } else {
             Effect.none
@@ -260,6 +284,10 @@ object IdleStatus extends JsonParse {
         }
         case EntrustBase.CreateOk(request) => {
           logger.info(command.logJson)
+          Effect.none
+        }
+        case EntrustBase.CreateFail(request, status) => {
+          logger.error(command.logJson)
           Effect.none
         }
         case StreamComplete() => {
@@ -338,11 +366,28 @@ object IdleStatus extends JsonParse {
               )
             )
           }
-          case e @ Triggers(triggers) => {
-            logger.info(command.logJson)
+          case Triggers(triggers) => {
+            val filterMap = if (state.data.triggers.size > maxSize) {
+              ListMap(
+                state.data.triggers.toSeq
+                  .sortWith(_._2.trigger.time isAfter _._2.trigger.time): _*
+              ).take(maxSize)
+            } else if (
+              state.data.triggers.values
+                .count(_.status != TriggerStatus.submit) > historySize
+            ) {
+              state.data.triggers
+                .filter(_._2.status == TriggerStatus.submit) ++
+                ListMap(
+                  state.data.triggers
+                    .filter(_._2.status != TriggerStatus.submit)
+                    .toSeq
+                    .sortWith(_._2.trigger.time isAfter _._2.trigger.time): _*
+                ).take(maxSize)
+            } else state.data.triggers
             Idle(
               state.data.copy(
-                triggers = state.data.triggers ++ triggers
+                triggers = filterMap ++ triggers
               )
             )
           }

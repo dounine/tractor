@@ -342,7 +342,8 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
             .persist(command)
             .thenRun((updateState: State) => {
               status match {
-                case TriggerCreateFailStatus.createTimeout => {
+                case TriggerCreateFailStatus.createTimeout |
+                    TriggerCreateFailStatus.createSizeOverflow => {
                   pushStatus(shareData, UpDownStatus.CloseErrored)
                 }
                 case TriggerCreateFailStatus.createFireTrigger => {
@@ -482,7 +483,8 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
 
           case TriggerBase.CreateFail(request, status) => {
             status match {
-              case TriggerCreateFailStatus.createTimeout => {
+              case TriggerCreateFailStatus.createTimeout |
+                  TriggerCreateFailStatus.createSizeOverflow => {
                 CloseErrored(data)
               }
               case TriggerCreateFailStatus.createFireTrigger => {

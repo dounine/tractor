@@ -5,31 +5,23 @@ import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.{Effect, EffectBuilder}
 import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
-import com.dounine.tractor.model.types.currency.{
-  Direction,
-  EntrustCancelFailStatus,
-  EntrustStatus,
-  Offset,
-  OrderPriceType,
-  OrderType,
-  Role,
-  TriggerCancelFailStatus,
-  TriggerStatus,
-  TriggerType
-}
+import com.dounine.tractor.model.types.currency.{Direction, EntrustCancelFailStatus, EntrustCreateFailStatus, EntrustStatus, Offset, OrderPriceType, OrderType, Role, TriggerCancelFailStatus, TriggerStatus, TriggerType}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.typesafe.config.ConfigFactory
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
+import scala.collection.immutable.ListMap
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.math.Ordered.orderingToOrdered
 import scala.util.{Failure, Success}
 
 object IdleStatus extends ActorSerializerSuport {
@@ -59,6 +51,8 @@ object IdleStatus extends ActorSerializerSuport {
     ).materializer
     val sharding: ClusterSharding = ClusterSharding(context.system)
     val config = context.system.settings.config.getConfig("app")
+    val historySize = config.getInt("engine.entrust.historySize")
+    val maxSize = config.getInt("engine.entrust.maxSize")
 
     val commandHandler: (
         State,
@@ -103,55 +97,70 @@ object IdleStatus extends ActorSerializerSuport {
               volume
             ) => {
           logger.info(command.logJson)
-          Effect
-            .persist(command)
-            .thenRun((state: State) => {
-              e.replyTo.tell(CreateOk(e))
-              val result = Source
-                .future(
-                  sharding
-                    .entityRefFor(
-                      EntrustNotifyBehavior.typeKey,
-                      state.data.config.entrustNotifyId
-                    )
-                    .ask[BaseSerializer](ref =>
-                      EntrustNotifyBehavior.Push(
-                        notif = NotifyModel.NotifyInfo(
-                          orderId = orderId,
-                          symbol = state.data.symbol,
-                          contractType = state.data.contractType,
-                          direction = state.data.direction,
-                          offset = offset,
-                          leverRate = state.data.leverRate,
-                          orderPriceType = orderPriceType,
-                          entrustStatus = EntrustStatus.submit,
-                          source =
-                            com.dounine.tractor.model.types.currency.Source.api,
-                          orderType = OrderType.statement,
-                          createTime = LocalDateTime.now(),
-                          price = price,
-                          volume = volume,
-                          tradeVolume = 0,
-                          tradeTurnover = 0,
-                          fee = 0,
-                          profit = 0,
-                          trade = List(
-                            NotifyModel.Trade(
-                              tradeVolume = 1,
-                              tradePrice = price,
-                              tradeFee = 0,
-                              tradeTurnover = 0,
-                              createTime = LocalDateTime.now(),
-                              role = Role.taker
+          if (
+            state.data.entrusts.count(
+              _._2.status == EntrustStatus.submit
+            ) > maxSize
+          ) {
+            Effect.none.thenRun((_: State) => {
+              e.replyTo.tell(
+                CreateFail(
+                  e,
+                  EntrustCreateFailStatus.createSizeOverflow
+                )
+              )
+            })
+          } else {
+            Effect
+              .persist(command)
+              .thenRun((state: State) => {
+                e.replyTo.tell(CreateOk(e))
+                val result = Source
+                  .future(
+                    sharding
+                      .entityRefFor(
+                        EntrustNotifyBehavior.typeKey,
+                        state.data.config.entrustNotifyId
+                      )
+                      .ask[BaseSerializer](ref =>
+                        EntrustNotifyBehavior.Push(
+                          notif = NotifyModel.NotifyInfo(
+                            orderId = orderId,
+                            symbol = state.data.symbol,
+                            contractType = state.data.contractType,
+                            direction = state.data.direction,
+                            offset = offset,
+                            leverRate = state.data.leverRate,
+                            orderPriceType = orderPriceType,
+                            entrustStatus = EntrustStatus.submit,
+                            source =
+                              com.dounine.tractor.model.types.currency.Source.api,
+                            orderType = OrderType.statement,
+                            createTime = LocalDateTime.now(),
+                            price = price,
+                            volume = volume,
+                            tradeVolume = 0,
+                            tradeTurnover = 0,
+                            fee = 0,
+                            profit = 0,
+                            trade = List(
+                              NotifyModel.Trade(
+                                tradeVolume = 1,
+                                tradePrice = price,
+                                tradeFee = 0,
+                                tradeTurnover = 0,
+                                createTime = LocalDateTime.now(),
+                                role = Role.taker
+                              )
                             )
                           )
-                        )
-                      )(ref)
-                    )(3.seconds)
-                )
-                .runWith(Sink.head)(materializer)
-              Await.result(result, Duration.Inf)
-            })
+                        )(ref)
+                      )(3.seconds)
+                  )
+                  .runWith(Sink.head)(materializer)
+                Await.result(result, Duration.Inf)
+              })
+          }
         }
         case e @ Cancel(orderId) => {
           logger.info(command.logJson)
@@ -358,7 +367,7 @@ object IdleStatus extends ActorSerializerSuport {
                 case Failure(exception) =>
                   Success(Effect.none[BaseSerializer, State])
                 case Success(value) => {
-                  val notifyResult = Source(entrusts)
+                  Source(entrusts)
                     .mapAsync(1)(el => {
                       val entrust = el._2.entrust
                       sharding
@@ -401,21 +410,31 @@ object IdleStatus extends ActorSerializerSuport {
                           )(ref)
                         )(3.seconds)
                     })
-                    .runWith(Sink.head)(materializer)
-                  Await.result(notifyResult, Duration.Inf)
+                    .runWith(
+                      ActorSink.actorRef(
+                        ref = context.self,
+                        onCompleteMessage = StreamComplete(),
+                        onFailureMessage = e => {
+                          logger.error(e.getMessage)
+                          StreamComplete()
+                        }
+                      )
+                    )(materializer)
+                  val entrustCommand = Entrusts(
+                    entrusts = entrusts.map(entrust => {
+                      (
+                        entrust._1,
+                        entrust._2.copy(
+                          entrust = entrust._2.entrust,
+                          status = EntrustStatus.matchAll
+                        )
+                      )
+                    })
+                  )
+                  logger.info(entrustCommand.logJson)
                   Success(
                     Effect.persist[BaseSerializer, State](
-                      Entrusts(
-                        entrusts = entrusts.map(entrust => {
-                          (
-                            entrust._1,
-                            entrust._2.copy(
-                              entrust = entrust._2.entrust,
-                              status = EntrustStatus.matchAll
-                            )
-                          )
-                        })
-                      )
+                      entrustCommand
                     )
                   )
                 }
@@ -497,11 +516,27 @@ object IdleStatus extends ActorSerializerSuport {
               .runWith(Sink.foreach(context.self.tell))(materializer)
             state
           }
-          case e @ Entrusts(entrusts) => {
-            logger.info(e.logJson)
+          case Entrusts(entrusts) => {
+            val filterMap = if (state.data.entrusts.size > maxSize) {
+              ListMap(
+                state.data.entrusts.toSeq
+                  .sortWith(_._2.entrust.time isAfter _._2.entrust.time): _*
+              ).take(maxSize)
+            } else if (
+              state.data.entrusts.values
+                .count(_.status != TriggerStatus.submit) > historySize
+            ) {
+              state.data.entrusts
+                .filter(_._2.status == TriggerStatus.submit) ++ ListMap(
+                state.data.entrusts
+                  .filter(_._2.status != TriggerStatus.submit)
+                  .toSeq
+                  .sortWith(_._2.entrust.time isAfter _._2.entrust.time): _*
+              ).take(maxSize)
+            } else state.data.entrusts
             Idle(
               state.data.copy(
-                entrusts = state.data.entrusts ++ entrusts
+                entrusts = filterMap ++ entrusts
               )
             )
           }
