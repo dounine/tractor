@@ -312,7 +312,7 @@ class TriggerTest
         .toJson
 
       LoggingTestKit
-        .info(classOf[TriggerBase.Triggers].getName)
+        .info(classOf[TriggerBase.TriggerOk].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }
@@ -534,7 +534,7 @@ class TriggerTest
 
       LoggingTestKit
         .info(
-          classOf[TriggerBase.Triggers].getName
+          classOf[TriggerBase.TriggerOk].getName
         )
         .expect(
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))

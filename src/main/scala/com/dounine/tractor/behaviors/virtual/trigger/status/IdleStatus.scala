@@ -61,6 +61,27 @@ object IdleStatus extends JsonParse {
     val config = context.system.settings.config.getConfig("app")
     val historySize = config.getInt("engine.trigger.historySize")
     val maxSize = config.getInt("engine.trigger.maxSize")
+    val cropTriggers: (Map[String, TriggerInfo]) => Map[String, TriggerInfo] =
+      (triggers) => {
+        if (triggers.size > maxSize) {
+          ListMap(
+            triggers.toSeq
+              .sortWith(_._2.trigger.time isAfter _._2.trigger.time): _*
+          ).take(maxSize)
+        } else if (
+          triggers.values
+            .count(_.status != TriggerStatus.submit) > historySize
+        ) {
+          triggers
+            .filter(_._2.status == TriggerStatus.submit) ++
+            ListMap(
+              triggers
+                .filter(_._2.status != TriggerStatus.submit)
+                .toSeq
+                .sortWith(_._2.trigger.time isAfter _._2.trigger.time): _*
+            ).take(maxSize)
+        } else triggers
+      }
     val commandHandler: (
         State,
         BaseSerializer,
@@ -223,13 +244,6 @@ object IdleStatus extends JsonParse {
               .log("entrust create")
               .runForeach(trigger => {
                 val info = trigger._2.trigger
-                var request = EntrustBase.Create(
-                  orderId = trigger._1,
-                  offset = info.offset,
-                  orderPriceType = info.orderPriceType,
-                  price = price,
-                  volume = info.volume
-                )(null)
                 Source
                   .future(
                     sharding
@@ -237,42 +251,39 @@ object IdleStatus extends JsonParse {
                         EntrustBase.typeKey,
                         state.data.config.entrustId
                       )
-                      .ask[BaseSerializer](ref => {
-                        request.replyTo = ref
-                        request
-                      })(3.seconds)
+                      .ask[BaseSerializer](
+                        EntrustBase.Create(
+                          orderId = trigger._1,
+                          offset = info.offset,
+                          orderPriceType = info.orderPriceType,
+                          price = price,
+                          volume = info.volume
+                        )(_)
+                      )(3.seconds)
                   )
+                  .map {
+                    case EntrustBase.CreateOk(r) => TriggerOk(trigger)
+                  }
                   .runWith(
                     ActorSink.actorRef(
                       ref = context.self,
                       onCompleteMessage = StreamComplete(),
-                      onFailureMessage = e =>
-                        EntrustBase.CreateFail(
-                          request,
-                          EntrustCreateFailStatus.createTimeout
-                        )
+                      onFailureMessage = e => TriggerFail(trigger)
                     )
                   )(materializer)
-
               })(materializer)
-            val triggersCommand = Triggers(
-              triggers = triggers.map(trigger => {
-                (
-                  trigger._1,
-                  trigger._2.copy(
-                    trigger = trigger._2.trigger,
-                    status = TriggerStatus.matchs
-                  )
-                )
-              })
-            )
-            logger.info(triggersCommand.logJson)
-            Effect.persist[BaseSerializer, State](
-              triggersCommand
-            )
           } else {
             Effect.none
           }
+          Effect.none
+        }
+        case TriggerOk(request) => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+        }
+        case TriggerFail(request) => {
+          logger.info(command.logJson)
+          Effect.persist(command)
         }
         case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
           logger.info(command.logJson)
@@ -291,7 +302,6 @@ object IdleStatus extends JsonParse {
           Effect.none
         }
         case StreamComplete() => {
-          logger.info(command.logJson)
           Effect.none
         }
         case _ => {
@@ -366,28 +376,29 @@ object IdleStatus extends JsonParse {
               )
             )
           }
-          case Triggers(triggers) => {
-            val filterMap = if (state.data.triggers.size > maxSize) {
-              ListMap(
-                state.data.triggers.toSeq
-                  .sortWith(_._2.trigger.time isAfter _._2.trigger.time): _*
-              ).take(maxSize)
-            } else if (
-              state.data.triggers.values
-                .count(_.status != TriggerStatus.submit) > historySize
-            ) {
-              state.data.triggers
-                .filter(_._2.status == TriggerStatus.submit) ++
-                ListMap(
-                  state.data.triggers
-                    .filter(_._2.status != TriggerStatus.submit)
-                    .toSeq
-                    .sortWith(_._2.trigger.time isAfter _._2.trigger.time): _*
-                ).take(maxSize)
-            } else state.data.triggers
+          case TriggerOk(info) => {
             Idle(
               state.data.copy(
-                triggers = filterMap ++ triggers
+                triggers = cropTriggers(state.data.triggers) ++ Map(
+                  info.copy(
+                    _2 = info._2.copy(
+                      status = TriggerStatus.matchs
+                    )
+                  )
+                )
+              )
+            )
+          }
+          case TriggerFail(info) => {
+            Idle(
+              state.data.copy(
+                triggers = cropTriggers(state.data.triggers) ++ Map(
+                  info.copy(
+                    _2 = info._2.copy(
+                      status = TriggerStatus.error
+                    )
+                  )
+                )
               )
             )
           }

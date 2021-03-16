@@ -734,7 +734,7 @@ class UpDownTest
 
       LoggingTestKit
         .info(
-          classOf[TriggerBase.Triggers].getName
+          classOf[TriggerBase.TriggerOk].getName
         )
         .expect {
           socketClient.offer(

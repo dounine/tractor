@@ -289,7 +289,7 @@ class TriggerAndEntrustTest
         .toJson
 
       LoggingTestKit
-        .info(classOf[TriggerBase.Triggers].getName)
+        .info(classOf[TriggerBase.TriggerOk].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }

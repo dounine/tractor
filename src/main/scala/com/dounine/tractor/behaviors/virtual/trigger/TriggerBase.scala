@@ -132,7 +132,9 @@ object TriggerBase extends ActorSerializerSuport {
 
   final case class Trigger(price: Double) extends Command
 
-  final case class Triggers(triggers: Map[String, TriggerInfo]) extends Command
+  final case class TriggerOk(info: (String, TriggerInfo)) extends Command
+
+  final case class TriggerFail(info: (String, TriggerInfo)) extends Command
 
   def createEntityId(
       phone: String,
