@@ -5,6 +5,7 @@ import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
 import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
@@ -53,7 +54,6 @@ object IdleStatus extends ActorSerializerSuport {
     val materializer: Materializer = SystemMaterializer(
       context.system
     ).materializer
-    val config = context.system.settings.config.getConfig("app")
 
     val commandHandler: (
         State,
@@ -67,6 +67,11 @@ object IdleStatus extends ActorSerializerSuport {
       command match {
         case Run(_, _) => {
           logger.info(command.logJson)
+          Effect.none
+        }
+        case StreamComplete() => Effect.none
+        case MarketTradeBehavior.SubFail(msg) => {
+          logger.error(command.logJson)
           Effect.none
         }
         case Recovery => {
@@ -122,8 +127,8 @@ object IdleStatus extends ActorSerializerSuport {
                     .thenRun((_: State) => {
                       logger.info(MergeOk().logJson)
                       e.replyTo.tell(MergeOk())
+                      context.self.tell(MergePositionOk(mergePosition))
                     })
-
                 }
                 case None => {
                   val marginFrozen =
@@ -175,97 +180,119 @@ object IdleStatus extends ActorSerializerSuport {
                         (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
                     }) - position.openFee + position.closeFee + closeFee
                     logger.info(updateBalance.toString)
-                    val result = Source
-                      .future(
-                        balanceService.mergeBalance(
-                          phone = state.data.phone,
-                          symbol = state.data.symbol,
-                          balance = updateBalance
-                        )
-                      )
-                      .idleTimeout(3.seconds)
-                      .log("update balance")
-                      .map(item => {
-                        Effect
-                          .persist(RemovePosition())
-                          .thenRun((_: State) => {
-                            logger.info(CloseOk().logJson)
-                            e.replyTo.tell(CloseOk())
-                          })
-                      })
-                      .recover(ee => {
-                        logger.error(ee.getMessage)
-                        Effect.none
-                          .thenRun((_: State) => {
-                            logger.info(
-                              CreateFail(
-                                PositionCreateFailStatus.createSystemError
-                              ).logJson
+                    Effect
+                      .persist(RemovePosition())
+                      .thenRun((updateState: State) => {
+                        Source
+                          .future(
+                            balanceService.mergeBalance(
+                              phone = state.data.phone,
+                              symbol = state.data.symbol,
+                              balance = updateBalance
                             )
-                            e.replyTo.tell(
-                              CreateFail(
-                                PositionCreateFailStatus.createSystemError
+                          )
+                          .idleTimeout(3.seconds)
+                          .log("update balance")
+                          .collect {
+                            case Some(value) => {
+                              e.replyTo.tell(CloseOk())
+                              RemovePositionOk()
+                            }
+                            case None => {
+                              e.replyTo.tell(
+                                CreateFail(
+                                  PositionCreateFailStatus.createBalanceNotFound
+                                )
                               )
-                            )
+                              RemovePositionFail("balance not found")
+                            }
+                          }
+                          .recover({
+                            case ee: Throwable => {
+                              logger.error(ee.getMessage)
+                              e.replyTo.tell(
+                                CreateFail(
+                                  PositionCreateFailStatus.createSystemError
+                                )
+                              )
+                              RemovePositionFail("system error")
+                            }
                           })
+                          .runWith(
+                            ActorSink.actorRef(
+                              ref = context.self,
+                              onCompleteMessage = StreamComplete(),
+                              onFailureMessage = e =>
+                                RemovePositionFail(
+                                  e.getMessage
+                                )
+                            )
+                          )(materializer)
                       })
-                      .runWith(Sink.head)(materializer)
-                    Await.result(result, Duration.Inf)
                   } else if (volume < position.volume) {
                     val sumVolume = position.volume - volume
                     val sumCloseFee = position.closeFee + closeFee
                     val sumPositionMargin =
                       state.data.contractSize * (position.volume - volume) / position.costHold / state.data.leverRate.toString.toInt
-
-                    val result = Source
-                      .future(
-                        balanceService.mergeBalance(
-                          phone = state.data.phone,
-                          symbol = state.data.symbol,
-                          balance = (state.data.direction match {
-                            case Direction.buy =>
-                              (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
-                            case Direction.sell =>
-                              (state.data.contractSize * volume / costHold) - (state.data.contractSize * volume / position.costHold)
-                          })
+                    Effect.none.thenRun((updateState: State) => {
+                      Source
+                        .future(
+                          balanceService.mergeBalance(
+                            phone = state.data.phone,
+                            symbol = state.data.symbol,
+                            balance = (state.data.direction match {
+                              case Direction.buy =>
+                                (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
+                              case Direction.sell =>
+                                (state.data.contractSize * volume / costHold) - (state.data.contractSize * volume / position.costHold)
+                            })
+                          )
                         )
-                      )
-                      .idleTimeout(3.seconds)
-                      .log("update balance")
-                      .map(item => {
-                        Effect
-                          .persist(
-                            MergePosition(
-                              position = position.copy(
+                        .idleTimeout(3.seconds)
+                        .log("update balance")
+                        .map {
+                          case Some(value) => {
+                            e.replyTo.tell(CloseOk())
+                            MergePositionOk(
+                              position.copy(
                                 volume = sumVolume,
                                 closeFee = sumCloseFee,
                                 positionMargin = sumPositionMargin
                               )
                             )
-                          )
-                          .thenRun((_: State) => {
-                            logger.info(CloseOk().logJson)
-                            e.replyTo.tell(CloseOk())
-                          })
-                      })
-                      .recover(ee => {
-                        logger.error(ee.getMessage)
-                        Effect.none
-                          .thenRun((_: State) => {
-                            logger.info(
+                          }
+                          case None => {
+                            e.replyTo.tell(
                               CreateFail(
-                                PositionCreateFailStatus.createSystemError
-                              ).logJson
+                                PositionCreateFailStatus.createBalanceNotFound
+                              )
                             )
+                            MergePositionFail("balance not found", position)
+                          }
+                        }
+                        .recover({
+                          case ee: Throwable => {
+                            logger.error(ee.getMessage)
                             e.replyTo.tell(
                               CreateFail(
                                 PositionCreateFailStatus.createSystemError
                               )
                             )
-                          })
-                      })
-                      .runWith(Sink.head)(materializer)
-                    Await.result(result, Duration.Inf)
+                            MergePositionFail("system error", position)
+                          }
+                        })
+                        .runWith(
+                          ActorSink.actorRef(
+                            ref = context.self,
+                            onCompleteMessage = StreamComplete(),
+                            onFailureMessage = e =>
+                              MergePositionFail(
+                                e.getMessage,
+                                position
+                              )
+                          )
+                        )(materializer)
+                    })
                   } else {
                     Effect.none
                       .thenRun((_: State) => {
@@ -297,11 +324,14 @@ object IdleStatus extends ActorSerializerSuport {
                   })
                 }
               }
-
             }
           }
         }
-        case MarketTradeBehavior.SubOk(_) => {
+        case RemovePosition() => {
+          logger.info(command.logJson)
+          Effect.persist(command)
+        }
+        case MergePosition(position) => {
           logger.info(command.logJson)
           Effect.persist(command)
         }
@@ -334,11 +364,7 @@ object IdleStatus extends ActorSerializerSuport {
             Idle(data)
           }
           case MergePosition(position) => {
-            Idle(
-              state.data.copy(
-                position = Option(position)
-              )
-            )
+            Busy(state.data)
           }
           case NewPosition(position) => {
             Idle(
@@ -348,24 +374,7 @@ object IdleStatus extends ActorSerializerSuport {
             )
           }
           case RemovePosition() => {
-            Idle(
-              state.data.copy(
-                position = Option.empty
-              )
-            )
-          }
-          case MarketTradeBehavior.SubOk(source) => {
-            source
-              .throttle(
-                1,
-                config
-                  .getDuration("engine.position.speed")
-                  .toMillis
-                  .milliseconds
-              )
-              .buffer(1, OverflowStrategy.dropHead)
-              .runWith(Sink.foreach(context.self.tell))(materializer)
-            state
+            Busy(state.data)
           }
           case e @ _ => defaultEvent(state, e)
         }

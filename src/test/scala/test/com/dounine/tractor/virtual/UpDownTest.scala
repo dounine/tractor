@@ -217,8 +217,6 @@ class UpDownTest
   "updown behavior" should {
     "run" in {
       val (socketClient, socketPort) = createSocket()
-      val time = System.currentTimeMillis()
-      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val phone = "123456789"
       val symbol = CoinSymbol.BTC
@@ -315,8 +313,6 @@ class UpDownTest
 
     "run and create trigger" in {
       val (socketClient, socketPort) = createSocket()
-      val time = System.currentTimeMillis()
-      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val phone = "123456789"
       val symbol = CoinSymbol.BTC
@@ -448,8 +444,6 @@ class UpDownTest
 
     "create trigger and fireTrigger fail" in {
       val (socketClient, socketPort) = createSocket()
-      val time = System.currentTimeMillis()
-      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val phone = "123456789"
       val symbol = CoinSymbol.BTC
@@ -594,8 +588,6 @@ class UpDownTest
 
     "run and opened" in {
       val (socketClient, socketPort) = createSocket()
-      val time = System.currentTimeMillis()
-      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val phone = "123456789"
       val symbol = CoinSymbol.BTC

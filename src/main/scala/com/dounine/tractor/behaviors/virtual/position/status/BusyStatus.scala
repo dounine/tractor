@@ -32,7 +32,6 @@ object BusyStatus extends ActorSerializerSuport {
       ) => State,
       Class[_]
   ) = {
-    val sharding: ClusterSharding = ClusterSharding(context.system)
     val commandHandler: (
         State,
         BaseSerializer,
@@ -51,26 +50,23 @@ object BusyStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
-        case RunSelfOk() => {
+        case MergePositionOk(position) => {
           logger.info(command.logJson)
-          Effect
-            .persist(command)
-            .thenRun((_: State) => {
-              sharding
-                .entityRefFor(
-                  typeKey = MarketTradeBehavior.typeKey,
-                  entityId = state.data.config.marketTradeId
-                )
-                .tell(
-                  MarketTradeBehavior.Sub(
-                    symbol = state.data.symbol,
-                    contractType = state.data.contractType
-                  )(context.self)
-                )
-            })
-            .thenUnstashAll()
-
+          Effect.persist(command).thenUnstashAll()
         }
+        case RemovePositionFail(msg) => {
+          logger.error(command.logJson)
+          Effect.persist(command).thenUnstashAll()
+        }
+        case RemovePositionOk() => {
+          logger.info(command.logJson)
+          Effect.persist(command).thenUnstashAll()
+        }
+        case MergePositionFail(msg, position) => {
+          logger.error(command.logJson)
+          Effect.persist(command).thenUnstashAll()
+        }
+        case StreamComplete() => Effect.none
         case _ => {
           logger.info("stash -> {}", command.logJson)
           Effect.stash()
@@ -85,8 +81,27 @@ object BusyStatus extends ActorSerializerSuport {
           defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case RunSelfOk() => Idle(state.data)
-          case e @ _       => defaultEvent(state, e)
+          case MergePositionOk(position) => {
+            Idle(
+              state.data.copy(
+                position = Option(position)
+              )
+            )
+          }
+          case MergePositionFail(msg, position) => {
+            Idle(state.data)
+          }
+          case RemovePositionOk() => {
+            Idle(
+              state.data.copy(
+                position = Option.empty
+              )
+            )
+          }
+          case RemovePositionFail(msg) => {
+            Idle(state.data)
+          }
+          case e @ _ => defaultEvent(state, e)
         }
       }
 

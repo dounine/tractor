@@ -4,10 +4,16 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
+import akka.stream.{OverflowStrategy, SystemMaterializer}
+import akka.stream.scaladsl.Source
+import akka.stream.typed.scaladsl.ActorSink
+import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
+
+import scala.concurrent.duration._
 
 object StopedStatus extends ActorSerializerSuport {
 
@@ -31,6 +37,9 @@ object StopedStatus extends ActorSerializerSuport {
       ) => State,
       Class[_]
   ) = {
+    val sharding: ClusterSharding = ClusterSharding(context.system)
+    val materializer = SystemMaterializer(context.system).materializer
+    val config = context.system.settings.config.getConfig("app")
     val commandHandler: (
         State,
         BaseSerializer,
@@ -46,7 +55,39 @@ object StopedStatus extends ActorSerializerSuport {
           Effect
             .persist(command)
             .thenRun((_: State) => {
-              context.self.tell(RunSelfOk())
+              Source
+                .future(
+                  sharding
+                    .entityRefFor(
+                      typeKey = MarketTradeBehavior.typeKey,
+                      entityId = state.data.config.marketTradeId
+                    )
+                    .ask[BaseSerializer](
+                      MarketTradeBehavior.Sub(
+                        symbol = state.data.symbol,
+                        contractType = state.data.contractType
+                      )(_)
+                    )(3.seconds)
+                )
+                .flatMapConcat {
+                  case MarketTradeBehavior.SubOk(source) => source
+                }
+                .throttle(
+                  1,
+                  config
+                    .getDuration("engine.position.speed")
+                    .toMillis
+                    .milliseconds
+                )
+                .buffer(1, OverflowStrategy.dropHead)
+                .runWith(
+                  ActorSink.actorRef(
+                    ref = context.self,
+                    onCompleteMessage = StreamComplete(),
+                    onFailureMessage =
+                      e => MarketTradeBehavior.SubFail(e.getLocalizedMessage)
+                  )
+                )(materializer)
             })
         }
         case _ => {
@@ -64,7 +105,7 @@ object StopedStatus extends ActorSerializerSuport {
       ) => {
         command match {
           case Run(marketTradeId, contractSize) =>
-            Busy(
+            Idle(
               state.data.copy(
                 contractSize = contractSize,
                 config = state.data.config.copy(

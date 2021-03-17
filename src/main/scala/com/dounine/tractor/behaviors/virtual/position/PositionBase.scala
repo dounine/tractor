@@ -84,8 +84,6 @@ object PositionBase {
 
   final case class ReplaceData(data: DataStore) extends Command
 
-  final case class RunSelfOk() extends Command
-
   final case object Stop extends Command
 
   final case object Shutdown extends Command
@@ -107,6 +105,8 @@ object PositionBase {
 
   final case class CloseOk() extends Command
 
+  final case class StreamComplete() extends Command
+
   final case class NewPosition(
       position: PositionInfo
   ) extends Command
@@ -115,7 +115,20 @@ object PositionBase {
       position: PositionInfo
   ) extends Command
 
+  final case class MergePositionOk(
+      position: PositionInfo
+  ) extends Command
+
+  final case class MergePositionFail(
+      msg: String,
+      position: PositionInfo
+  ) extends Command
+
   final case class RemovePosition() extends Command
+
+  final case class RemovePositionOk() extends Command
+
+  final case class RemovePositionFail(msg: String) extends Command
 
   def createEntityId(
       phone: String,
