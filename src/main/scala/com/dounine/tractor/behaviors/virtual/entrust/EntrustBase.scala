@@ -122,9 +122,9 @@ object EntrustBase extends ActorSerializerSuport {
   final case class CancelFail(orderId: String, status: EntrustCancelFailStatus)
       extends Command
 
-  final case class Entrusts(
-      entrusts: Map[String, EntrustInfo]
-  ) extends Command
+  final case class EntrustOk(info: (String, EntrustInfo)) extends Command
+
+  final case class EntrustFail(info: (String, EntrustInfo)) extends Command
 
   def createEntityId(
       phone: String,

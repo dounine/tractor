@@ -299,7 +299,7 @@ class EntrustTest
         .toJson
 
       LoggingTestKit
-        .info(classOf[EntrustBase.Entrusts].getSimpleName)
+        .info(classOf[EntrustBase.EntrustOk].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }
@@ -446,7 +446,6 @@ class EntrustTest
     "create and multi cancel match fail" in {
       val (socketClient, socketPort) = createSocket()
       val time = System.currentTimeMillis()
-      socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -524,9 +523,11 @@ class EntrustTest
         )
         .toJson
 
-      socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
-
-      TimeUnit.MILLISECONDS.sleep(50)
+      LoggingTestKit.info(
+        classOf[EntrustBase.EntrustOk].getName
+      ).expect(
+        socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
+      )
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
       entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))

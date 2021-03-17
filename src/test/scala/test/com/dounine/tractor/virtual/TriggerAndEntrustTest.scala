@@ -295,7 +295,7 @@ class TriggerAndEntrustTest
         }
 
       LoggingTestKit
-        .info(classOf[EntrustBase.Entrusts].getName)
+        .info(classOf[EntrustBase.EntrustOk].getName)
         .expect {
           socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
         }
