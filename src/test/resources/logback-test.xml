@@ -31,5 +31,6 @@
     </root>
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="CapturingAppender"/>
     </root>
 </configuration>
