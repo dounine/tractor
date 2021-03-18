@@ -3,6 +3,8 @@ package com.dounine.tractor.tools.json
 import akka.actor.typed.ActorRef
 import com.dounine.tractor.model.models.TriggerModel
 import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
+  AggregationActorQueryStatus,
   CoinSymbol,
   ContractType,
   Direction,
@@ -109,6 +111,8 @@ object JsonSuport {
     LocalDateTimeSerializer +
     LocalDateSerializer +
     FiniteDurationSerializer ++ Seq(
+    AggregationActor,
+    AggregationActorQueryStatus,
     CoinSymbol,
     ContractType,
     ResponseCode,

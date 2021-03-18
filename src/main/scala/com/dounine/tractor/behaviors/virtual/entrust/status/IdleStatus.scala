@@ -12,6 +12,7 @@ import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.{
   Direction,
   EntrustCancelFailStatus,
@@ -86,6 +87,22 @@ object IdleStatus extends ActorSerializerSuport {
             ).take(maxSize)
         } else entrusts
       }
+
+    def marginFrozen(
+        data: DataStore
+    ): Double = {
+      val list =
+        data.entrusts
+          .filter(tp =>
+            tp._2.status == EntrustStatus.submit && tp._2.entrust.offset == Offset.open
+          )
+      list
+        .map(tp => {
+          val info = tp._2.entrust
+          data.contractSize * info.volume / info.price / data.leverRate.toString.toInt
+        })
+        .sum
+    }
 
     val commandHandler: (
         State,
@@ -417,54 +434,56 @@ object IdleStatus extends ActorSerializerSuport {
         }
         case EntrustOk(info) => {
           logger.info(command.logJson)
-          Effect.persist(command).thenRun((updateState: State) => {
-            val entrust = info._2.entrust
-            Source
-              .future(
-                sharding
-                  .entityRefFor(
-                    EntrustNotifyBehavior.typeKey,
-                    state.data.config.entrustNotifyId
-                  )
-                  .ask[BaseSerializer](ref =>
-                    EntrustNotifyBehavior.Push(
-                      notif = NotifyModel.NotifyInfo(
-                        orderId = info._1,
-                        symbol = state.data.symbol,
-                        contractType = state.data.contractType,
-                        direction = state.data.direction,
-                        offset = entrust.offset,
-                        leverRate = state.data.leverRate,
-                        orderPriceType = OrderPriceType.limit,
-                        entrustStatus = EntrustStatus.matchAll,
-                        source =
-                          com.dounine.tractor.model.types.currency.Source.api,
-                        orderType = OrderType.statement,
-                        createTime = LocalDateTime.now(),
-                        price = entrust.price,
-                        volume = entrust.volume,
-                        tradeVolume = 0,
-                        tradeTurnover = 0,
-                        fee = 0,
-                        profit = 0,
-                        trade = List(
-                          NotifyModel.Trade(
-                            tradeVolume = 1,
-                            tradePrice = 0,
-                            tradeFee = 0,
-                            tradeTurnover = 0,
-                            createTime = LocalDateTime.now(),
-                            role = Role.taker
+          Effect
+            .persist(command)
+            .thenRun((updateState: State) => {
+              val entrust = info._2.entrust
+              Source
+                .future(
+                  sharding
+                    .entityRefFor(
+                      EntrustNotifyBehavior.typeKey,
+                      state.data.config.entrustNotifyId
+                    )
+                    .ask[BaseSerializer](ref =>
+                      EntrustNotifyBehavior.Push(
+                        notif = NotifyModel.NotifyInfo(
+                          orderId = info._1,
+                          symbol = state.data.symbol,
+                          contractType = state.data.contractType,
+                          direction = state.data.direction,
+                          offset = entrust.offset,
+                          leverRate = state.data.leverRate,
+                          orderPriceType = OrderPriceType.limit,
+                          entrustStatus = EntrustStatus.matchAll,
+                          source =
+                            com.dounine.tractor.model.types.currency.Source.api,
+                          orderType = OrderType.statement,
+                          createTime = LocalDateTime.now(),
+                          price = entrust.price,
+                          volume = entrust.volume,
+                          tradeVolume = 0,
+                          tradeTurnover = 0,
+                          fee = 0,
+                          profit = 0,
+                          trade = List(
+                            NotifyModel.Trade(
+                              tradeVolume = 1,
+                              tradePrice = 0,
+                              tradeFee = 0,
+                              tradeTurnover = 0,
+                              createTime = LocalDateTime.now(),
+                              role = Role.taker
+                            )
                           )
                         )
-                      )
-                    )(ref)
-                  )(3.seconds)
-              )
-              .runWith(
-                Sink.ignore
-              )(materializer)
-          })
+                      )(ref)
+                    )(3.seconds)
+                )
+                .runWith(
+                  Sink.ignore
+                )(materializer)
+            })
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
