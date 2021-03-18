@@ -4,7 +4,8 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.http.scaladsl.Http
-import akka.stream.SystemMaterializer
+import akka.stream.scaladsl.{BroadcastHub, Source, StreamRefs}
+import akka.stream.{OverflowStrategy, SourceRef, SystemMaterializer}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.AggregationActor.AggregationActor
 import com.dounine.tractor.model.types.currency.AggregationActorQueryStatus.AggregationActorQueryStatus
@@ -24,6 +25,17 @@ object AggregationBehavior extends ActorSerializerSuport {
 
   case class Down(actor: AggregationActor, id: String) extends Command
 
+  case class Sub(actor: AggregationActor)(val replyTo: ActorRef[BaseSerializer])
+      extends Command
+
+  case class SubOk(source: SourceRef[UpDownInfo]) extends Command
+
+  case class UpDownInfo(
+      isUp: Boolean,
+      actor: AggregationActor,
+      id: String
+  ) extends BaseSerializer
+
   case class Query(actor: AggregationActor)(
       val replyTo: ActorRef[BaseSerializer]
   ) extends Command
@@ -41,18 +53,35 @@ object AggregationBehavior extends ActorSerializerSuport {
       {
         implicit val materializer =
           SystemMaterializer(context.system).materializer
-        val http = Http(context.system)
+        val (subQueue, subSource) = Source
+          .queue[UpDownInfo](
+            100,
+            OverflowStrategy.fail
+          )
+          .preMaterialize()
+
+        val brocastHub = subSource.runWith(BroadcastHub.sink)
 
         def data(
             actors: Map[String, AggregationActor]
         ): Behavior[BaseSerializer] =
           Behaviors.receiveMessage {
+            case e @ Sub(actor) => {
+              logger.info(e.logJson)
+              val source = brocastHub
+                .filter(_.actor == actor)
+                .runWith(StreamRefs.sourceRef())
+              e.replyTo.tell(SubOk(source))
+              Behaviors.same
+            }
             case e @ Up(actor, id) => {
               logger.info(e.logJson)
+              subQueue.offer(UpDownInfo(true, actor, id))
               data(actors ++ Map(id -> actor))
             }
             case e @ Down(actor, id) => {
               logger.info(e.logJson)
+              subQueue.offer(UpDownInfo(false, actor, id))
               data(actors.filterNot(_ == (id, actor)))
             }
             case e @ Query(actor) => {
