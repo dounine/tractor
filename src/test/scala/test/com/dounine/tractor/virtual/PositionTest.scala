@@ -237,6 +237,7 @@ class PositionTest
             contractType = contractType,
             direction = direction,
             leverRate = LeverRate.x20,
+            entityId = positionId,
             contractSize = 100
           )
         )

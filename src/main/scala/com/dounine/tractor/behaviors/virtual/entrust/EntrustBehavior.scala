@@ -11,7 +11,9 @@ import akka.persistence.typed.scaladsl.{
 }
 import com.dounine.tractor.model.models.BaseSerializer
 import EntrustBase._
+import com.dounine.tractor.behaviors.AggregationBehavior
 import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
   CoinSymbol,
   ContractType,
   Direction,
@@ -31,7 +33,7 @@ object EntrustBehavior extends ActorSerializerSuport {
   ): Behavior[BaseSerializer] =
     Behaviors.setup { context: ActorContext[BaseSerializer] =>
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
-
+        val sharding = ClusterSharding(context.system)
         entityId.id.split("\\|").last.split("-") match {
           case Array(
                 phone,
@@ -60,6 +62,18 @@ object EntrustBehavior extends ActorSerializerSuport {
                 }
                 case Shutdown => {
                   logger.info(command.logJson)
+                  sharding
+                    .entityRefFor(
+                      AggregationBehavior.typeKey,
+                      state.data.config.aggregationId
+                    )
+                    .tell(
+                      AggregationBehavior.Down(
+                        actor = AggregationActor.entrust,
+                        state.data.entityId
+                      )
+                    )
+
                   Effect.none.thenStop()
                 }
               }
@@ -103,6 +117,7 @@ object EntrustBehavior extends ActorSerializerSuport {
                   contractType = ContractType.withName(contractTypeStr),
                   direction = Direction.withName(directionStr),
                   leverRate = LeverRate.x20,
+                  entityId = entityId.id.split("\\|").last,
                   contractSize = 0
                 )
               ),

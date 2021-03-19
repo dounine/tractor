@@ -53,6 +53,7 @@ object EntrustBase extends ActorSerializerSuport {
       contractType: ContractType,
       direction: Direction,
       leverRate: LeverRate,
+      entityId: String,
       contractSize: Int
   ) extends BaseSerializer
 

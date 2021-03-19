@@ -7,12 +7,15 @@ import akka.persistence.typed.scaladsl.Effect
 import akka.stream.{OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.Source
 import akka.stream.typed.scaladsl.ActorSink
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
-import com.dounine.tractor.model.types.currency.TriggerStatus
+import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
+  TriggerStatus
+}
 
 import scala.concurrent.duration._
 
@@ -64,6 +67,17 @@ object BusyStatus extends JsonParse {
           Effect
             .persist(command)
             .thenRun((_: State) => {
+              sharding
+                .entityRefFor(
+                  AggregationBehavior.typeKey,
+                  state.data.config.aggregationId
+                )
+                .tell(
+                  AggregationBehavior.Up(
+                    actor = AggregationActor.trigger,
+                    state.data.entityId
+                  )
+                )
               Source
                 .future(
                   sharding

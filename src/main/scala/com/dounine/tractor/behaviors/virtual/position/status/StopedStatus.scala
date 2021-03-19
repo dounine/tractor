@@ -7,9 +7,10 @@ import akka.persistence.typed.scaladsl.Effect
 import akka.stream.{OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.Source
 import akka.stream.typed.scaladsl.ActorSink
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency.AggregationActor
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -55,6 +56,17 @@ object StopedStatus extends ActorSerializerSuport {
           Effect
             .persist(command)
             .thenRun((_: State) => {
+              sharding
+                .entityRefFor(
+                  AggregationBehavior.typeKey,
+                  state.data.config.aggregationId
+                )
+                .tell(
+                  AggregationBehavior.Up(
+                    actor = AggregationActor.position,
+                    state.data.entityId
+                  )
+                )
               Source
                 .future(
                   sharding

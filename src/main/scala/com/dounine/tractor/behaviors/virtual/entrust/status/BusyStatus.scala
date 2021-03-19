@@ -4,9 +4,10 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.Effect
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency.AggregationActor
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -67,6 +68,18 @@ object BusyStatus extends ActorSerializerSuport {
                     contractType = state.data.contractType
                   )(context.self)
                 )
+              sharding
+                .entityRefFor(
+                  AggregationBehavior.typeKey,
+                  state.data.config.aggregationId
+                )
+                .tell(
+                  AggregationBehavior.Up(
+                    actor = AggregationActor.entrust,
+                    state.data.entityId
+                  )
+                )
+
             })
             .thenUnstashAll()
         }

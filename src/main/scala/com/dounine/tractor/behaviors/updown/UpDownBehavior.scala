@@ -11,6 +11,7 @@ import akka.persistence.typed.scaladsl.{
 }
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
 import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
   CoinSymbol,
   ContractType,
   Direction,
@@ -35,7 +36,7 @@ import akka.stream.scaladsl.{
   SourceQueueWithComplete,
   StreamRefs
 }
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
@@ -57,6 +58,7 @@ object UpDownBehavior extends JsonParse {
   ): Behavior[BaseSerializer] =
     Behaviors.setup { context: ActorContext[BaseSerializer] =>
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
+        val sharding = ClusterSharding(context.system)
         entityId.id.split("\\|").last.split("-") match {
           case Array(
                 phone,
@@ -117,6 +119,17 @@ object UpDownBehavior extends JsonParse {
                 }
                 case Shutdown() => {
                   logger.info(command.logJson)
+                  sharding
+                    .entityRefFor(
+                      AggregationBehavior.typeKey,
+                      state.data.config.aggregationId
+                    )
+                    .tell(
+                      AggregationBehavior.Down(
+                        actor = AggregationActor.updown,
+                        entityId.id.split("\\|").last
+                      )
+                    )
                   Effect.none.thenStop()
                 }
                 case StreamComplete() => {

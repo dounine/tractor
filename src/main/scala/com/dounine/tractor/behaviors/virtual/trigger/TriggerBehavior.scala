@@ -3,21 +3,13 @@ package com.dounine.tractor.behaviors.virtual.trigger
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PreRestart, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.persistence.typed.scaladsl.{
-  Effect,
-  EventSourcedBehavior,
-  RetentionCriteria
-}
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import akka.persistence.typed._
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.{
-  CoinSymbol,
-  ContractType,
-  Direction,
-  LeverRate
-}
+import com.dounine.tractor.model.types.currency.{AggregationActor, CoinSymbol, ContractType, Direction, LeverRate}
 import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
 import TriggerBase._
+import com.dounine.tractor.behaviors.AggregationBehavior
 
 import scala.concurrent.duration._
 import org.slf4j.LoggerFactory
@@ -31,7 +23,7 @@ object TriggerBehavior extends JsonParse {
   ): Behavior[BaseSerializer] =
     Behaviors.setup { context: ActorContext[BaseSerializer] =>
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
-
+        val sharding = ClusterSharding(context.system)
         entityId.id.split("\\|").last.split("-") match {
           case Array(
                 phone,
@@ -60,6 +52,17 @@ object TriggerBehavior extends JsonParse {
                 }
                 case Shutdown => {
                   logger.info(command.logJson)
+                  sharding
+                    .entityRefFor(
+                      AggregationBehavior.typeKey,
+                      state.data.config.aggregationId
+                    )
+                    .tell(
+                      AggregationBehavior.Down(
+                        actor = AggregationActor.trigger,
+                        state.data.entityId
+                      )
+                    )
                   Effect.none.thenStop()
                 }
               }
@@ -104,6 +107,7 @@ object TriggerBehavior extends JsonParse {
                   contractType = ContractType.withName(contractTypeStr),
                   direction = Direction.withName(directionStr),
                   leverRate = LeverRate.x20,
+                  entityId = entityId.id.split("\\|").last,
                   contractSize = 0
                 )
               ),
