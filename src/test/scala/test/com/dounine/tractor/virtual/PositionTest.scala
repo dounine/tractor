@@ -14,7 +14,7 @@ import akka.persistence.typed.PersistenceId
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
   EntrustBehavior
@@ -124,6 +124,13 @@ class PositionTest
         createBehavior = entityContext => EntrustNotifyBehavior()
       )
     )
+    sharding.init(
+      Entity(
+        typeKey = AggregationBehavior.typeKey
+      )(
+        createBehavior = entityContext => AggregationBehavior()
+      )
+    )
 
     sharding.init(
       Entity(
@@ -192,9 +199,13 @@ class PositionTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -320,7 +331,9 @@ class PositionTest
       )
 
       val leverRateProbeYes = testKit.createTestProbe[BaseSerializer]()
-      positionBehavior.tell(PositionBase.IsCanChangeLeverRate()(leverRateProbeYes.ref))
+      positionBehavior.tell(
+        PositionBase.IsCanChangeLeverRate()(leverRateProbeYes.ref)
+      )
       leverRateProbeYes.expectMessage(PositionBase.ChangeLeverRateYes())
 
     }

@@ -62,7 +62,7 @@ object StoppingStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.none
         }
-        case Run(_, _, _, _) => {
+        case Run(_, _, _, _, _) => {
           logger.info(command.logJson)
           Effect.none
         }

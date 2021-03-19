@@ -16,7 +16,7 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
 import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.util.ByteString
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
   EntrustBehavior
@@ -140,6 +140,14 @@ class EntrustTest
 
     sharding.init(
       Entity(
+        typeKey = AggregationBehavior.typeKey
+      )(
+        createBehavior = entityContext => AggregationBehavior()
+      )
+    )
+
+    sharding.init(
+      Entity(
         typeKey = EntrustBase.typeKey
       )(
         createBehavior = entityContext =>
@@ -203,14 +211,20 @@ class EntrustTest
           socketPort
         )
       )
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       LoggingTestKit
         .info(
-          classOf[EntrustBase.RunSelfOk].getSimpleName
+          classOf[EntrustBase.RunSelfOk].getName
         )
         .expect(
           entrustBehavior.tell(
             EntrustBase.Run(
               marketTradeId = socketPort,
+              positionId = "",
+              entrustNotifyId = "",
+              aggregationId = socketPort,
               contractSize = 100
             )
           )
@@ -240,9 +254,12 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -259,8 +276,15 @@ class EntrustTest
           socketPort
         )
       )
+
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -328,9 +352,13 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -347,8 +375,15 @@ class EntrustTest
           socketPort
         )
       )
+
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -393,9 +428,13 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -413,7 +452,13 @@ class EntrustTest
         )
       )
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -465,9 +510,13 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -485,7 +534,13 @@ class EntrustTest
         )
       )
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -523,11 +578,13 @@ class EntrustTest
         )
         .toJson
 
-      LoggingTestKit.info(
-        classOf[EntrustBase.EntrustOk].getName
-      ).expect(
-        socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
-      )
+      LoggingTestKit
+        .info(
+          classOf[EntrustBase.EntrustOk].getName
+        )
+        .expect(
+          socketClient.offer(BinaryMessage.Strict(dataMessage(triggerMessage)))
+        )
 
       val cancelProbe = testKit.createTestProbe[BaseSerializer]()
       entrustBehavior.tell(EntrustBase.Cancel(orderId)(cancelProbe.ref))
@@ -561,9 +618,13 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -581,7 +642,13 @@ class EntrustTest
         )
       )
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -639,9 +706,13 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -660,7 +731,13 @@ class EntrustTest
         )
       )
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
@@ -722,9 +799,13 @@ class EntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -743,7 +824,13 @@ class EntrustTest
         )
       )
       entrustBehavior.tell(
-        EntrustBase.Run(socketPort, positionId, socketPort, 100)
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
       )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()

@@ -50,7 +50,7 @@ object StopedStatus extends ActorSerializerSuport {
         _: (State, BaseSerializer) => Effect[BaseSerializer, State]
     ) =>
       command match {
-        case Run(_, _) => {
+        case Run(_, _, _) => {
           logger.info(command.logJson)
           Effect
             .persist(command)
@@ -104,12 +104,13 @@ object StopedStatus extends ActorSerializerSuport {
           defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case Run(marketTradeId, contractSize) =>
+          case Run(marketTradeId, aggregationId, contractSize) =>
             Idle(
               state.data.copy(
                 contractSize = contractSize,
                 config = state.data.config.copy(
-                  marketTradeId = marketTradeId
+                  marketTradeId = marketTradeId,
+                  aggregationId = aggregationId
                 )
               )
             )

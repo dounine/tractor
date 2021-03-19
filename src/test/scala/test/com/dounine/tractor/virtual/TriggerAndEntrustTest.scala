@@ -14,7 +14,7 @@ import akka.persistence.typed.PersistenceId
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
   EntrustBehavior
@@ -144,6 +144,13 @@ class TriggerAndEntrustTest
         createBehavior = entityContext => EntrustNotifyBehavior()
       )
     )
+    sharding.init(
+      Entity(
+        typeKey = AggregationBehavior.typeKey
+      )(
+        createBehavior = entityContext => AggregationBehavior()
+      )
+    )
 
     sharding.init(
       Entity(
@@ -207,9 +214,13 @@ class TriggerAndEntrustTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -230,6 +241,7 @@ class TriggerAndEntrustTest
           marketTradeId = socketPort,
           positionId = positionId,
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -241,12 +253,14 @@ class TriggerAndEntrustTest
         Direction.buy,
         socketPort
       )
+
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
       triggerBehavior.tell(
         TriggerBase.Run(
           marketTradeId = socketPort,
           entrustId = entrustId,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )

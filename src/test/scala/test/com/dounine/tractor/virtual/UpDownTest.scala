@@ -16,7 +16,7 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.TestSink
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.updown.{UpDownBase, UpDownBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
@@ -117,6 +117,13 @@ class UpDownTest
         typeKey = MarketTradeBehavior.typeKey
       )(
         createBehavior = entityContext => MarketTradeBehavior()
+      )
+    )
+    sharding.init(
+      Entity(
+        typeKey = AggregationBehavior.typeKey
+      )(
+        createBehavior = entityContext => AggregationBehavior()
       )
     )
 
@@ -242,9 +249,11 @@ class UpDownTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -258,11 +267,14 @@ class UpDownTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
           positionId = positionId,
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -276,10 +288,12 @@ class UpDownTest
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
+
       triggerBehavior.tell(
         TriggerBase.Run(
           marketTradeId = socketPort,
           entrustId = entrustId,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -338,9 +352,11 @@ class UpDownTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -354,11 +370,14 @@ class UpDownTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
           positionId = positionId,
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -372,10 +391,12 @@ class UpDownTest
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
+
       triggerBehavior.tell(
         TriggerBase.Run(
           marketTradeId = socketPort,
           entrustId = entrustId,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -469,9 +490,11 @@ class UpDownTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -485,11 +508,14 @@ class UpDownTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
           positionId = positionId,
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -503,10 +529,12 @@ class UpDownTest
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
+
       triggerBehavior.tell(
         TriggerBase.Run(
           marketTradeId = socketPort,
           entrustId = entrustId,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -613,9 +641,11 @@ class UpDownTest
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
+
       positionBehavior.tell(
         PositionBase.Run(
           marketTradeId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -629,11 +659,14 @@ class UpDownTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
           positionId = positionId,
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -647,10 +680,12 @@ class UpDownTest
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
+
       triggerBehavior.tell(
         TriggerBase.Run(
           marketTradeId = socketPort,
           entrustId = entrustId,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )

@@ -42,7 +42,7 @@ object BusyStatus extends ActorSerializerSuport {
         _: (State, BaseSerializer) => Effect[BaseSerializer, State]
     ) =>
       command match {
-        case Run(_, _) => {
+        case Run(_, _, _) => {
           logger.info(command.logJson)
           Effect.none
         }

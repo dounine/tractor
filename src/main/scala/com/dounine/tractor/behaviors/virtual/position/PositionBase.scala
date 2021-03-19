@@ -2,7 +2,7 @@ package com.dounine.tractor.behaviors.virtual.position
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
@@ -36,7 +36,8 @@ object PositionBase {
   ) extends BaseSerializer
 
   final case class Config(
-      marketTradeId: String = MarketTradeBehavior.typeKey.name
+      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      aggregationId: String = AggregationBehavior.typeKey.name
   ) extends BaseSerializer
 
   case class DataStore(
@@ -63,7 +64,8 @@ object PositionBase {
   final case class Busy(data: DataStore) extends State
 
   final case class Run(
-      marketTradeId: String = MarketTradeBehavior.typeKey.name,
+      marketTradeId: String,
+      aggregationId: String,
       contractSize: Int
   ) extends Command
 

@@ -4,7 +4,7 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.stream.{QueueCompletionResult, QueueOfferResult, SourceRef}
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
@@ -42,7 +42,8 @@ object UpDownBase {
       marketTradeId: String = MarketTradeBehavior.typeKey.name,
       entrustId: String = EntrustBase.typeKey.name,
       triggerId: String = TriggerBase.typeKey.name,
-      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name,
+      aggregationId: String = AggregationBehavior.typeKey.name
   ) extends BaseSerializer
 
   final case class UserInfo(
@@ -136,7 +137,8 @@ object UpDownBase {
       marketTradeId: String = MarketTradeBehavior.typeKey.name,
       entrustId: String = EntrustBase.typeKey.name,
       triggerId: String = TriggerBase.typeKey.name,
-      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name,
+      aggregationId: String = AggregationBehavior.typeKey.name
   ) extends Command
 
   final case class Trigger(

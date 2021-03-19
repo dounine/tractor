@@ -2,7 +2,7 @@ package com.dounine.tractor.behaviors.virtual.trigger
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
@@ -36,7 +36,8 @@ object TriggerBase extends ActorSerializerSuport {
 
   case class Config(
       marketTradeId: String = MarketTradeBehavior.typeKey.name,
-      entrustId: String = EntrustBase.typeKey.name
+      entrustId: String = EntrustBase.typeKey.name,
+      aggregationId: String = AggregationBehavior.typeKey.name
   ) extends BaseSerializer
 
   case class TriggerInfo(
@@ -75,8 +76,9 @@ object TriggerBase extends ActorSerializerSuport {
   trait Command extends BaseSerializer
 
   final case class Run(
-      marketTradeId: String = MarketTradeBehavior.typeKey.name,
-      entrustId: String = EntrustBase.typeKey.name,
+      marketTradeId: String,
+      entrustId: String,
+      aggregationId: String,
       contractSize: Int
   ) extends Command
 

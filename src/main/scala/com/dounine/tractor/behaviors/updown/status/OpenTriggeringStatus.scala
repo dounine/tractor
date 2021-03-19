@@ -77,7 +77,7 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
         defaultCommand: (State, BaseSerializer) => Effect[BaseSerializer, State]
     ) => {
       command match {
-        case Run(_, _, _, _) => {
+        case Run(_, _, _, _, _) => {
           logger.info(command.logJson)
           Effect.none
         }

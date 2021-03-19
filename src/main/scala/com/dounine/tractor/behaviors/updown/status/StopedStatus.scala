@@ -63,6 +63,7 @@ object StopedStatus extends JsonParse {
               _,
               _,
               _,
+              _,
               _
             ) => {
           logger.info(command.logJson)
@@ -139,14 +140,21 @@ object StopedStatus extends JsonParse {
           defaultEvent: (State, BaseSerializer) => State
       ) => {
         command match {
-          case Run(marketTradeId, entrustId, triggerId, entrustNotifyId) => {
+          case Run(
+                marketTradeId,
+                entrustId,
+                triggerId,
+                entrustNotifyId,
+                aggregationId
+              ) => {
             OpenTriggering(
               data = state.data.copy(
                 config = state.data.config.copy(
                   marketTradeId = marketTradeId,
                   entrustId = entrustId,
                   triggerId = triggerId,
-                  entrustNotifyId = entrustNotifyId
+                  entrustNotifyId = entrustNotifyId,
+                  aggregationId = aggregationId
                 )
               )
             )

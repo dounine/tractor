@@ -2,7 +2,7 @@ package com.dounine.tractor.behaviors.virtual.entrust
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.BaseSerializer
@@ -36,7 +36,8 @@ object EntrustBase extends ActorSerializerSuport {
   final case class Config(
       marketTradeId: String = MarketTradeBehavior.typeKey.name,
       positionId: String = PositionBase.typeKey.name,
-      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name
+      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name,
+      aggregationId: String = AggregationBehavior.typeKey.name
   ) extends BaseSerializer
 
   final case class EntrustInfo(
@@ -68,9 +69,10 @@ object EntrustBase extends ActorSerializerSuport {
   final case class Busy(data: DataStore) extends State
 
   final case class Run(
-      marketTradeId: String = MarketTradeBehavior.typeKey.name,
-      positionId: String = PositionBase.typeKey.name,
-      entrustNotifyId: String = EntrustNotifyBehavior.typeKey.name,
+      marketTradeId: String,
+      positionId: String,
+      entrustNotifyId: String,
+      aggregationId: String,
       contractSize: Int
   ) extends Command
 

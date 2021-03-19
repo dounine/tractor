@@ -16,7 +16,7 @@ import akka.persistence.typed.PersistenceId
 import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.util.ByteString
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
   EntrustBehavior
@@ -154,6 +154,13 @@ class TriggerTest
     )
     sharding.init(
       Entity(
+        typeKey = AggregationBehavior.typeKey
+      )(
+        createBehavior = entityContext => AggregationBehavior()
+      )
+    )
+    sharding.init(
+      Entity(
         typeKey = TriggerBase.typeKey
       )(
         createBehavior = entityContext =>
@@ -217,14 +224,38 @@ class TriggerTest
           socketPort
         )
       )
+      val entrustId = EntrustBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        Direction.buy,
+        socketPort
+      )
+      val entrustBehavior =
+        sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
+      entrustBehavior.tell(
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = "",
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
+
       LoggingTestKit
         .info(
-          classOf[TriggerBase.RunSelfOk].getSimpleName
+          classOf[TriggerBase.RunSelfOk].getName
         )
         .expect(
           triggerBehavior.tell(
             TriggerBase.Run(
               marketTradeId = socketPort,
+              entrustId = entrustId,
+              aggregationId = socketPort,
               contractSize = 100
             )
           )
@@ -254,10 +285,15 @@ class TriggerTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
+          positionId = "",
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -272,7 +308,15 @@ class TriggerTest
           socketPort
         )
       )
-      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+
+      triggerBehavior.tell(
+        TriggerBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -342,10 +386,15 @@ class TriggerTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
+          positionId = "",
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -360,7 +409,14 @@ class TriggerTest
           socketPort
         )
       )
-      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+      triggerBehavior.tell(
+        TriggerBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -405,10 +461,15 @@ class TriggerTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
+          positionId = "",
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -423,7 +484,15 @@ class TriggerTest
           socketPort
         )
       )
-      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+
+      triggerBehavior.tell(
+        TriggerBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -475,10 +544,15 @@ class TriggerTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
+          positionId = "",
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -493,7 +567,15 @@ class TriggerTest
           socketPort
         )
       )
-      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+
+      triggerBehavior.tell(
+        TriggerBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -571,10 +653,15 @@ class TriggerTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
+          positionId = "",
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -589,7 +676,15 @@ class TriggerTest
           socketPort
         )
       )
-      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+
+      triggerBehavior.tell(
+        TriggerBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
       val orderId = orderIdGlobal.incrementAndGet().toString
@@ -646,10 +741,15 @@ class TriggerTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,
+          positionId = "",
           entrustNotifyId = socketPort,
+          aggregationId = socketPort,
           contractSize = 100
         )
       )
@@ -664,7 +764,15 @@ class TriggerTest
           socketPort
         )
       )
-      triggerBehavior.tell(TriggerBase.Run(socketPort, entrustId, 100))
+
+      triggerBehavior.tell(
+        TriggerBase.Run(
+          marketTradeId = socketPort,
+          entrustId = entrustId,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
 
       val createProbe = testKit.createTestProbe[BaseSerializer]()
 
