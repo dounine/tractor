@@ -4,16 +4,18 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
 import akka.persistence.typed.scaladsl.{Effect, EffectBuilder}
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{RestartSource, Sink, Source}
 import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
   Direction,
   EntrustCancelFailStatus,
   EntrustCreateFailStatus,
@@ -26,7 +28,9 @@ import com.dounine.tractor.model.types.currency.{
   TriggerStatus,
   TriggerType
 }
+import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
+import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -91,12 +95,10 @@ object IdleStatus extends ActorSerializerSuport {
     def marginFrozen(
         data: DataStore
     ): Double = {
-      val list =
-        data.entrusts
-          .filter(tp =>
-            tp._2.status == EntrustStatus.submit && tp._2.entrust.offset == Offset.open
-          )
-      list
+      data.entrusts
+        .filter(tp =>
+          tp._2.status == EntrustStatus.submit && tp._2.entrust.offset == Offset.open
+        )
         .map(tp => {
           val info = tp._2.entrust
           data.contractSize * info.volume / info.price / data.leverRate.toString.toInt
@@ -142,6 +144,67 @@ object IdleStatus extends ActorSerializerSuport {
             }
           })
         }
+        case e @ MarginQuery() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            e.replyTo.tell(MarginQueryOk(marginFrozen(state.data)))
+          })
+        }
+        case CreateFutureOk(request) => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            request.replyTo.tell(CreateOk(request))
+            Source
+              .future(
+                sharding
+                  .entityRefFor(
+                    EntrustNotifyBehavior.typeKey,
+                    state.data.config.entrustNotifyId
+                  )
+                  .ask[BaseSerializer](
+                    EntrustNotifyBehavior.Push(
+                      notif = NotifyModel.NotifyInfo(
+                        orderId = request.orderId,
+                        symbol = state.data.symbol,
+                        contractType = state.data.contractType,
+                        direction = state.data.direction,
+                        offset = request.offset,
+                        leverRate = state.data.leverRate,
+                        orderPriceType = request.orderPriceType,
+                        entrustStatus = EntrustStatus.submit,
+                        source =
+                          com.dounine.tractor.model.types.currency.Source.api,
+                        orderType = OrderType.statement,
+                        createTime = LocalDateTime.now(),
+                        price = request.price,
+                        volume = request.volume,
+                        tradeVolume = 0,
+                        tradeTurnover = 0,
+                        fee = 0,
+                        profit = 0,
+                        trade = List(
+                          NotifyModel.Trade(
+                            tradeVolume = 1,
+                            tradePrice = request.price,
+                            tradeFee = 0,
+                            tradeTurnover = 0,
+                            createTime = LocalDateTime.now(),
+                            role = Role.taker
+                          )
+                        )
+                      )
+                    )(_)
+                  )(3.seconds)
+              )
+              .runWith(Sink.ignore)(materializer)
+          })
+        }
+        case CreateFutureFail(request, status) => {
+          logger.error(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            request.replyTo.tell(CreateFail(request, status))
+          })
+        }
         case e @ Create(
               orderId,
               offset,
@@ -167,50 +230,233 @@ object IdleStatus extends ActorSerializerSuport {
             Effect
               .persist(command)
               .thenRun((state: State) => {
-                e.replyTo.tell(CreateOk(e))
-                Source
+                val accountBenefits =
+                  Source
+                    .future(
+                      sharding
+                        .entityRefFor(
+                          AggregationBehavior.typeKey,
+                          state.data.config.aggregationId
+                        )
+                        .ask[BaseSerializer](
+                          AggregationBehavior
+                            .Query(AggregationActor.position)(_)
+                        )(3.seconds)
+                    )
+                    .collect {
+                      case e @ AggregationBehavior.QueryOk(_) => e
+                    }
+                    .flatMapConcat {
+                      case AggregationBehavior.QueryOk(actors) => {
+                        val balance = Source
+                          .future(
+                            ServiceSingleton
+                              .get(classOf[BalanceRepository])
+                              .balance(
+                                phone = state.data.phone,
+                                symbol = state.data.symbol
+                              )
+                          )
+                          .collect {
+                            case Some(balance) => balance
+                            case None =>
+                              throw new Exception("balance not found")
+                          }
+                          .map(_.balance)
+
+                        val positionMarginSource = Source(actors)
+                          .filter(actor =>
+                            actor.contains(s"-${state.data.symbol}-")
+                          )
+                          .mapAsync(4) { actor =>
+                            {
+                              sharding
+                                .entityRefFor(
+                                  PositionBase.typeKey,
+                                  actor
+                                )
+                                .ask[BaseSerializer](
+                                  PositionBase.MarginQuery()(_)
+                                )(3.seconds)
+                            }
+                          }
+                          .collect {
+                            case PositionBase.MarginQueryOk(margin) => margin
+                            case PositionBase.MarginQueryFail(msg) => {
+                              logger.error(msg)
+                              0
+                            }
+                          }
+
+                        val profitUnrealSource = Source(actors)
+                          .filter(actor =>
+                            actor.contains(s"-${state.data.symbol}-")
+                          )
+                          .mapAsync(4) { actor =>
+                            {
+                              sharding
+                                .entityRefFor(
+                                  PositionBase.typeKey,
+                                  actor
+                                )
+                                .ask[BaseSerializer](
+                                  PositionBase.ProfitUnrealQuery()(_)
+                                )(3.seconds)
+                            }
+                          }
+                          .collect {
+                            case PositionBase.ProfitUnrealQueryOk(margin) =>
+                              margin
+                            case PositionBase.ProfitUnrealQueryFail(msg) => {
+                              logger.error(msg)
+                              0
+                            }
+                          }
+
+                        profitUnrealSource.concat(balance)
+                      }
+                    }
+                    .fold(0d)((sum, next) => {
+                      sum + next
+                    })
+
+                val positionMargin =
+                  Source
+                    .future(
+                      sharding
+                        .entityRefFor(
+                          AggregationBehavior.typeKey,
+                          state.data.config.aggregationId
+                        )
+                        .ask[BaseSerializer](
+                          AggregationBehavior
+                            .Query(AggregationActor.position)(_)
+                        )(3.seconds)
+                    )
+                    .collect {
+                      case e @ AggregationBehavior.QueryOk(_) => e
+                    }
+                    .flatMapConcat {
+                      case AggregationBehavior.QueryOk(actors) => {
+                        Source(actors)
+                          .filter(actor =>
+                            actor.contains(s"-${state.data.symbol}-")
+                          )
+                          .mapAsync(4) { actor =>
+                            {
+                              sharding
+                                .entityRefFor(
+                                  PositionBase.typeKey,
+                                  actor
+                                )
+                                .ask[BaseSerializer](
+                                  PositionBase.MarginQuery()(_)
+                                )(3.seconds)
+                            }
+                          }
+                          .collect {
+                            case PositionBase.MarginQueryOk(margin) => margin
+                            case PositionBase.MarginQueryFail(msg) => {
+                              logger.error(msg)
+                              0
+                            }
+                          }
+                      }
+                    }
+                    .fold(0d)((sum, next) => {
+                      sum + next
+                    })
+
+                val entrustMargin = Source
                   .future(
                     sharding
                       .entityRefFor(
-                        EntrustNotifyBehavior.typeKey,
-                        state.data.config.entrustNotifyId
+                        AggregationBehavior.typeKey,
+                        state.data.config.aggregationId
                       )
                       .ask[BaseSerializer](
-                        EntrustNotifyBehavior.Push(
-                          notif = NotifyModel.NotifyInfo(
-                            orderId = orderId,
-                            symbol = state.data.symbol,
-                            contractType = state.data.contractType,
-                            direction = state.data.direction,
-                            offset = offset,
-                            leverRate = state.data.leverRate,
-                            orderPriceType = orderPriceType,
-                            entrustStatus = EntrustStatus.submit,
-                            source =
-                              com.dounine.tractor.model.types.currency.Source.api,
-                            orderType = OrderType.statement,
-                            createTime = LocalDateTime.now(),
-                            price = price,
-                            volume = volume,
-                            tradeVolume = 0,
-                            tradeTurnover = 0,
-                            fee = 0,
-                            profit = 0,
-                            trade = List(
-                              NotifyModel.Trade(
-                                tradeVolume = 1,
-                                tradePrice = price,
-                                tradeFee = 0,
-                                tradeTurnover = 0,
-                                createTime = LocalDateTime.now(),
-                                role = Role.taker
-                              )
-                            )
-                          )
-                        )(_)
+                        AggregationBehavior
+                          .Query(AggregationActor.entrust)(_)
                       )(3.seconds)
                   )
-                  .runWith(Sink.ignore)(materializer)
+                  .collect {
+                    case e @ AggregationBehavior.QueryOk(_) => e
+                  }
+                  .flatMapConcat {
+                    case AggregationBehavior.QueryOk(actors) => {
+                      Source(actors)
+                        .filterNot(actor =>
+                          actor == state.data.entityId &&
+                            actor.contains(s"-${state.data.symbol}-")
+                        )
+                        .mapAsync(1) { actor =>
+                          {
+                            sharding
+                              .entityRefFor(
+                                EntrustBase.typeKey,
+                                actor
+                              )
+                              .ask[BaseSerializer](
+                                EntrustBase.MarginQuery()(_)
+                              )(3.seconds)
+                          }
+                        }
+                        .collect {
+                          case EntrustBase.MarginQueryOk(margin) => margin
+                          case EntrustBase.MarginQueryFail(msg) => {
+                            logger.error(msg)
+                            0
+                          }
+                        }
+                    }
+                  }
+                  .fold(0d)((sum, next) => {
+                    sum + next
+                  })
+                  .map(_ + marginFrozen(state.data))
+
+                val availableSecuredAssets = accountBenefits
+                  .concat(
+                    positionMargin
+                      .concat(entrustMargin)
+                      .fold(0d)((sum, next) => sum + next)
+                  )
+                  .reduce((account, margin) => account - margin)
+                  .map(
+                    _ - state.data.contractSize * volume / price / state.data.leverRate.toString.toInt
+                  )
+
+                availableSecuredAssets
+                  .idleTimeout(3.seconds)
+                  .map(balance => {
+                    if (balance > 0) {
+                      CreateFutureOk(e)
+                    } else {
+                      CreateFutureFail(
+                        e,
+                        EntrustCreateFailStatus.createAvailableGuaranteeIsInsufficient
+                      )
+                    }
+                  })
+                  .recover {
+                    case ee: Throwable => {
+                      ee.printStackTrace()
+                      CreateFutureFail(e, EntrustCreateFailStatus.createTimeout)
+                    }
+                  }
+                  .runWith(
+                    ActorSink.actorRef(
+                      ref = context.self,
+                      onCompleteMessage = StreamComplete(),
+                      onFailureMessage = ee => {
+                        ee.printStackTrace()
+                        CreateFutureFail(
+                          e,
+                          EntrustCreateFailStatus.createTimeout
+                        )
+                      }
+                    )
+                  )(materializer)
               })
           }
         }

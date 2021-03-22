@@ -67,5 +67,38 @@ class StreamTest
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
       broadcastHub.runWith(TestSink[Int]()).request(1).expectNext(1)
     }
+
+    "reduce for stream1" in {
+      val balance = Source.single(10)
+      val positionMargin = Source.single(1)
+      val entrustMargin = Source.single(3)
+
+      balance
+        .concat(
+          positionMargin
+            .concat(entrustMargin)
+            .fold(0)((sum, next) => sum + next)
+        )
+        .reduce((balance, margin) => balance - margin)
+        .runWith(TestSink())
+        .request(1)
+        .expectNext(6)
+    }
+
+    "reduce for stream2" in {
+      val balance = Source.single(10)
+      val positionMargin = Source.single(1)
+      val entrustMargin = Source.single(3)
+
+      balance
+        .concat(positionMargin)
+        .reduce((balance, margin) => balance - margin)
+        .concat(entrustMargin)
+        .reduce((balance, margin) => balance - margin)
+        .runWith(TestSink())
+        .request(1)
+        .expectNext(6)
+    }
+
   }
 }

@@ -28,16 +28,25 @@ import com.dounine.tractor.behaviors.virtual.trigger.{
   TriggerBase,
   TriggerBehavior
 }
-import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
+import com.dounine.tractor.model.models.{
+  BalanceModel,
+  BaseSerializer,
+  MarketTradeModel
+}
 import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
+import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 
+import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 class TriggerAndEntrustTest
@@ -59,6 +68,7 @@ class TriggerAndEntrustTest
     )
     with Matchers
     with AnyWordSpecLike
+    with MockitoSugar
     with JsonParse {
   val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
@@ -204,6 +214,23 @@ class TriggerAndEntrustTest
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
+
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1.0,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val positionId = PositionBase.createEntityId(
         phone = "123456789",

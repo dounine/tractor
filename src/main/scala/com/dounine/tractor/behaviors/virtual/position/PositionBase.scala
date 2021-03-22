@@ -42,6 +42,7 @@ object PositionBase {
 
   case class DataStore(
       position: Option[PositionInfo],
+      price: Double,
       config: Config,
       phone: String,
       symbol: CoinSymbol,
@@ -101,6 +102,20 @@ object PositionBase {
       extends Command
 
   final case class CreateFail(status: PositionCreateFailStatus) extends Command
+
+  final case class MarginQuery()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
+
+  final case class MarginQueryOk(margin: Double) extends Command
+
+  final case class MarginQueryFail(msg: String) extends Command
+
+  final case class ProfitUnrealQuery()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
+
+  final case class ProfitUnrealQueryOk(profitUnreal: Double) extends Command
+
+  final case class ProfitUnrealQueryFail(msg: String) extends Command
 
   final case class OpenOk() extends Command
 

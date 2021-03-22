@@ -10,6 +10,7 @@ import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
@@ -77,6 +78,46 @@ object IdleStatus extends ActorSerializerSuport {
         case Recovery => {
           logger.info(command.logJson)
           Effect.persist(command)
+        }
+        case e @ MarginQuery() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            updateState.data.position match {
+              case Some(position) => {
+                e.replyTo.tell(
+                  MarginQueryOk(
+//                    updateState.data.contractSize * position.volume / position.costOpen / updateState.data.leverRate.toString.toInt
+                    position.positionMargin
+                  )
+                )
+              }
+              case None => {
+                e.replyTo.tell(MarginQueryOk(0))
+              }
+            }
+          })
+        }
+        case e @ ProfitUnrealQuery() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            updateState.data.position match {
+              case Some(position) => {
+                updateState.data.direction match {
+                  case Direction.sell => {
+                    (1 / updateState.data.price - 1 / position.costOpen) * position.volume * updateState.data.contractSize
+                  }
+                  case Direction.buy => {
+                    (1 / position.costOpen - 1 / updateState.data.price) * position.volume * updateState.data.contractSize
+                  }
+                }
+              }
+              case None => {
+                e.replyTo.tell(
+                  ProfitUnrealQueryOk(0)
+                )
+              }
+            }
+          })
         }
         case ReplaceData(_) => {
           logger.info(command.logJson)
@@ -337,7 +378,7 @@ object IdleStatus extends ActorSerializerSuport {
         }
         case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
           logger.info(command.logJson)
-          Effect.none
+          Effect.persist(command)
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
@@ -357,6 +398,13 @@ object IdleStatus extends ActorSerializerSuport {
             Idle(
               state.data.copy(
                 leverRate = value
+              )
+            )
+          }
+          case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
+            Idle(
+              state.data.copy(
+                price = price
               )
             )
           }

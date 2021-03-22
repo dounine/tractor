@@ -32,6 +32,7 @@ import com.dounine.tractor.behaviors.virtual.trigger.{
   TriggerBehavior
 }
 import com.dounine.tractor.model.models.{
+  BalanceModel,
   BaseSerializer,
   MarketTradeModel,
   NotifyModel
@@ -46,6 +47,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
+import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.{Await, Future}
@@ -632,6 +634,23 @@ class UpDownTest
         )(testKit.createTestProbe[BaseSerializer]().ref)
       )
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance(phone, symbol)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = phone,
+              symbol = symbol,
+              balance = 1.0,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
       val positionId = TriggerBase.createEntityId(
         phone,
         symbol,
@@ -831,7 +850,6 @@ class UpDownTest
           )
         }
 
-      val mockBalanceService = mock[BalanceRepository]
       when(
         mockBalanceService
           .mergeBalance("123456789", CoinSymbol.BTC, -0.004757281553397976)

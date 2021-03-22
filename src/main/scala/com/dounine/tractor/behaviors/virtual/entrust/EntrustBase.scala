@@ -77,6 +77,13 @@ object EntrustBase extends ActorSerializerSuport {
       contractSize: Int
   ) extends Command
 
+  final case class MarginQuery()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
+
+  final case class MarginQueryOk(margin: Double) extends Command
+
+  final case class MarginQueryFail(msg: String) extends Command
+
   final case class StreamComplete() extends Command
 
   final case class RunSelfOk() extends Command
@@ -95,6 +102,15 @@ object EntrustBase extends ActorSerializerSuport {
       volume: Int
   )(var replyTo: ActorRef[BaseSerializer])
       extends Command
+
+  final case class CreateFutureOk(
+      request: Create
+  ) extends Command
+
+  final case class CreateFutureFail(
+      request: Create,
+      status: EntrustCreateFailStatus
+  ) extends Command
 
   final case class CreateOk(request: Create) extends Command
 

@@ -110,6 +110,7 @@ object PositionBehavior extends ActorSerializerSuport {
               emptyState = Stoped(
                 data = DataStore(
                   position = Option.empty,
+                  price = 0,
                   config = Config(),
                   phone = phone,
                   symbol = CoinSymbol.withName(symbolStr),

@@ -232,6 +232,7 @@ class PositionTest
             config = PositionBase.Config(
               marketTradeId = socketPort
             ),
+            price = 0,
             phone = phone,
             symbol = symbol,
             contractType = contractType,
