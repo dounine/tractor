@@ -29,27 +29,27 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   trait Command extends BaseSerializer
 
-  case class Sub(symbol: CoinSymbol, contractType: ContractType)(
+  final case class Sub(symbol: CoinSymbol, contractType: ContractType)(
       val replyTo: ActorRef[BaseSerializer]
   ) extends Command
 
-  case class SubOk(source: SourceRef[TradeDetail]) extends Command
+  final case class SubOk(source: SourceRef[TradeDetail]) extends Command
 
-  case class SubFail(msg: String) extends Command
+  final case class SubFail(msg: String) extends Command
 
-  case class SendMessage(data: String) extends Command
+  final case class SendMessage(data: String) extends Command
 
-  case class SocketConnect(url: Option[String] = Option.empty)(
+  final case class SocketConnect(url: Option[String] = Option.empty)(
       val replyTo: ActorRef[BaseSerializer]
   ) extends Command
 
-  case class SocketConnectAccept() extends Command
+  final case class SocketConnectAccept() extends Command
 
-  case class SocketConnectReject(msg: Option[String]) extends Command
+  final case class SocketConnectReject(msg: Option[String]) extends Command
 
-  case class SocketMessage(data: String) extends Command
+  final case class SocketMessage(data: String) extends Command
 
-  case class TradeDetail(
+  final case class TradeDetail(
       symbol: CoinSymbol,
       contractType: ContractType,
       direction: Direction,
@@ -58,18 +58,18 @@ object MarketTradeBehavior extends ActorSerializerSuport {
       time: Long
   ) extends BaseSerializer
 
-  case class SocketConnectFail(msg: String) extends Command
+  final case class SocketConnectFail(msg: String) extends Command
 
-  case class SocketConnected(serverActor: ActorRef[Command]) extends Command
+  final case class SocketConnected(serverActor: ActorRef[Command]) extends Command
 
-  case class SocketCloseFail(msg: String) extends Command
+  final case class SocketCloseFail(msg: String) extends Command
 
-  case class SocketClosed(url: Option[String], msg: Option[String])
+  final case class SocketClosed(url: Option[String], msg: Option[String])
       extends Command
 
-  case object Shutdown extends Command
+  final case object Shutdown extends Command
 
-  case object SocketComplete extends Command
+  final case object SocketComplete extends Command
 
   def apply(): Behavior[BaseSerializer] =
     Behaviors.setup { context: ActorContext[BaseSerializer] =>

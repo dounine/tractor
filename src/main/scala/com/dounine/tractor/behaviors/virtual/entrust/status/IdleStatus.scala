@@ -229,230 +229,303 @@ object IdleStatus extends ActorSerializerSuport {
             Effect
               .persist(command)
               .thenRun((state: State) => {
-                val accountBenefits =
-                  Source
-                    .future(
-                      sharding
-                        .entityRefFor(
-                          AggregationBehavior.typeKey,
-                          state.data.config.aggregationId
+                offset match {
+                  case Offset.open => {
+                    val accountBenefits =
+                      Source
+                        .future(
+                          sharding
+                            .entityRefFor(
+                              AggregationBehavior.typeKey,
+                              state.data.config.aggregationId
+                            )
+                            .ask[BaseSerializer](
+                              AggregationBehavior
+                                .Query(AggregationActor.position)(_)
+                            )(3.seconds)
                         )
-                        .ask[BaseSerializer](
-                          AggregationBehavior
-                            .Query(AggregationActor.position)(_)
-                        )(3.seconds)
-                    )
-                    .collect {
-                      case e @ AggregationBehavior.QueryOk(_) => e
-                    }
-                    .flatMapConcat {
-                      case AggregationBehavior.QueryOk(actors) => {
-                        val balance = Source
-                          .future(
-                            ServiceSingleton
-                              .get(classOf[BalanceRepository])
-                              .balance(
-                                phone = state.data.phone,
-                                symbol = state.data.symbol
-                              )
-                          )
-                          .collect {
-                            case Some(balance) => balance
-                            case None =>
-                              throw new Exception("balance not found")
-                          }
-                          .map(_.balance)
-
-                        val positionMarginSource = Source(actors)
-                          .filter(actor =>
-                            actor.contains(s"-${state.data.symbol}-")
-                          )
-                          .mapAsync(4) { actor =>
-                            {
-                              sharding
-                                .entityRefFor(
-                                  PositionBase.typeKey,
-                                  actor
-                                )
-                                .ask[BaseSerializer](
-                                  PositionBase.MarginQuery()(_)
-                                )(3.seconds)
-                            }
-                          }
-                          .collect {
-                            case PositionBase.MarginQueryOk(margin) => margin
-                            case PositionBase.MarginQueryFail(msg) => {
-                              logger.error(msg)
-                              0
-                            }
-                          }
-
-                        val profitUnrealSource = Source(actors)
-                          .filter(actor =>
-                            actor.contains(s"-${state.data.symbol}-")
-                          )
-                          .mapAsync(4) { actor =>
-                            {
-                              sharding
-                                .entityRefFor(
-                                  PositionBase.typeKey,
-                                  actor
-                                )
-                                .ask[BaseSerializer](
-                                  PositionBase.ProfitUnrealQuery()(_)
-                                )(3.seconds)
-                            }
-                          }
-                          .collect {
-                            case PositionBase.ProfitUnrealQueryOk(margin) =>
-                              margin
-                            case PositionBase.ProfitUnrealQueryFail(msg) => {
-                              logger.error(msg)
-                              0
-                            }
-                          }
-
-                        profitUnrealSource.concat(balance)
-                      }
-                    }
-                    .fold(0d)((sum, next) => {
-                      sum + next
-                    })
-
-                val positionMargin =
-                  Source
-                    .future(
-                      sharding
-                        .entityRefFor(
-                          AggregationBehavior.typeKey,
-                          state.data.config.aggregationId
-                        )
-                        .ask[BaseSerializer](
-                          AggregationBehavior
-                            .Query(AggregationActor.position)(_)
-                        )(3.seconds)
-                    )
-                    .collect {
-                      case e @ AggregationBehavior.QueryOk(_) => e
-                    }
-                    .flatMapConcat {
-                      case AggregationBehavior.QueryOk(actors) => {
-                        Source(actors)
-                          .filter(actor =>
-                            actor.contains(s"-${state.data.symbol}-")
-                          )
-                          .mapAsync(4) { actor =>
-                            {
-                              sharding
-                                .entityRefFor(
-                                  PositionBase.typeKey,
-                                  actor
-                                )
-                                .ask[BaseSerializer](
-                                  PositionBase.MarginQuery()(_)
-                                )(3.seconds)
-                            }
-                          }
-                          .collect {
-                            case PositionBase.MarginQueryOk(margin) => margin
-                            case PositionBase.MarginQueryFail(msg) => {
-                              logger.error(msg)
-                              0
-                            }
-                          }
-                      }
-                    }
-                    .fold(0d)((sum, next) => {
-                      sum + next
-                    })
-
-                val entrustMargin = Source
-                  .future(
-                    sharding
-                      .entityRefFor(
-                        AggregationBehavior.typeKey,
-                        state.data.config.aggregationId
-                      )
-                      .ask[BaseSerializer](
-                        AggregationBehavior
-                          .Query(AggregationActor.entrust)(_)
-                      )(3.seconds)
-                  )
-                  .collect {
-                    case e @ AggregationBehavior.QueryOk(_) => e
-                  }
-                  .flatMapConcat {
-                    case AggregationBehavior.QueryOk(actors) => {
-                      Source(actors)
-                        .filterNot(actor =>
-                          actor == state.data.entityId &&
-                            actor.contains(s"-${state.data.symbol}-")
-                        )
-                        .mapAsync(1) { actor =>
-                          {
-                            sharding
-                              .entityRefFor(
-                                EntrustBase.typeKey,
-                                actor
-                              )
-                              .ask[BaseSerializer](
-                                EntrustBase.MarginQuery()(_)
-                              )(3.seconds)
-                          }
-                        }
                         .collect {
-                          case EntrustBase.MarginQueryOk(margin) => margin
-                          case EntrustBase.MarginQueryFail(msg) => {
-                            logger.error(msg)
-                            0
+                          case e @ AggregationBehavior.QueryOk(_) => e
+                        }
+                        .flatMapConcat {
+                          case AggregationBehavior.QueryOk(actors) => {
+                            val balance = Source
+                              .future(
+                                ServiceSingleton
+                                  .get(classOf[BalanceRepository])
+                                  .balance(
+                                    phone = state.data.phone,
+                                    symbol = state.data.symbol
+                                  )
+                              )
+                              .collect {
+                                case Some(balance) => balance
+                                case None =>
+                                  throw new Exception("balance not found")
+                              }
+                              .map(_.balance)
+
+                            val positionMarginSource = Source(actors)
+                              .filter(actor =>
+                                actor.contains(s"-${state.data.symbol}-")
+                              )
+                              .mapAsync(4) { actor =>
+                                {
+                                  sharding
+                                    .entityRefFor(
+                                      PositionBase.typeKey,
+                                      actor
+                                    )
+                                    .ask[BaseSerializer](
+                                      PositionBase.MarginQuery()(_)
+                                    )(3.seconds)
+                                }
+                              }
+                              .collect {
+                                case PositionBase.MarginQueryOk(margin) =>
+                                  margin
+                                case PositionBase.MarginQueryFail(msg) => {
+                                  logger.error(msg)
+                                  0
+                                }
+                              }
+
+                            val profitUnrealSource = Source(actors)
+                              .filter(actor =>
+                                actor.contains(s"-${state.data.symbol}-")
+                              )
+                              .mapAsync(4) { actor =>
+                                {
+                                  sharding
+                                    .entityRefFor(
+                                      PositionBase.typeKey,
+                                      actor
+                                    )
+                                    .ask[BaseSerializer](
+                                      PositionBase.ProfitUnrealQuery()(_)
+                                    )(3.seconds)
+                                }
+                              }
+                              .collect {
+                                case PositionBase.ProfitUnrealQueryOk(margin) =>
+                                  margin
+                                case PositionBase
+                                      .ProfitUnrealQueryFail(msg) => {
+                                  logger.error(msg)
+                                  0
+                                }
+                              }
+
+                            profitUnrealSource.concat(balance)
                           }
                         }
-                    }
-                  }
-                  .fold(0d)((sum, next) => {
-                    sum + next
-                  })
-                  .map(_ + marginFrozen(state.data))
+                        .fold(0d)((sum, next) => {
+                          sum + next
+                        })
 
-                val availableSecuredAssets = accountBenefits
-                  .concat(
-                    positionMargin
-                      .concat(entrustMargin)
-                      .fold(0d)((sum, next) => sum + next)
-                  )
-                  .reduce((account, margin) => account - margin)
-
-                availableSecuredAssets
-                  .idleTimeout(3.seconds)
-                  .map(balance => {
-                    if (balance >= 0) {
-                      CreateFutureOk(e)
-                    } else {
-                      CreateFutureFail(
-                        e,
-                        EntrustCreateFailStatus.createAvailableGuaranteeIsInsufficient
-                      )
-                    }
-                  })
-                  .recover {
-                    case ee: Throwable => {
-                      ee.printStackTrace()
-                      CreateFutureFail(e, EntrustCreateFailStatus.createTimeout)
-                    }
-                  }
-                  .runWith(
-                    ActorSink.actorRef(
-                      ref = context.self,
-                      onCompleteMessage = StreamComplete(),
-                      onFailureMessage = ee => {
-                        ee.printStackTrace()
-                        CreateFutureFail(
-                          e,
-                          EntrustCreateFailStatus.createTimeout
+                    val positionMargin =
+                      Source
+                        .future(
+                          sharding
+                            .entityRefFor(
+                              AggregationBehavior.typeKey,
+                              state.data.config.aggregationId
+                            )
+                            .ask[BaseSerializer](
+                              AggregationBehavior
+                                .Query(AggregationActor.position)(_)
+                            )(3.seconds)
                         )
+                        .collect {
+                          case e @ AggregationBehavior.QueryOk(_) => e
+                        }
+                        .flatMapConcat {
+                          case AggregationBehavior.QueryOk(actors) => {
+                            Source(actors)
+                              .filter(actor =>
+                                actor.contains(s"-${state.data.symbol}-")
+                              )
+                              .mapAsync(4) { actor =>
+                                {
+                                  sharding
+                                    .entityRefFor(
+                                      PositionBase.typeKey,
+                                      actor
+                                    )
+                                    .ask[BaseSerializer](
+                                      PositionBase.MarginQuery()(_)
+                                    )(3.seconds)
+                                }
+                              }
+                              .collect {
+                                case PositionBase.MarginQueryOk(margin) =>
+                                  margin
+                                case PositionBase.MarginQueryFail(msg) => {
+                                  logger.error(msg)
+                                  0
+                                }
+                              }
+                          }
+                        }
+                        .fold(0d)((sum, next) => {
+                          sum + next
+                        })
+
+                    val entrustMargin = Source
+                      .future(
+                        sharding
+                          .entityRefFor(
+                            AggregationBehavior.typeKey,
+                            state.data.config.aggregationId
+                          )
+                          .ask[BaseSerializer](
+                            AggregationBehavior
+                              .Query(AggregationActor.entrust)(_)
+                          )(3.seconds)
+                      )
+                      .collect {
+                        case e @ AggregationBehavior.QueryOk(_) => e
                       }
-                    )
-                  )(materializer)
+                      .flatMapConcat {
+                        case AggregationBehavior.QueryOk(actors) => {
+                          Source(actors)
+                            .filterNot(actor =>
+                              actor == state.data.entityId &&
+                                actor.contains(s"-${state.data.symbol}-")
+                            )
+                            .mapAsync(1) { actor =>
+                              {
+                                sharding
+                                  .entityRefFor(
+                                    EntrustBase.typeKey,
+                                    actor
+                                  )
+                                  .ask[BaseSerializer](
+                                    EntrustBase.MarginQuery()(_)
+                                  )(3.seconds)
+                              }
+                            }
+                            .collect {
+                              case EntrustBase.MarginQueryOk(margin) => margin
+                              case EntrustBase.MarginQueryFail(msg) => {
+                                logger.error(msg)
+                                0
+                              }
+                            }
+                        }
+                      }
+                      .fold(0d)((sum, next) => {
+                        sum + next
+                      })
+                      .map(_ + marginFrozen(state.data))
+
+                    val availableSecuredAssets = accountBenefits
+                      .concat(
+                        positionMargin
+                          .concat(entrustMargin)
+                          .fold(0d)((sum, next) => sum + next)
+                      )
+                      .reduce((account, margin) => account - margin)
+
+                    availableSecuredAssets
+                      .idleTimeout(3.seconds)
+                      .map(balance => {
+                        if (balance >= 0) {
+                          CreateFutureOk(e)
+                        } else {
+                          CreateFutureFail(
+                            e,
+                            EntrustCreateFailStatus.createAvailableGuaranteeIsInsufficient
+                          )
+                        }
+                      })
+                      .recover {
+                        case ee: Throwable => {
+                          ee.printStackTrace()
+                          CreateFutureFail(
+                            e,
+                            EntrustCreateFailStatus.createTimeout
+                          )
+                        }
+                      }
+                      .runWith(
+                        ActorSink.actorRef(
+                          ref = context.self,
+                          onCompleteMessage = StreamComplete(),
+                          onFailureMessage = ee => {
+                            ee.printStackTrace()
+                            CreateFutureFail(
+                              e,
+                              EntrustCreateFailStatus.createTimeout
+                            )
+                          }
+                        )
+                      )(materializer)
+                  }
+                  case Offset.close => {
+                    val closeVolumn = state.data.entrusts
+                      .filter(item =>
+                        item._2.entrust.offset == Offset.close && item._2.status == EntrustStatus.submit
+                      )
+                      .map(_._2.entrust.volume)
+                      .sum
+
+                    Source
+                      .future(
+                        sharding
+                          .entityRefFor(
+                            PositionBase.typeKey,
+                            state.data.config.positionId
+                          )
+                          .ask[BaseSerializer](
+                            PositionBase.Query()(_)
+                          )(3.seconds)
+                      )
+                      .collect {
+                        case PositionBase.QueryOk(position) => position
+                      }
+                      .map {
+                        case Some(position) => {
+                          if (position.volume - closeVolumn >= 0) {
+                            CreateFutureOk(e)
+                          } else {
+                            CreateFutureFail(
+                              e,
+                              EntrustCreateFailStatus.createPositionNotEnoughIsAvailable
+                            )
+                          }
+                        }
+                        case None =>
+                          CreateFutureFail(
+                            e,
+                            EntrustCreateFailStatus.createPositionNotExit
+                          )
+                      }
+                      .recover {
+                        case ee: Throwable => {
+                          ee.printStackTrace()
+                          CreateFutureFail(
+                            e,
+                            EntrustCreateFailStatus.createTimeout
+                          )
+                        }
+                      }
+                      .runWith(
+                        ActorSink.actorRef(
+                          ref = context.self,
+                          onCompleteMessage = StreamComplete(),
+                          onFailureMessage = ee => {
+                            ee.printStackTrace()
+                            CreateFutureFail(
+                              e,
+                              EntrustCreateFailStatus.createTimeout
+                            )
+                          }
+                        )
+                      )(materializer)
+
+                  }
+                }
               })
           }
         }

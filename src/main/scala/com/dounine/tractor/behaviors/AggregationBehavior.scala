@@ -21,32 +21,32 @@ object AggregationBehavior extends ActorSerializerSuport {
 
   trait Command extends BaseSerializer
 
-  case class Up(actor: AggregationActor, id: String) extends Command
+  final case class Up(actor: AggregationActor, id: String) extends Command
 
-  case class Down(actor: AggregationActor, id: String) extends Command
+  final case class Down(actor: AggregationActor, id: String) extends Command
 
-  case class Sub(actor: AggregationActor)(val replyTo: ActorRef[BaseSerializer])
+  final case class Sub(actor: AggregationActor)(val replyTo: ActorRef[BaseSerializer])
       extends Command
 
-  case class SubOk(source: SourceRef[UpDownInfo]) extends Command
+  final case class SubOk(source: SourceRef[UpDownInfo]) extends Command
 
-  case class UpDownInfo(
+  final case class UpDownInfo(
       isUp: Boolean,
       actor: AggregationActor,
       id: String
   ) extends BaseSerializer
 
-  case class Query(actor: AggregationActor)(
+  final case class Query(actor: AggregationActor)(
       val replyTo: ActorRef[BaseSerializer]
   ) extends Command
 
-  case class QueryOk(actors: Seq[String]) extends Command
+  final case class QueryOk(actors: Seq[String]) extends Command
 
-  case class QueryFail(status: AggregationActorQueryStatus) extends Command
+  final case class QueryFail(status: AggregationActorQueryStatus) extends Command
 
-  case object Shutdown extends Command
+  final case object Shutdown extends Command
 
-  case object SocketComplete extends Command
+  final case object SocketComplete extends Command
 
   def apply(): Behavior[BaseSerializer] =
     Behaviors.setup { context: ActorContext[BaseSerializer] =>

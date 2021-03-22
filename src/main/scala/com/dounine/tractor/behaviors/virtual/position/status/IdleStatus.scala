@@ -79,6 +79,14 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
+        case e @ Query() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            e.replyTo.tell(
+              QueryOk(updateState.data.position)
+            )
+          })
+        }
         case e @ MarginQuery() => {
           logger.info(command.logJson)
           Effect.none.thenRun((updateState: State) => {
@@ -86,7 +94,6 @@ object IdleStatus extends ActorSerializerSuport {
               case Some(position) => {
                 e.replyTo.tell(
                   MarginQueryOk(
-//                    updateState.data.contractSize * position.volume / position.costOpen / updateState.data.leverRate.toString.toInt
                     position.positionMargin
                   )
                 )

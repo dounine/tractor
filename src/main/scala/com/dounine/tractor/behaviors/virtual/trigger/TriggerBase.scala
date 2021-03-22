@@ -24,7 +24,7 @@ object TriggerBase extends ActorSerializerSuport {
   val typeKey: EntityTypeKey[BaseSerializer] =
     EntityTypeKey[BaseSerializer]("TriggerBehavior")
 
-  case class TriggerItem(
+  final case class TriggerItem(
       offset: Offset,
       orderPriceType: OrderPriceType,
       triggerType: TriggerType,
@@ -34,18 +34,18 @@ object TriggerBase extends ActorSerializerSuport {
       time: LocalDateTime
   ) extends BaseSerializer
 
-  case class Config(
+  final case class Config(
       marketTradeId: String = MarketTradeBehavior.typeKey.name,
       entrustId: String = EntrustBase.typeKey.name,
       aggregationId: String = AggregationBehavior.typeKey.name
   ) extends BaseSerializer
 
-  case class TriggerInfo(
+  final case class TriggerInfo(
       trigger: TriggerItem,
       status: TriggerStatus
   ) extends BaseSerializer
 
-  case class DataStore(
+  final case class DataStore(
       price: Option[Double],
       triggers: Map[String, TriggerInfo],
       config: Config,

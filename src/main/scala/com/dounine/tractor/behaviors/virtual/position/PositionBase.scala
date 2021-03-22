@@ -103,6 +103,13 @@ object PositionBase {
 
   final case class CreateFail(status: PositionCreateFailStatus) extends Command
 
+  final case class Query()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
+
+  final case class QueryOk(position: Option[PositionInfo]) extends Command
+
+  final case class QueryFail(msg: String) extends Command
+
   final case class MarginQuery()(val replyTo: ActorRef[BaseSerializer])
       extends Command
 

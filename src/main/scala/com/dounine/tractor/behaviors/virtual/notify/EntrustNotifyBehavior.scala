@@ -21,26 +21,26 @@ object EntrustNotifyBehavior extends ActorSerializerSuport {
 
   trait Command extends BaseSerializer
 
-  case class Sub(
+  final case class Sub(
       symbol: CoinSymbol,
       contractType: ContractType,
       direction: Direction
   )(val replyTo: ActorRef[BaseSerializer])
       extends Command
 
-  case class SubOk(source: SourceRef[Receive]) extends Command
+  final case class SubOk(source: SourceRef[Receive]) extends Command
 
-  case class SubFail(msg: String) extends Command
+  final case class SubFail(msg: String) extends Command
 
-  case class Push(notif: NotifyModel.NotifyInfo)(
+  final case class Push(notif: NotifyModel.NotifyInfo)(
       val replyTo: ActorRef[BaseSerializer]
   ) extends Command
 
-  case class Receive(notif: NotifyModel.NotifyInfo) extends Command
+  final case class Receive(notif: NotifyModel.NotifyInfo) extends Command
 
-  case class PushOk() extends Command
+  final case class PushOk() extends Command
 
-  case class PushFail(result: QueueOfferResult) extends Command
+  final case class PushFail(result: QueueOfferResult) extends Command
 
   def apply(): Behavior[BaseSerializer] =
     Behaviors.setup[BaseSerializer] { context: ActorContext[BaseSerializer] =>
