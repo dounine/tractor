@@ -99,10 +99,7 @@ object IdleStatus extends ActorSerializerSuport {
         .filter(tp =>
           tp._2.status == EntrustStatus.submit && tp._2.entrust.offset == Offset.open
         )
-        .map(tp => {
-          val info = tp._2.entrust
-          data.contractSize * info.volume / info.price / data.leverRate.toString.toInt
-        })
+        .map(_._2.entrust.marginFrozen)
         .sum
     }
 
@@ -201,9 +198,11 @@ object IdleStatus extends ActorSerializerSuport {
         }
         case CreateFutureFail(request, status) => {
           logger.error(command.logJson)
-          Effect.none.thenRun((updateState: State) => {
-            request.replyTo.tell(CreateFail(request, status))
-          })
+          Effect
+            .persist(command)
+            .thenRun((updateState: State) => {
+              request.replyTo.tell(CreateFail(request, status))
+            })
         }
         case e @ Create(
               orderId,
@@ -422,14 +421,11 @@ object IdleStatus extends ActorSerializerSuport {
                       .fold(0d)((sum, next) => sum + next)
                   )
                   .reduce((account, margin) => account - margin)
-                  .map(
-                    _ - state.data.contractSize * volume / price / state.data.leverRate.toString.toInt
-                  )
 
                 availableSecuredAssets
                   .idleTimeout(3.seconds)
                   .map(balance => {
-                    if (balance > 0) {
+                    if (balance >= 0) {
                       CreateFutureOk(e)
                     } else {
                       CreateFutureFail(
@@ -752,6 +748,21 @@ object IdleStatus extends ActorSerializerSuport {
               )
             )
           }
+          case CreateFutureFail(request, status) => {
+            Idle(
+              state.data.copy(
+                entrusts = state.data.entrusts.map(entrust => {
+                  if (entrust._1 == request.orderId) {
+                    entrust.copy(_2 =
+                      entrust._2.copy(
+                        status = EntrustStatus.error
+                      )
+                    )
+                  } else entrust
+                })
+              )
+            )
+          }
           case Create(
                 orderId,
                 offset,
@@ -767,7 +778,8 @@ object IdleStatus extends ActorSerializerSuport {
                       offset = offset,
                       orderPriceType = orderPriceType,
                       price = price,
-                      marginFrozen = 0,
+                      marginFrozen =
+                        state.data.contractSize * volume / price / state.data.leverRate.toString.toInt,
                       volume = volume,
                       time = LocalDateTime.now()
                     ),

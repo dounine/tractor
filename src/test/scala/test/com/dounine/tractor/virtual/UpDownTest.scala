@@ -227,6 +227,24 @@ class UpDownTest
     "run" in {
       val (socketClient, socketPort) = createSocket()
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
+
       val phone = "123456789"
       val symbol = CoinSymbol.BTC
       val contractType = ContractType.quarter
@@ -334,6 +352,24 @@ class UpDownTest
       val symbol = CoinSymbol.BTC
       val contractType = ContractType.quarter
       val direction = Direction.buy
+
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -472,6 +508,24 @@ class UpDownTest
       val symbol = CoinSymbol.BTC
       val contractType = ContractType.quarter
       val direction = Direction.buy
+
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 

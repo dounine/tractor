@@ -31,16 +31,22 @@ import com.dounine.tractor.behaviors.virtual.trigger.{
   TriggerBehavior
 }
 import com.dounine.tractor.model.models.{
+  BalanceModel,
   BaseSerializer,
   MarketTradeModel,
   NotifyModel
 }
 import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
+import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 
+import java.time.LocalDateTime
 import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -67,6 +73,7 @@ class EntrustTest
     with Matchers
     with AnyWordSpecLike
     with LogCapturing
+    with MockitoSugar
     with JsonParse {
   val materializer = SystemMaterializer(system).materializer
   val sharding = ClusterSharding(system)
@@ -193,6 +200,23 @@ class EntrustTest
       val time = System.currentTimeMillis()
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
@@ -235,6 +259,23 @@ class EntrustTest
     "create and trigger" in {
       val (socketClient, socketPort) = createSocket()
       val time = System.currentTimeMillis()
+
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -334,6 +375,23 @@ class EntrustTest
       val time = System.currentTimeMillis()
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
@@ -409,6 +467,23 @@ class EntrustTest
       val (socketClient, socketPort) = createSocket()
       val time = System.currentTimeMillis()
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
+
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -491,6 +566,23 @@ class EntrustTest
     "create and multi cancel match fail" in {
       val (socketClient, socketPort) = createSocket()
       val time = System.currentTimeMillis()
+
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -600,6 +692,23 @@ class EntrustTest
       val time = System.currentTimeMillis()
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
@@ -697,6 +806,23 @@ class EntrustTest
         )(connectProbe.ref)
       )
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
       val positionId = PositionBase.createEntityId(
         phone = "123456789",
         symbol = CoinSymbol.BTC,
@@ -781,6 +907,23 @@ class EntrustTest
       val time = System.currentTimeMillis()
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
       val connectProbe = testKit.createTestProbe[BaseSerializer]()
@@ -859,6 +1002,101 @@ class EntrustTest
         )(overflowProbe.ref)
       )
       overflowProbe.expectMessageType[EntrustBase.CreateFail]
+
+    }
+
+    "create order createAvailableGuaranteeIsInsufficient" in {
+      val (socketClient, socketPort) = createSocket()
+      val time = System.currentTimeMillis()
+
+      val marketTrade =
+        sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val positionId = PositionBase.createEntityId(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        randomId = socketPort
+      )
+      val positionBehavior =
+        sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
+      positionBehavior.tell(
+        PositionBase.Run(
+          marketTradeId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
+
+      val entrustNotifyBehavior =
+        sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
+
+      val entrustBehavior = sharding.entityRefFor(
+        EntrustBase.typeKey,
+        EntrustBase.createEntityId(
+          "123456789",
+          CoinSymbol.BTC,
+          ContractType.quarter,
+          Direction.buy,
+          socketPort
+        )
+      )
+      val mockBalanceService = mock[BalanceRepository]
+      when(
+        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+      ).thenReturn(
+        Future(
+          Option(
+            BalanceModel.Info(
+              phone = "123456789",
+              symbol = CoinSymbol.BTC,
+              balance = 0.001,
+              createTime = LocalDateTime.now()
+            )
+          )
+        )(system.executionContext)
+      )
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
+      entrustBehavior.tell(
+        EntrustBase.Run(
+          marketTradeId = socketPort,
+          positionId = positionId,
+          entrustNotifyId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
+
+      val createProbe = testKit.createTestProbe[BaseSerializer]()
+      val orderId = orderIdGlobal.getAndIncrement().toString
+      val createRequest =
+        EntrustBase.Create(
+          orderId = orderId,
+          offset = Offset.open,
+          orderPriceType = OrderPriceType.limit,
+          price = 10000,
+          volume = 3
+        )(createProbe.ref)
+      entrustBehavior.tell(
+        createRequest
+      )
+      createProbe.expectMessage(
+        EntrustBase.CreateFail(
+          createRequest,
+          EntrustCreateFailStatus.createAvailableGuaranteeIsInsufficient
+        )
+      )
 
     }
 
