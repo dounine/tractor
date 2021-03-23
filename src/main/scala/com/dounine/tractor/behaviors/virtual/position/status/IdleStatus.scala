@@ -4,24 +4,30 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{BroadcastHub, Sink, Source}
 import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
-import com.dounine.tractor.behaviors.MarketTradeBehavior
+import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
+import com.dounine.tractor.behaviors.virtual.position.PositionBase
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
-import com.dounine.tractor.model.types.currency.Offset.Offset
+import com.dounine.tractor.model.types.currency.Offset.{Offset, open}
 import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
   Direction,
   EntrustCancelFailStatus,
   EntrustStatus,
   Offset,
   PositionCreateFailStatus
 }
-import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.service.virtual.{
+  BalanceRepository,
+  ContractAdjustfactorRepository
+}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import org.slf4j.{Logger, LoggerFactory}
@@ -52,9 +58,234 @@ object IdleStatus extends ActorSerializerSuport {
       ) => State,
       Class[_]
   ) = {
+    val sharding = ClusterSharding(context.system)
     val materializer: Materializer = SystemMaterializer(
       context.system
     ).materializer
+
+    def rateComputer(
+        data: DataStore,
+        replyTo: Option[ActorRef[BaseSerializer]]
+    ): Unit = {
+      data.position match {
+        case Some(position) => {
+          data.direction match {
+            case Direction.sell => {}
+            case Direction.buy => {
+              val profixRate: Double =
+                (data.contractSize * position.volume / position.costHold) - (data.contractSize * position.volume / data.price) - position.openFee - position.closeFee
+
+              val contractAdjusts =
+                data.contractAdjustfactors.filter(item =>
+                  item.symbol == data.symbol && item.leverRate == data.leverRate
+                )
+
+              val positionList =
+                Source
+                  .future(
+                    sharding
+                      .entityRefFor(
+                        AggregationBehavior.typeKey,
+                        data.config.aggregationId
+                      )
+                      .ask[BaseSerializer](
+                        AggregationBehavior
+                          .Query(
+                            AggregationActor.position,
+                            data.phone,
+                            data.symbol
+                          )(_)
+                      )(3.seconds)
+                  )
+                  .flatMapConcat {
+                    case AggregationBehavior.QueryOk(actors) => {
+                      Source(actors)
+                        .filterNot(_ == data.entityId)
+                        .mapAsync(4) { actor =>
+                          {
+                            sharding
+                              .entityRefFor(
+                                PositionBase.typeKey,
+                                actor
+                              )
+                              .ask[BaseSerializer](
+                                PositionBase.Query()(_)
+                              )(3.seconds)
+                          }
+                        }
+                        .collect {
+                          case PositionBase
+                                .QueryOk(position) =>
+                            position
+                          case PositionBase
+                                .QueryFail(msg) => {
+                            logger.error(msg)
+                            Option.empty[PositionInfo]
+                          }
+                        }
+                        .merge(
+                          Source.single(
+                            data.position
+                          )
+                        )
+                    }
+                  }
+                  .filter(_.isDefined)
+                  .map(_.get)
+                  .runWith(Sink.seq)(materializer)
+
+              val balanceSource = Source
+                .future(
+                  ServiceSingleton
+                    .get(classOf[BalanceRepository])
+                    .balance(
+                      phone = data.phone,
+                      symbol = data.symbol
+                    )
+                )
+                .collect {
+                  case Some(balance) => balance
+                  case None =>
+                    throw new Exception("balance not found")
+                }
+                .map(_.balance)
+
+              val accountBenefitsSource =
+                Source
+                  .future(positionList)
+                  .mapConcat(identity)
+                  .map(item => {
+                    item.direction match {
+                      case Direction.sell => {
+                        (1 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
+                      }
+                      case Direction.buy => {
+                        (1 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
+                      }
+                    }
+                  })
+                  .merge(balanceSource)
+                  .fold(0d)(_ + _)
+
+              val positionMarginSource =
+                Source
+                  .future(positionList)
+                  .mapConcat(identity)
+                  .map(_.positionMargin)
+                  .fold(0d)(_ + _)
+
+              val entrustMarginSource = Source
+                .future(
+                  sharding
+                    .entityRefFor(
+                      AggregationBehavior.typeKey,
+                      data.config.aggregationId
+                    )
+                    .ask[BaseSerializer](
+                      AggregationBehavior
+                        .Query(
+                          AggregationActor.entrust,
+                          data.phone,
+                          data.symbol
+                        )(_)
+                    )(3.seconds)
+                )
+                .flatMapConcat {
+                  case AggregationBehavior.QueryOk(actors) => {
+                    Source(actors)
+                      .mapAsync(4) { actor =>
+                        {
+                          sharding
+                            .entityRefFor(
+                              EntrustBase.typeKey,
+                              actor
+                            )
+                            .ask[BaseSerializer](
+                              EntrustBase.MarginQuery()(_)
+                            )(3.seconds)
+                        }
+                      }
+                      .collect {
+                        case EntrustBase.MarginQueryOk(margin) => margin
+                        case EntrustBase.MarginQueryFail(msg) => {
+                          logger.error(msg)
+                          0
+                        }
+                      }
+                  }
+                }
+                .fold(0d)(_ + _)
+
+              val marginSum =
+                positionMarginSource.merge(entrustMarginSource)
+
+              val contractAdjustSource = Source
+                .future(positionList)
+                .mapConcat(identity)
+                .fold((0, 0))((sum, next) => {
+                  next.direction match {
+                    case Direction.sell =>
+                      sum.copy(_2 = sum._2 + next.volume)
+                    case Direction.buy =>
+                      sum.copy(_1 = sum._1 + next.volume)
+                  }
+                })
+                .map(item => item._1 - item._2)
+                .map(sumVolumn => {
+                  (contractAdjusts.find(item =>
+                    sumVolumn >= item.minSize && sumVolumn <= item.maxSize
+                  ) match {
+                    case some @ Some(value) => some
+                    case None               => contractAdjusts.find(_.maxSize == 0)
+                  })
+                })
+
+              marginSum
+                .zip(accountBenefitsSource)
+                .zip(contractAdjustSource)
+                .map {
+                  case (
+                        (marginAll, accountBenefit),
+                        contractAdjust
+                      ) => {
+                    contractAdjust match {
+                      case Some(ca) => {
+                        val riskRate: Double =
+                          ((accountBenefit / marginAll) * 100 - ca.adjustFactor * 100)
+                            .formatted("%.2f")
+                            .toDouble
+                        RateSelfOk(position, profixRate, riskRate, replyTo)
+                      }
+                      case None =>
+                        RateSelfFail(
+                          position,
+                          "contractAdjust not found",
+                          replyTo
+                        )
+                    }
+                  }
+                }
+                .idleTimeout(3.seconds)
+                .recover {
+                  case ee: Throwable => {
+                    RateSelfFail(position, ee.getMessage, replyTo)
+                  }
+                }
+                .runWith(
+                  ActorSink.actorRef(
+                    ref = context.self,
+                    onCompleteMessage = StreamComplete(),
+                    onFailureMessage =
+                      ee => RateSelfFail(position, ee.getMessage, replyTo)
+                  )
+                )(materializer)
+
+            }
+          }
+        }
+        case None => //ignore profix computer
+      }
+    }
 
     val commandHandler: (
         State,
@@ -187,6 +418,7 @@ object IdleStatus extends ActorSerializerSuport {
                     .persist(
                       NewPosition(
                         PositionInfo(
+                          direction = state.data.direction,
                           volume = volume,
                           available = volume,
                           frozen = 0,
@@ -383,9 +615,45 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect.persist(command)
         }
+        case e @ RateQuery() => {
+          logger.info(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            rateComputer(updateState.data, Option(e.replyTo))
+          })
+        }
+        case RateSelfOk(_, profixRate, riskRate, replyTo) => {
+          logger.info(command.logJson)
+          Effect
+            .persist(command)
+            .thenRun((updateState: State) => {
+              replyTo.foreach(
+                _.tell(
+                  RateQueryOk(
+                    profixRate = profixRate,
+                    riskRate = riskRate
+                  )
+                )
+              )
+            })
+        }
+        case RateSelfFail(_, msg, replyTo) => {
+          logger.error(command.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            replyTo.foreach(
+              _.tell(
+                RateQueryFail(msg)
+              )
+            )
+          })
+        }
+
         case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
           logger.info(command.logJson)
-          Effect.persist(command)
+          Effect
+            .persist(command)
+            .thenRun((updateState: State) => {
+              rateComputer(updateState.data, Option.empty)
+            })
         }
         case _ => {
           logger.info("stash -> {}", command.logJson)
@@ -420,6 +688,17 @@ object IdleStatus extends ActorSerializerSuport {
           }
           case MergePosition(position) => {
             Busy(state.data)
+          }
+          case RateSelfOk(position, profixRate, riskRate, _) => {
+            Idle(
+              state.data.copy(
+                position = state.data.position.map(item => {
+                  item.copy(
+                    profitRate = profixRate
+                  )
+                })
+              )
+            )
           }
           case NewPosition(position) => {
             Idle(

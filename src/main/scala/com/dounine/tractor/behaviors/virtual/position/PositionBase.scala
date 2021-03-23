@@ -3,7 +3,10 @@ package com.dounine.tractor.behaviors.virtual.position
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.models.{
+  BaseSerializer,
+  ContractAdjustfactorModel
+}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
@@ -21,6 +24,7 @@ object PositionBase {
     EntityTypeKey[BaseSerializer]("PositionBehavior")
 
   final case class PositionInfo(
+      direction: Direction,
       volume: Int,
       available: Int,
       frozen: Int,
@@ -42,6 +46,7 @@ object PositionBase {
 
   case class DataStore(
       position: Option[PositionInfo],
+      contractAdjustfactors: Seq[ContractAdjustfactorModel.Info],
       price: Double,
       config: Config,
       phone: String,
@@ -131,6 +136,29 @@ object PositionBase {
   final case class CloseOk() extends Command
 
   final case class StreamComplete() extends Command
+
+  final case class RateSelfOk(
+      position: PositionInfo,
+      profixRate: Double,
+      riskRate: Double,
+      replyTo: Option[ActorRef[BaseSerializer]]
+  ) extends Command
+
+  final case class RateQuery()(val replyTo: ActorRef[BaseSerializer])
+      extends Command
+
+  final case class RateQueryOk(
+      profixRate: Double,
+      riskRate: Double
+  ) extends Command
+
+  final case class RateQueryFail(msg: String) extends Command
+
+  final case class RateSelfFail(
+      position: PositionInfo,
+      msg: String,
+      replyTo: Option[ActorRef[BaseSerializer]]
+  ) extends Command
 
   final case class NewPosition(
       position: PositionInfo

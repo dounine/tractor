@@ -215,6 +215,7 @@ class PositionTest
           data = PositionBase.DataStore(
             position = Option(
               PositionBase.PositionInfo(
+                direction = direction,
                 volume = 1,
                 available = 1,
                 frozen = 0,
@@ -229,6 +230,7 @@ class PositionTest
                 createTime = LocalDateTime.now()
               )
             ),
+            contractAdjustfactors = Seq.empty,
             config = PositionBase.Config(
               marketTradeId = socketPort
             ),

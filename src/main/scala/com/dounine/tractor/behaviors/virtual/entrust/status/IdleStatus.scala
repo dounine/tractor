@@ -241,12 +241,13 @@ object IdleStatus extends ActorSerializerSuport {
                             )
                             .ask[BaseSerializer](
                               AggregationBehavior
-                                .Query(AggregationActor.position)(_)
+                                .Query(
+                                  AggregationActor.position,
+                                  state.data.phone,
+                                  state.data.symbol
+                                )(_)
                             )(3.seconds)
                         )
-                        .collect {
-                          case e @ AggregationBehavior.QueryOk(_) => e
-                        }
                         .flatMapConcat {
                           case AggregationBehavior.QueryOk(actors) => {
                             val balance = Source
@@ -265,35 +266,7 @@ object IdleStatus extends ActorSerializerSuport {
                               }
                               .map(_.balance)
 
-                            val positionMarginSource = Source(actors)
-                              .filter(actor =>
-                                actor.contains(s"-${state.data.symbol}-")
-                              )
-                              .mapAsync(4) { actor =>
-                                {
-                                  sharding
-                                    .entityRefFor(
-                                      PositionBase.typeKey,
-                                      actor
-                                    )
-                                    .ask[BaseSerializer](
-                                      PositionBase.MarginQuery()(_)
-                                    )(3.seconds)
-                                }
-                              }
-                              .collect {
-                                case PositionBase.MarginQueryOk(margin) =>
-                                  margin
-                                case PositionBase.MarginQueryFail(msg) => {
-                                  logger.error(msg)
-                                  0
-                                }
-                              }
-
                             val profitUnrealSource = Source(actors)
-                              .filter(actor =>
-                                actor.contains(s"-${state.data.symbol}-")
-                              )
                               .mapAsync(4) { actor =>
                                 {
                                   sharding
@@ -307,8 +280,9 @@ object IdleStatus extends ActorSerializerSuport {
                                 }
                               }
                               .collect {
-                                case PositionBase.ProfitUnrealQueryOk(margin) =>
-                                  margin
+                                case PositionBase
+                                      .ProfitUnrealQueryOk(profitUnreal) =>
+                                  profitUnreal
                                 case PositionBase
                                       .ProfitUnrealQueryFail(msg) => {
                                   logger.error(msg)
@@ -316,12 +290,10 @@ object IdleStatus extends ActorSerializerSuport {
                                 }
                               }
 
-                            profitUnrealSource.concat(balance)
+                            profitUnrealSource.merge(balance)
                           }
                         }
-                        .fold(0d)((sum, next) => {
-                          sum + next
-                        })
+                        .fold(0d)(_ + _)
 
                     val positionMargin =
                       Source
@@ -333,18 +305,16 @@ object IdleStatus extends ActorSerializerSuport {
                             )
                             .ask[BaseSerializer](
                               AggregationBehavior
-                                .Query(AggregationActor.position)(_)
+                                .Query(
+                                  AggregationActor.position,
+                                  state.data.phone,
+                                  state.data.symbol
+                                )(_)
                             )(3.seconds)
                         )
-                        .collect {
-                          case e @ AggregationBehavior.QueryOk(_) => e
-                        }
                         .flatMapConcat {
                           case AggregationBehavior.QueryOk(actors) => {
                             Source(actors)
-                              .filter(actor =>
-                                actor.contains(s"-${state.data.symbol}-")
-                              )
                               .mapAsync(4) { actor =>
                                 {
                                   sharding
@@ -367,9 +337,7 @@ object IdleStatus extends ActorSerializerSuport {
                               }
                           }
                         }
-                        .fold(0d)((sum, next) => {
-                          sum + next
-                        })
+                        .fold(0d)(_ + _)
 
                     val entrustMargin = Source
                       .future(
@@ -380,20 +348,18 @@ object IdleStatus extends ActorSerializerSuport {
                           )
                           .ask[BaseSerializer](
                             AggregationBehavior
-                              .Query(AggregationActor.entrust)(_)
+                              .Query(
+                                AggregationActor.entrust,
+                                state.data.phone,
+                                state.data.symbol
+                              )(_)
                           )(3.seconds)
                       )
-                      .collect {
-                        case e @ AggregationBehavior.QueryOk(_) => e
-                      }
                       .flatMapConcat {
                         case AggregationBehavior.QueryOk(actors) => {
                           Source(actors)
-                            .filterNot(actor =>
-                              actor == state.data.entityId &&
-                                actor.contains(s"-${state.data.symbol}-")
-                            )
-                            .mapAsync(1) { actor =>
+                            .filterNot(_ == state.data.entityId)
+                            .mapAsync(4) { actor =>
                               {
                                 sharding
                                   .entityRefFor(
@@ -414,18 +380,20 @@ object IdleStatus extends ActorSerializerSuport {
                             }
                         }
                       }
-                      .fold(0d)((sum, next) => {
-                        sum + next
-                      })
-                      .map(_ + marginFrozen(state.data))
+                      .merge(
+                        Source.single(
+                          marginFrozen(state.data)
+                        )
+                      )
+                      .fold(0d)(_ + _)
 
                     val availableSecuredAssets = accountBenefits
                       .concat(
                         positionMargin
-                          .concat(entrustMargin)
-                          .fold(0d)((sum, next) => sum + next)
+                          .merge(entrustMargin)
+                          .fold(0d)(_ + _)
                       )
-                      .reduce((account, margin) => account - margin)
+                      .reduce(_ - _)
 
                     availableSecuredAssets
                       .idleTimeout(3.seconds)

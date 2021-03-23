@@ -23,6 +23,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.TimeUnit
+import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -98,6 +99,42 @@ class StreamTest
         .runWith(TestSink())
         .request(1)
         .expectNext(6)
+    }
+
+    "brodcast test2" in {
+      val promise = Promise[Int]()
+      system.scheduler.scheduleOnce(
+        50.milliseconds,
+        () => {
+          promise.success(1)
+        }
+      )
+      manualTime.timePasses(60.milliseconds)
+      val source = Source.future(promise.future)
+
+      source.runWith(TestSink()).request(1).expectNext(1)
+      source.runWith(TestSink()).request(1).expectNext(1)
+      source.runWith(TestSink()).request(1).expectNext(1)
+    }
+
+    "broadcast test3" in {
+      val positionList = Source(1 to 3)
+        .delay(100.milliseconds)
+
+      val positionListFuture = positionList.runWith(Sink.seq)
+
+      val balanceSource = Source.empty[Int]
+
+      manualTime.timePasses(150.milliseconds)
+      val sum = Source
+        .future(
+          positionListFuture
+        )
+        .mapConcat(identity)
+        .merge(balanceSource)
+        .fold(0)(_ + _)
+
+      sum.runWith(TestSink()).request(1).expectNext(6)
     }
 
   }
