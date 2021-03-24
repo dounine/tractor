@@ -28,7 +28,7 @@ object EntrustBase extends ActorSerializerSuport {
       offset: Offset,
       orderPriceType: OrderPriceType,
       price: Double,
-      marginFrozen: Double,
+      marginFrozen: BigDecimal,
       volume: Int,
       time: LocalDateTime
   ) extends BaseSerializer
@@ -80,7 +80,7 @@ object EntrustBase extends ActorSerializerSuport {
   final case class MarginQuery()(val replyTo: ActorRef[BaseSerializer])
       extends Command
 
-  final case class MarginQueryOk(margin: Double) extends Command
+  final case class MarginQueryOk(margin: BigDecimal) extends Command
 
   final case class MarginQueryFail(msg: String) extends Command
 

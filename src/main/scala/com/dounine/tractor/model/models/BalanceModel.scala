@@ -9,7 +9,7 @@ object BalanceModel {
   final case class Info(
                          phone: String,
                          symbol: CoinSymbol,
-                         balance: Double,
+                         balance: BigDecimal,
                          createTime: LocalDateTime
                        ) extends BaseSerializer
 

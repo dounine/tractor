@@ -910,7 +910,7 @@ class UpDownTest
       ).thenReturn(
         Future(
           Option(
-            1.0
+            BigDecimal(1)
           )
         )(system.executionContext)
       )

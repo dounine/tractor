@@ -28,14 +28,14 @@ object PositionBase {
       volume: Int,
       available: Int,
       frozen: Int,
-      openFee: Double,
+      openFee: BigDecimal,
       closeFee: Double,
       costOpen: Double,
       costHold: Double,
-      profitUnreal: Double,
-      profitRate: Double,
-      profit: Double,
-      positionMargin: Double,
+      profitUnreal: BigDecimal,
+      profitRate: BigDecimal,
+      profit: BigDecimal,
+      positionMargin: BigDecimal,
       createTime: LocalDateTime
   ) extends BaseSerializer
 
@@ -118,14 +118,14 @@ object PositionBase {
   final case class MarginQuery()(val replyTo: ActorRef[BaseSerializer])
       extends Command
 
-  final case class MarginQueryOk(margin: Double) extends Command
+  final case class MarginQueryOk(margin: BigDecimal) extends Command
 
   final case class MarginQueryFail(msg: String) extends Command
 
   final case class ProfitUnrealQuery()(val replyTo: ActorRef[BaseSerializer])
       extends Command
 
-  final case class ProfitUnrealQueryOk(profitUnreal: Double) extends Command
+  final case class ProfitUnrealQueryOk(profitUnreal: BigDecimal) extends Command
 
   final case class ProfitUnrealQueryFail(msg: String) extends Command
 
@@ -139,8 +139,8 @@ object PositionBase {
 
   final case class RateSelfOk(
       position: PositionInfo,
-      profixRate: Double,
-      riskRate: Double,
+      profixRate: BigDecimal,
+      riskRate: BigDecimal,
       replyTo: Option[ActorRef[BaseSerializer]]
   ) extends Command
 
@@ -148,8 +148,8 @@ object PositionBase {
       extends Command
 
   final case class RateQueryOk(
-      profixRate: Double,
-      riskRate: Double
+      profixRate: BigDecimal,
+      riskRate: BigDecimal
   ) extends Command
 
   final case class RateQueryFail(msg: String) extends Command

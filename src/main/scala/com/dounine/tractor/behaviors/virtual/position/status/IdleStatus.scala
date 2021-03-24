@@ -72,8 +72,8 @@ object IdleStatus extends ActorSerializerSuport {
           data.direction match {
             case Direction.sell => {}
             case Direction.buy => {
-              val profixRate: Double =
-                (data.contractSize * position.volume / position.costHold) - (data.contractSize * position.volume / data.price) - position.openFee - position.closeFee
+              val profixRate: BigDecimal =
+                (1.0 * data.contractSize * position.volume / position.costHold) - (data.contractSize * position.volume / data.price) - position.openFee - position.closeFee
 
               val contractAdjusts =
                 data.contractAdjustfactors.filter(item =>
@@ -157,22 +157,26 @@ object IdleStatus extends ActorSerializerSuport {
                   .map(item => {
                     item.direction match {
                       case Direction.sell => {
-                        (1 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
+                        BigDecimal(
+                          (1.0 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
+                        )
                       }
                       case Direction.buy => {
-                        (1 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
+                        BigDecimal(
+                          (1.0 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
+                        )
                       }
                     }
                   })
                   .merge(balanceSource)
-                  .fold(0d)(_ + _)
+                  .fold(BigDecimal(0))(_ + _)
 
               val positionMarginSource =
                 Source
                   .future(positionList)
                   .mapConcat(identity)
                   .map(_.positionMargin)
-                  .fold(0d)(_ + _)
+                  .fold(BigDecimal(0))(_ + _)
 
               val entrustMarginSource = Source
                 .future(
@@ -209,15 +213,17 @@ object IdleStatus extends ActorSerializerSuport {
                         case EntrustBase.MarginQueryOk(margin) => margin
                         case EntrustBase.MarginQueryFail(msg) => {
                           logger.error(msg)
-                          0
+                          BigDecimal(0)
                         }
                       }
                   }
                 }
-                .fold(0d)(_ + _)
+                .fold(BigDecimal(0))(_ + _)
 
               val marginSum =
-                positionMarginSource.merge(entrustMarginSource)
+                positionMarginSource
+                  .merge(entrustMarginSource)
+                  .fold(BigDecimal(0))(_ + _)
 
               val contractAdjustSource = Source
                 .future(positionList)
@@ -250,10 +256,8 @@ object IdleStatus extends ActorSerializerSuport {
                       ) => {
                     contractAdjust match {
                       case Some(ca) => {
-                        val riskRate: Double =
-                          ((accountBenefit / marginAll) * 100 - ca.adjustFactor * 100)
-                            .formatted("%.2f")
-                            .toDouble
+                        val riskRate: BigDecimal =
+                          ((1.0 * accountBenefit / marginAll) * 100.0 - ca.adjustFactor * 100)
                         RateSelfOk(position, profixRate, riskRate, replyTo)
                       }
                       case None =>
@@ -268,6 +272,7 @@ object IdleStatus extends ActorSerializerSuport {
                 .idleTimeout(3.seconds)
                 .recover {
                   case ee: Throwable => {
+                    ee.printStackTrace()
                     RateSelfFail(position, ee.getMessage, replyTo)
                   }
                 }
@@ -275,8 +280,10 @@ object IdleStatus extends ActorSerializerSuport {
                   ActorSink.actorRef(
                     ref = context.self,
                     onCompleteMessage = StreamComplete(),
-                    onFailureMessage =
-                      ee => RateSelfFail(position, ee.getMessage, replyTo)
+                    onFailureMessage = ee => {
+                      ee.printStackTrace()
+                      RateSelfFail(position, ee.getMessage, replyTo)
+                    }
                   )
                 )(materializer)
 

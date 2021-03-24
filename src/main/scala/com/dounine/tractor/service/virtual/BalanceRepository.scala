@@ -15,6 +15,6 @@ trait BalanceRepository {
   def mergeBalance(
       phone: String,
       symbol: CoinSymbol,
-      balance: Double
-  ): Future[Option[Double]]
+      balance: BigDecimal
+  ): Future[Option[BigDecimal]]
 }

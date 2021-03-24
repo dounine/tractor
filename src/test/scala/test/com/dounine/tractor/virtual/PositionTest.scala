@@ -31,6 +31,7 @@ import com.dounine.tractor.behaviors.virtual.trigger.{
 import com.dounine.tractor.model.models.{
   BalanceModel,
   BaseSerializer,
+  ContractAdjustfactorModel,
   MarketTradeModel
 }
 import com.dounine.tractor.model.types.currency._
@@ -340,6 +341,130 @@ class PositionTest
       )
       leverRateProbeYes.expectMessage(PositionBase.ChangeLeverRateYes())
 
+    }
+
+    "rate computer" in {
+      val (socketClient, socketPort) = createSocket()
+      val marketTrade =
+        sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+      val connectProbe = testKit.createTestProbe[BaseSerializer]()
+      marketTrade.tell(
+        MarketTradeBehavior.SocketConnect(
+          Option(s"ws://127.0.0.1:${socketPort}")
+        )(connectProbe.ref)
+      )
+
+      val phone = "123456789"
+      val symbol = CoinSymbol.BTC
+      val contractType = ContractType.quarter
+      val direction = Direction.buy
+
+      val positionId = PositionBase.createEntityId(
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
+      )
+      val positionBehavior =
+        sharding.entityRefFor(PositionBase.typeKey, positionId)
+      val aggregationBehavior =
+        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+
+      positionBehavior.tell(
+        PositionBase.Run(
+          marketTradeId = socketPort,
+          aggregationId = socketPort,
+          contractSize = 100
+        )
+      )
+
+      positionBehavior.tell(
+        PositionBase.ReplaceData(
+          data = PositionBase.DataStore(
+            position = Option(
+              PositionBase.PositionInfo(
+                direction = direction,
+                volume = 1,
+                available = 1,
+                frozen = 0,
+                openFee = 1 * 100.0 / 10000 * 0.004,
+                closeFee = 0,
+                costOpen = 10000.0,
+                costHold = 10000.0,
+                profitUnreal = 0,
+                profitRate = 0,
+                profit = 0,
+                positionMargin = 100.0 * 1 / 10000 / 20,
+                createTime = LocalDateTime.now()
+              )
+            ),
+            contractAdjustfactors = Seq(
+              ContractAdjustfactorModel.Info(
+                symbol = CoinSymbol.BTC,
+                leverRate = LeverRate.x20,
+                ladder = 1,
+                minSize = 0,
+                maxSize = 99,
+                adjustFactor = 0.1
+              )
+            ),
+            config = PositionBase.Config(
+              marketTradeId = socketPort
+            ),
+            price = 10000,
+            phone = phone,
+            symbol = symbol,
+            contractType = contractType,
+            direction = direction,
+            leverRate = LeverRate.x20,
+            entityId = positionId,
+            contractSize = 100
+          )
+        )
+      )
+
+      val mockBalanceService = mock[BalanceRepository]
+      val nowTime = LocalDateTime.now()
+      val balanceInfo = BalanceModel.Info(
+        phone = phone,
+        symbol = symbol,
+        balance = 0.001,
+        createTime = nowTime
+      )
+
+      implicit val ec = system.executionContext
+      when(mockBalanceService.balance(phone, symbol)).thenReturn(
+        Future(
+          Option(
+            balanceInfo
+          )
+        )
+      )
+      when(mockBalanceService.mergeBalance(phone, symbol, 0))
+        .thenReturn(
+          Future(
+            Option(
+              1.0
+            )
+          )
+        )
+      when(mockBalanceService.mergeBalance(phone, symbol, 4.0e-4))
+        .thenReturn(
+          Future(
+            Option(
+              1.0
+            )
+          )
+        )
+
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+
+      val rateProbe = testKit.createTestProbe[BaseSerializer]()
+      positionBehavior.tell(
+        PositionBase.RateQuery()(rateProbe.ref)
+      )
+      rateProbe.expectMessageType[PositionBase.RateQueryOk]
     }
 
   }

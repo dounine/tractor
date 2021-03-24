@@ -94,7 +94,7 @@ object IdleStatus extends ActorSerializerSuport {
 
     def marginFrozen(
         data: DataStore
-    ): Double = {
+    ): BigDecimal = {
       data.entrusts
         .filter(tp =>
           tp._2.status == EntrustStatus.submit && tp._2.entrust.offset == Offset.open
@@ -286,14 +286,14 @@ object IdleStatus extends ActorSerializerSuport {
                                 case PositionBase
                                       .ProfitUnrealQueryFail(msg) => {
                                   logger.error(msg)
-                                  0
+                                  BigDecimal(0)
                                 }
                               }
 
                             profitUnrealSource.merge(balance)
                           }
                         }
-                        .fold(0d)(_ + _)
+                        .fold(BigDecimal(0))(_ + _)
 
                     val positionMargin =
                       Source
@@ -332,12 +332,12 @@ object IdleStatus extends ActorSerializerSuport {
                                   margin
                                 case PositionBase.MarginQueryFail(msg) => {
                                   logger.error(msg)
-                                  0
+                                  BigDecimal(0)
                                 }
                               }
                           }
                         }
-                        .fold(0d)(_ + _)
+                        .fold(BigDecimal(0))(_ + _)
 
                     val entrustMargin = Source
                       .future(
@@ -375,7 +375,7 @@ object IdleStatus extends ActorSerializerSuport {
                               case EntrustBase.MarginQueryOk(margin) => margin
                               case EntrustBase.MarginQueryFail(msg) => {
                                 logger.error(msg)
-                                0
+                                BigDecimal(0)
                               }
                             }
                         }
@@ -385,13 +385,13 @@ object IdleStatus extends ActorSerializerSuport {
                           marginFrozen(state.data)
                         )
                       )
-                      .fold(0d)(_ + _)
+                      .fold(BigDecimal(0))(_ + _)
 
                     val availableSecuredAssets = accountBenefits
                       .concat(
                         positionMargin
                           .merge(entrustMargin)
-                          .fold(0d)(_ + _)
+                          .fold(BigDecimal(0))(_ + _)
                       )
                       .reduce(_ - _)
 

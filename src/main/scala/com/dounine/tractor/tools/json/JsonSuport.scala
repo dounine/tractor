@@ -1,31 +1,7 @@
 package com.dounine.tractor.tools.json
 
 import akka.actor.typed.ActorRef
-import com.dounine.tractor.model.models.TriggerModel
-import com.dounine.tractor.model.types.currency.{
-  AggregationActor,
-  AggregationActorQueryStatus,
-  CoinSymbol,
-  ContractType,
-  Direction,
-  EntrustCancelFailStatus,
-  EntrustCreateFailStatus,
-  EntrustStatus,
-  LeverRate,
-  Offset,
-  OrderPriceType,
-  OrderType,
-  PositionCreateFailStatus,
-  Role,
-  Source,
-  TriggerCancelFailStatus,
-  TriggerCreateFailStatus,
-  TriggerStatus,
-  TriggerType,
-  UpDownStatus,
-  UpDownSubType,
-  UpDownUpdateType
-}
+import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.model.types.router.ResponseCode
 import org.json4s.JsonAST.{JField, JLong, JObject, JString}
 import org.json4s.ext.EnumNameSerializer
