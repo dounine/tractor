@@ -704,7 +704,10 @@ object IdleStatus extends ActorSerializerSuport {
                     ActorSink.actorRef(
                       ref = context.self,
                       onCompleteMessage = StreamComplete(),
-                      onFailureMessage = e => EntrustFail(entrust)
+                      onFailureMessage = ee => {
+                        ee.printStackTrace()
+                        EntrustFail(entrust)
+                      }
                     )
                   )(materializer)
               })(materializer)

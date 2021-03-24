@@ -29,7 +29,7 @@ object PositionBase {
       available: Int,
       frozen: Int,
       openFee: BigDecimal,
-      closeFee: Double,
+      closeFee: BigDecimal,
       costOpen: Double,
       costHold: Double,
       profitUnreal: BigDecimal,

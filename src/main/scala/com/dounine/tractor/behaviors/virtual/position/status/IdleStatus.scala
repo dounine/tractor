@@ -456,27 +456,35 @@ object IdleStatus extends ActorSerializerSuport {
                   val costHold =
                     state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
                   val closeFee =
-                    volume * state.data.contractSize / costHold * takeRate
-                  val balanceService =
-                    ServiceSingleton.get(classOf[BalanceRepository])
+                    BigDecimal(
+                      volume * state.data.contractSize / costHold * takeRate
+                    )
                   if (position.volume == volume) {
-                    val updateBalance = (state.data.direction match {
-                      case Direction.buy =>
-                        (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
-                      case Direction.sell =>
-                        (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
-                    }) - position.openFee + position.closeFee + closeFee
+
+                    val updateBalance =
+                      (state.data.direction match {
+                        case Direction.buy =>
+                          BigDecimal(
+                            (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
+                          )
+                        case Direction.sell =>
+                          BigDecimal(
+                            (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
+                          )
+                      }) - position.openFee + position.closeFee + closeFee
                     logger.info(updateBalance.toString)
                     Effect
                       .persist(RemovePosition())
                       .thenRun((updateState: State) => {
                         Source
                           .future(
-                            balanceService.mergeBalance(
-                              phone = state.data.phone,
-                              symbol = state.data.symbol,
-                              balance = updateBalance
-                            )
+                            ServiceSingleton
+                              .get(classOf[BalanceRepository])
+                              .mergeBalance(
+                                phone = state.data.phone,
+                                symbol = state.data.symbol,
+                                balance = updateBalance
+                              )
                           )
                           .idleTimeout(3.seconds)
                           .log("update balance")
@@ -524,16 +532,18 @@ object IdleStatus extends ActorSerializerSuport {
                     Effect.none.thenRun((updateState: State) => {
                       Source
                         .future(
-                          balanceService.mergeBalance(
-                            phone = state.data.phone,
-                            symbol = state.data.symbol,
-                            balance = (state.data.direction match {
-                              case Direction.buy =>
-                                (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
-                              case Direction.sell =>
-                                (state.data.contractSize * volume / costHold) - (state.data.contractSize * volume / position.costHold)
-                            })
-                          )
+                          ServiceSingleton
+                            .get(classOf[BalanceRepository])
+                            .mergeBalance(
+                              phone = state.data.phone,
+                              symbol = state.data.symbol,
+                              balance = (state.data.direction match {
+                                case Direction.buy =>
+                                  (state.data.contractSize * volume / position.costHold) - (state.data.contractSize * volume / costHold)
+                                case Direction.sell =>
+                                  (state.data.contractSize * volume / costHold) - (state.data.contractSize * volume / position.costHold)
+                              })
+                            )
                         )
                         .idleTimeout(3.seconds)
                         .log("update balance")

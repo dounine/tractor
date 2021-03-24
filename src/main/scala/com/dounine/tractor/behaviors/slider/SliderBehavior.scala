@@ -223,8 +223,10 @@ object SliderBehavior extends ActorSerializerSuport {
                         ActorSink.actorRef(
                           ref = context.self,
                           onCompleteMessage = StreamComplete(),
-                          onFailureMessage =
-                            e => MarketTradeBehavior.SubFail(e.getMessage)
+                          onFailureMessage = ee => {
+                            ee.printStackTrace()
+                            MarketTradeBehavior.SubFail(ee.getMessage)
+                          }
                         )
                       )(materializer)
 

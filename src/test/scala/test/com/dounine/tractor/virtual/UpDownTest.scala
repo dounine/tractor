@@ -227,28 +227,36 @@ class UpDownTest
     "run" in {
       val (socketClient, socketPort) = createSocket()
 
+      val phone = "123456789"
+      val symbol = CoinSymbol.BTC
+      val contractType = ContractType.quarter
+      val direction = Direction.buy
       val mockBalanceService = mock[BalanceRepository]
       when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+        mockBalanceService.balance(phone, CoinSymbol.BTC)
       ).thenReturn(
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = phone,
+              symbol = symbol,
               balance = 1,
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
+      when(
+        mockBalanceService
+          .mergeBalance(phone, symbol, -0.0047572815533979754)
+      ).thenReturn(
+        Future(
+          Option(
+            BigDecimal(1.0)
+          )
+        )(system.executionContext)
+      )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
-
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -355,21 +363,31 @@ class UpDownTest
 
       val mockBalanceService = mock[BalanceRepository]
       when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+        mockBalanceService.balance(phone, symbol)
       ).thenReturn(
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = phone,
+              symbol = symbol,
               balance = 1,
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      when(
+        mockBalanceService
+          .mergeBalance(phone, symbol, -0.0047572815533979754)
+      ).thenReturn(
+        Future(
+          Option(
+            BigDecimal(1.0)
+          )
+        )(system.executionContext)
+      )
 
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -511,21 +529,31 @@ class UpDownTest
 
       val mockBalanceService = mock[BalanceRepository]
       when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
+        mockBalanceService.balance(phone, symbol)
       ).thenReturn(
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = phone,
+              symbol = symbol,
+              balance = 1.0,
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      when(
+        mockBalanceService
+          .mergeBalance(phone, symbol, -0.0047572815533979754)
+      ).thenReturn(
+        Future(
+          Option(
+            BigDecimal(1.0)
+          )
+        )(system.executionContext)
+      )
 
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -703,8 +731,28 @@ class UpDownTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      when(
+        mockBalanceService
+          .mergeBalance(phone, symbol, BigDecimal("-0.0047572815533979754"))
+      ).thenReturn(
+        Future(
+          Option(
+            BigDecimal(1.0)
+          )
+        )(system.executionContext)
+      )
+      when(
+        mockBalanceService
+          .mergeBalance(phone, symbol, BigDecimal(1.0))
+      ).thenReturn(
+        Future(
+          Option(
+            BigDecimal(1.0)
+          )
+        )(system.executionContext)
+      )
 
+      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
       val positionId = TriggerBase.createEntityId(
         phone,
         symbol,
@@ -903,18 +951,6 @@ class UpDownTest
             )
           )
         }
-
-      when(
-        mockBalanceService
-          .mergeBalance("123456789", CoinSymbol.BTC, -0.004757281553397976)
-      ).thenReturn(
-        Future(
-          Option(
-            BigDecimal(1)
-          )
-        )(system.executionContext)
-      )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       LoggingTestKit
         .info(
