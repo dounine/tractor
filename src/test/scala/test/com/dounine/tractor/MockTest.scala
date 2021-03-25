@@ -1,37 +1,28 @@
 package test.com.dounine.tractor
 
-import akka.actor.testkit.typed.scaladsl.{
-  LogCapturing,
-  ManualTime,
-  ScalaTestWithActorTestKit
-}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.testkit.typed.scaladsl.{LogCapturing, ScalaTestWithActorTestKit}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.cluster.sharding.typed.scaladsl.{
-  ClusterSharding,
-  Entity,
-  EntityTypeKey
-}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import akka.cluster.typed.{Cluster, Join}
 import akka.stream.SystemMaterializer
-import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
-import akka.stream.testkit.scaladsl.TestSink
+import akka.stream.scaladsl.Source
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer}
 import com.dounine.tractor.model.types.currency.CoinSymbol
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.service.virtual.BalanceRepository
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
+import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 
 import java.time.LocalDateTime
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.concurrent.{Await, Future}
 
 object RemoteActor2 extends ActorSerializerSuport {
   val typeKey: EntityTypeKey[BaseSerializer] =
@@ -151,6 +142,13 @@ class MockTest
       val remoteActor = sharding.entityRefFor(RemoteActor2.typeKey, "hello")
       val mockBalanceService = mock[BalanceRepository]
       val price = BigDecimal(-0.0047572815533979754)
+
+      doAnswer(_ => {
+        Future(Option(BigDecimal(1.0)))
+      }).when(
+          mockBalanceService
+        )
+        .balance(any, any)
       when(
         mockBalanceService.mergeBalance("123", CoinSymbol.BTC, BigDecimal(1.0))
       ).thenReturn(
@@ -169,20 +167,30 @@ class MockTest
 
       val updateProbe1 = testKit.createTestProbe[BaseSerializer]()
       remoteActor.tell(
-        RemoteActor2.Update("123", CoinSymbol.BTC, BigDecimal(-0.0047572815533979754))(updateProbe1.ref)
+        RemoteActor2.Update(
+          "123",
+          CoinSymbol.BTC,
+          BigDecimal(-0.0047572815533979754)
+        )(updateProbe1.ref)
       )
       updateProbe1.expectMessage(RemoteActor2.UpdateOk(Option(BigDecimal(1.0))))
 
-
       val updateProbe2 = testKit.createTestProbe[BaseSerializer]()
       remoteActor.tell(
-        RemoteActor2.Update("123", CoinSymbol.BTC, BigDecimal(1.0))(updateProbe2.ref)
+        RemoteActor2.Update("123", CoinSymbol.BTC, BigDecimal(1.0))(
+          updateProbe2.ref
+        )
       )
       updateProbe2.expectMessage(RemoteActor2.UpdateOk(Option(BigDecimal(1.0))))
 
-      info((BigDecimal("-0.0047572815533979754") == BigDecimal(-0.0047572815533979754F)).toString)
+      info(
+        (BigDecimal("-0.0047572815533979754") == BigDecimal(
+          -0.0047572815533979754f
+        )).toString
+      )
 
       info(BigDecimal("-0.0047572815533979754").toString())
+
     }
   }
 

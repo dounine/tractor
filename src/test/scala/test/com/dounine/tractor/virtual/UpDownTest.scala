@@ -37,11 +37,13 @@ import com.dounine.tractor.model.models.{
   MarketTradeModel,
   NotifyModel
 }
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -223,33 +225,28 @@ class UpDownTest
     (socketClient, socketPort.toString)
   }
 
+  final val phone = "123456789"
+  final val symbol = CoinSymbol.BTC
+  final val contractType = ContractType.quarter
+  final val direction = Direction.buy
+
   "updown behavior" should {
     "run" in {
       val (socketClient, socketPort) = createSocket()
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance(phone, CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = phone,
-              symbol = symbol,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
-      when(
-        mockBalanceService
-          .mergeBalance(phone, symbol, -0.0047572815533979754)
-      ).thenReturn(
+      when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
         Future(
           Option(
             BigDecimal(1.0)
@@ -269,11 +266,11 @@ class UpDownTest
       )
 
       val positionId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
@@ -287,11 +284,11 @@ class UpDownTest
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -308,11 +305,11 @@ class UpDownTest
       )
 
       val triggerId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
@@ -327,11 +324,11 @@ class UpDownTest
       )
 
       val updownId = UpDownBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val updownBehavior = sharding.entityRefFor(UpDownBase.typeKey, updownId)
 
@@ -355,31 +352,20 @@ class UpDownTest
 
     "run and create trigger" in {
       val (socketClient, socketPort) = createSocket()
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
-
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance(phone, symbol)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = phone,
-              symbol = symbol,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
-      when(
-        mockBalanceService
-          .mergeBalance(phone, symbol, -0.0047572815533979754)
-      ).thenReturn(
+      when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
         Future(
           Option(
             BigDecimal(1.0)
@@ -400,11 +386,11 @@ class UpDownTest
       )
 
       val positionId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
@@ -418,11 +404,11 @@ class UpDownTest
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -439,11 +425,11 @@ class UpDownTest
       )
 
       val triggerId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
@@ -458,11 +444,11 @@ class UpDownTest
       )
 
       val updownId = UpDownBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val updownBehavior = sharding.entityRefFor(UpDownBase.typeKey, updownId)
 
@@ -521,31 +507,20 @@ class UpDownTest
 
     "create trigger and fireTrigger fail" in {
       val (socketClient, socketPort) = createSocket()
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
-
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance(phone, symbol)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = phone,
-              symbol = symbol,
-              balance = 1.0,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
-      when(
-        mockBalanceService
-          .mergeBalance(phone, symbol, -0.0047572815533979754)
-      ).thenReturn(
+      when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
         Future(
           Option(
             BigDecimal(1.0)
@@ -566,11 +541,11 @@ class UpDownTest
       )
 
       val positionId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
@@ -584,11 +559,11 @@ class UpDownTest
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -605,11 +580,11 @@ class UpDownTest
       )
 
       val triggerId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
@@ -624,11 +599,11 @@ class UpDownTest
       )
 
       val updownId = UpDownBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val updownBehavior = sharding.entityRefFor(UpDownBase.typeKey, updownId)
 
@@ -700,12 +675,6 @@ class UpDownTest
 
     "run and opened" in {
       val (socketClient, socketPort) = createSocket()
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
-
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val marketTrade =
@@ -717,34 +686,19 @@ class UpDownTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance(phone, symbol)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = phone,
-              symbol = symbol,
-              balance = 1.0,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
-      when(
-        mockBalanceService
-          .mergeBalance(phone, symbol, BigDecimal("-0.0047572815533979754"))
-      ).thenReturn(
-        Future(
-          Option(
-            BigDecimal(1.0)
-          )
-        )(system.executionContext)
-      )
-      when(
-        mockBalanceService
-          .mergeBalance(phone, symbol, BigDecimal(1.0))
-      ).thenReturn(
+      when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
         Future(
           Option(
             BigDecimal(1.0)
@@ -754,11 +708,11 @@ class UpDownTest
 
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
       val positionId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val positionBehavior =
         sharding.entityRefFor(PositionBase.typeKey, positionId)
@@ -772,11 +726,11 @@ class UpDownTest
       )
 
       val entrustId = EntrustBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -793,11 +747,11 @@ class UpDownTest
       )
 
       val triggerId = TriggerBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val triggerBehavior =
         sharding.entityRefFor(TriggerBase.typeKey, triggerId)
@@ -812,11 +766,11 @@ class UpDownTest
       )
 
       val updownId = UpDownBase.createEntityId(
-        phone,
-        symbol,
-        contractType,
-        direction,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val updownBehavior = sharding.entityRefFor(UpDownBase.typeKey, updownId)
 

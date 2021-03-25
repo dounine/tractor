@@ -162,6 +162,12 @@ class SliderTest
     (socketClient, socketPort.toString)
   }
 
+  final val phone = "123456789"
+  final val symbol = CoinSymbol.BTC
+  final val contractType = ContractType.quarter
+  final val direction = Direction.buy
+  final val offset = Offset.open
+
   "slider behavior" should {
     "run" in {
       val (socketClient, socketPort) = createSocket()
@@ -174,12 +180,6 @@ class SliderTest
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
-      val offset = Offset.open
 
       val sliderBehavior = system.systemActorOf(
         SliderBehavior(

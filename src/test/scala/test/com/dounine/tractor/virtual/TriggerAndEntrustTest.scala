@@ -1,10 +1,7 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{
-  LoggingTestKit,
-  ScalaTestWithActorTestKit
-}
+import akka.actor.testkit.typed.scaladsl.{LoggingTestKit, ScalaTestWithActorTestKit}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
@@ -15,29 +12,18 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.behaviors.virtual.entrust.{
-  EntrustBase,
-  EntrustBehavior
-}
+import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{
-  PositionBase,
-  PositionBehavior
-}
-import com.dounine.tractor.behaviors.virtual.trigger.{
-  TriggerBase,
-  TriggerBehavior
-}
-import com.dounine.tractor.model.models.{
-  BalanceModel,
-  BaseSerializer,
-  MarketTradeModel
-}
+import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
+import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
+import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel}
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -202,6 +188,11 @@ class TriggerAndEntrustTest
     (socketClient, socketPort.toString)
   }
 
+  val phone = "123456789"
+  val symbol = CoinSymbol.BTC
+  val contractType = ContractType.quarter
+  val direction = Direction.buy
+
   "trigger and entrust" should {
 
     "create trigger and entrust" in {
@@ -216,27 +207,25 @@ class TriggerAndEntrustTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1.0,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
-      )
+        )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -255,11 +244,11 @@ class TriggerAndEntrustTest
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -274,11 +263,11 @@ class TriggerAndEntrustTest
       )
 
       val triggerId = TriggerBase.createEntityId(
-        "123456789",
-        CoinSymbol.BTC,
-        ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
 
       val triggerBehavior =

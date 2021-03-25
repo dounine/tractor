@@ -1,7 +1,12 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ManualTime, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  LoggingTestKit,
+  ManualTime,
+  ScalaTestWithActorTestKit
+}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
@@ -12,17 +17,41 @@ import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.entrust.{
+  EntrustBase,
+  EntrustBehavior
+}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
-import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
-import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel}
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerCancelFailStatus, TriggerType}
+import com.dounine.tractor.behaviors.virtual.position.{
+  PositionBase,
+  PositionBehavior
+}
+import com.dounine.tractor.behaviors.virtual.trigger.{
+  TriggerBase,
+  TriggerBehavior
+}
+import com.dounine.tractor.model.models.{
+  BalanceModel,
+  BaseSerializer,
+  MarketTradeModel
+}
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
+import com.dounine.tractor.model.types.currency.{
+  CoinSymbol,
+  ContractType,
+  Direction,
+  LeverRate,
+  Offset,
+  OrderPriceType,
+  TriggerCancelFailStatus,
+  TriggerType
+}
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
-import org.mockito.Mockito.when
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.{doAnswer, when}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
@@ -182,6 +211,11 @@ class TriggerTest
     (socketClient, socketPort.toString)
   }
 
+  final val phone = "123456789"
+  final val symbol = CoinSymbol.BTC
+  final val contractType = ContractType.quarter
+  final val direction = Direction.buy
+
   "trigger behavior" should {
     "run" in {
       val (socketClient, socketPort) = createSocket()
@@ -189,14 +223,12 @@ class TriggerTest
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
@@ -204,7 +236,6 @@ class TriggerTest
         )(system.executionContext)
       )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
-
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -217,19 +248,19 @@ class TriggerTest
 
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
-        TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+        entityId = TriggerBase.createEntityId(
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         socketPort
       )
       val entrustBehavior =
@@ -276,14 +307,12 @@ class TriggerTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
@@ -292,15 +321,14 @@ class TriggerTest
       )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
-
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -320,11 +348,11 @@ class TriggerTest
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
         TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 
@@ -386,14 +414,12 @@ class TriggerTest
       val (_, socketPort) = createSocket()
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
@@ -401,7 +427,6 @@ class TriggerTest
         )(system.executionContext)
       )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
-
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -415,11 +440,11 @@ class TriggerTest
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -439,11 +464,11 @@ class TriggerTest
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
         TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       triggerBehavior.tell(
@@ -488,14 +513,12 @@ class TriggerTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
@@ -504,15 +527,14 @@ class TriggerTest
       )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
-
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -531,12 +553,12 @@ class TriggerTest
 
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
-        TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+        entityId = TriggerBase.createEntityId(
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 
@@ -589,14 +611,12 @@ class TriggerTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
@@ -605,15 +625,14 @@ class TriggerTest
       )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
-
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -633,11 +652,11 @@ class TriggerTest
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
         TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 
@@ -716,31 +735,28 @@ class TriggerTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
-      )
+        )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
-
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -760,11 +776,11 @@ class TriggerTest
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
         TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 
@@ -822,31 +838,28 @@ class TriggerTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
               balance = 1,
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
-      )
+        )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
-
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val entrustId = EntrustBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        Direction.buy,
-        socketPort
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
+        randomId = socketPort
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
@@ -866,11 +879,11 @@ class TriggerTest
       val triggerBehavior = sharding.entityRefFor(
         TriggerBase.typeKey,
         TriggerBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 

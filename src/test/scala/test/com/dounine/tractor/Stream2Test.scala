@@ -1,18 +1,12 @@
 package test.com.dounine.tractor
 
-import akka.actor.testkit.typed.scaladsl.{
-  LogCapturing,
-  ManualTime,
-  ScalaTestWithActorTestKit
-}
-import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
+import akka.actor.testkit.typed.scaladsl.{LogCapturing, ScalaTestWithActorTestKit}
+import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
 import com.dounine.tractor.tools.json.JsonParse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 class Stream2Test

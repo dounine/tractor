@@ -36,11 +36,13 @@ import com.dounine.tractor.model.models.{
   MarketTradeModel,
   NotifyModel
 }
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -194,6 +196,11 @@ class EntrustTest
     (socketClient, socketPort.toString)
   }
 
+  final val phone = "123456789"
+  final val symbol = CoinSymbol.BTC
+  final val contractType = ContractType.quarter
+  final val direction = Direction.buy
+
   "entrust behavior" should {
     "run" in {
       val (socketClient, socketPort) = createSocket()
@@ -201,15 +208,13 @@ class EntrustTest
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
@@ -228,11 +233,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       val aggregationBehavior =
@@ -261,15 +266,13 @@ class EntrustTest
       val time = System.currentTimeMillis()
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
@@ -287,10 +290,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -310,11 +313,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 
@@ -376,15 +379,13 @@ class EntrustTest
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
@@ -402,10 +403,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -426,11 +427,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
 
@@ -469,15 +470,13 @@ class EntrustTest
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
@@ -495,10 +494,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -519,11 +518,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       entrustBehavior.tell(
@@ -568,20 +567,19 @@ class EntrustTest
       val time = System.currentTimeMillis()
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
         )(system.executionContext)
       )
+
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val marketTrade =
@@ -594,10 +592,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -618,11 +616,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       entrustBehavior.tell(
@@ -693,15 +691,13 @@ class EntrustTest
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
@@ -719,10 +715,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -743,11 +739,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       entrustBehavior.tell(
@@ -807,15 +803,13 @@ class EntrustTest
       )
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1),
               createTime = LocalDateTime.now()
             )
           )
@@ -824,10 +818,10 @@ class EntrustTest
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -849,11 +843,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       entrustBehavior.tell(
@@ -908,15 +902,13 @@ class EntrustTest
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 1,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(1.0),
               createTime = LocalDateTime.now()
             )
           )
@@ -934,10 +926,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -959,11 +951,11 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       entrustBehavior.tell(
@@ -1019,10 +1011,10 @@ class EntrustTest
       )
 
       val positionId = PositionBase.createEntityId(
-        phone = "123456789",
-        symbol = CoinSymbol.BTC,
-        contractType = ContractType.quarter,
-        direction = Direction.buy,
+        phone = phone,
+        symbol = symbol,
+        contractType = contractType,
+        direction = direction,
         randomId = socketPort
       )
       val positionBehavior =
@@ -1044,23 +1036,21 @@ class EntrustTest
       val entrustBehavior = sharding.entityRefFor(
         EntrustBase.typeKey,
         EntrustBase.createEntityId(
-          "123456789",
-          CoinSymbol.BTC,
-          ContractType.quarter,
-          Direction.buy,
-          socketPort
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          randomId = socketPort
         )
       )
       val mockBalanceService = mock[BalanceRepository]
-      when(
-        mockBalanceService.balance("123456789", CoinSymbol.BTC)
-      ).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
             BalanceModel.Info(
-              phone = "123456789",
-              symbol = CoinSymbol.BTC,
-              balance = 0.001,
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = BigDecimal(0.001),
               createTime = LocalDateTime.now()
             )
           )

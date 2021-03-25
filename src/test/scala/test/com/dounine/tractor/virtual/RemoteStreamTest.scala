@@ -90,7 +90,7 @@ class RemoteStreamTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-       |akka.remote.artery.canonical.port = 25526
+       |akka.remote.artery.canonical.port = 25520
        |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           RemoteStreamTest
         ].getSimpleName}"

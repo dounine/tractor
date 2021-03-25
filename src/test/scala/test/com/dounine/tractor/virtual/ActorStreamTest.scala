@@ -1,60 +1,28 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{
-  LoggingTestKit,
-  ScalaTestWithActorTestKit
-}
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.cluster.sharding.typed.scaladsl.{
-  ClusterSharding,
-  Entity,
-  EntityTypeKey
-}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message}
+import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.server.Directives.handleWebSocketMessages
-import akka.persistence.typed.PersistenceId
-import akka.stream.scaladsl.{
-  Compression,
-  Flow,
-  Keep,
-  RestartSource,
-  Sink,
-  Source
-}
-import akka.stream.typed.scaladsl.{ActorFlow, ActorSink}
+import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
+import akka.stream.typed.scaladsl.ActorSink
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
-import com.dounine.tractor.behaviors.MarketTradeBehavior
-import com.dounine.tractor.behaviors.virtual.entrust.{
-  EntrustBase,
-  EntrustBehavior
-}
-import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{
-  PositionBase,
-  PositionBehavior
-}
-import com.dounine.tractor.behaviors.virtual.trigger.{
-  TriggerBase,
-  TriggerBehavior
-}
-import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
-import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.tools.json.JsonParse
 import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.LoggerFactory
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{Duration, _}
 
 object MessageBehavior extends JsonParse {
 

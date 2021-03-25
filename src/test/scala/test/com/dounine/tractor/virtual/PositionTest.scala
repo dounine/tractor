@@ -34,11 +34,13 @@ import com.dounine.tractor.model.models.{
   ContractAdjustfactorModel,
   MarketTradeModel
 }
+import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -149,6 +151,11 @@ class PositionTest
     )
   }
 
+  final val phone = "123456789"
+  final val symbol = CoinSymbol.BTC
+  final val contractType = ContractType.quarter
+  final val direction = Direction.buy
+
   def createSocket(): (BoundedSourceQueue[Message], String) = {
     val socketPort = portGlobal.incrementAndGet()
     val (
@@ -185,11 +192,6 @@ class PositionTest
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
 
       val positionId = PositionBase.createEntityId(
         phone = phone,
@@ -286,28 +288,25 @@ class PositionTest
       )
 
       implicit val ec = system.executionContext
-      when(mockBalanceService.balance(phone, symbol)).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
-            balanceInfo
+            BalanceModel.Info(
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = 1,
+              createTime = LocalDateTime.now()
+            )
           )
-        )
+        )(system.executionContext)
       )
-      when(mockBalanceService.mergeBalance(phone, symbol, 0))
-        .thenReturn(
-          Future(
-            Option(
-              1.0
-            )
+
+      when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
+        Future(
+          Option(
+            BigDecimal(1.0)
           )
-        )
-      when(mockBalanceService.mergeBalance(phone, symbol, 4.0e-4))
-        .thenReturn(
-          Future(
-            Option(
-              1.0
-            )
-          )
+        )(system.executionContext)
         )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
@@ -353,11 +352,6 @@ class PositionTest
           Option(s"ws://127.0.0.1:${socketPort}")
         )(connectProbe.ref)
       )
-
-      val phone = "123456789"
-      val symbol = CoinSymbol.BTC
-      val contractType = ContractType.quarter
-      val direction = Direction.buy
 
       val positionId = PositionBase.createEntityId(
         phone = phone,
@@ -434,29 +428,27 @@ class PositionTest
       )
 
       implicit val ec = system.executionContext
-      when(mockBalanceService.balance(phone, symbol)).thenReturn(
+      when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
-            balanceInfo
-          )
-        )
-      )
-      when(mockBalanceService.mergeBalance(phone, symbol, 0))
-        .thenReturn(
-          Future(
-            Option(
-              1.0
+            BalanceModel.Info(
+              phone = args.getArgument[String](0),
+              symbol = args.getArgument[CoinSymbol](1),
+              balance = 1,
+              createTime = LocalDateTime.now()
             )
           )
+        )(system.executionContext)
         )
-      when(mockBalanceService.mergeBalance(phone, symbol, 4.0e-4))
-        .thenReturn(
-          Future(
-            Option(
-              1.0
-            )
+
+      when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
+        Future(
+          Option(
+            BigDecimal(1.0)
           )
+        )(system.executionContext)
         )
+
 
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
