@@ -27,20 +27,20 @@ object EntrustNotifyModel {
                          source: Source,
                          orderType: OrderType,
                          createTime: LocalDateTime,
-                         price: Double,
+                         price: BigDecimal,
                          volume: Int,
                          tradeVolume: Int,
-                         tradeTurnover: Double,
-                         fee: Double,
-                         profit: Double,
+                         tradeTurnover: BigDecimal,
+                         fee: BigDecimal,
+                         profit: BigDecimal,
                          trade: List[Trade]
                        ) extends BaseSerializer
 
   case class Trade(
                     tradeVolume: Int,
-                    tradePrice: Double,
-                    tradeFee: Double,
-                    tradeTurnover: Double,
+                    tradePrice: BigDecimal,
+                    tradeFee: BigDecimal,
+                    tradeTurnover: BigDecimal,
                     createTime: LocalDateTime,
                     role: Role
                   ) extends BaseSerializer

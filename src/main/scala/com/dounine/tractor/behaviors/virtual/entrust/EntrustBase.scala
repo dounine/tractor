@@ -27,7 +27,7 @@ object EntrustBase extends ActorSerializerSuport {
   final case class EntrustItem(
       offset: Offset,
       orderPriceType: OrderPriceType,
-      price: Double,
+      price: BigDecimal,
       marginFrozen: BigDecimal,
       volume: Int,
       time: LocalDateTime
@@ -98,7 +98,7 @@ object EntrustBase extends ActorSerializerSuport {
       orderId: String,
       offset: Offset,
       orderPriceType: OrderPriceType,
-      price: Double,
+      price: BigDecimal,
       volume: Int
   )(var replyTo: ActorRef[BaseSerializer])
       extends Command

@@ -28,8 +28,8 @@ object PositionBase {
       frozen: Int, //The frozen quantity
       openFee: BigDecimal,
       closeFee: BigDecimal,
-      costOpen: Double,
-      costHold: Double,
+      costOpen: BigDecimal,
+      costHold: BigDecimal,
       profitUnreal: BigDecimal,
       profitRate: BigDecimal,
       profit: BigDecimal,
@@ -45,7 +45,7 @@ object PositionBase {
   case class DataStore(
       position: Option[PositionInfo],
       contractAdjustfactors: Seq[ContractAdjustfactorModel.Info],
-      price: Double,
+      price: BigDecimal,
       config: Config,
       phone: String,
       symbol: CoinSymbol,
@@ -100,7 +100,7 @@ object PositionBase {
   final case class Create(
       offset: Offset,
       volume: Int,
-      latestPrice: Double
+      latestPrice: BigDecimal
   )(val replyTo: ActorRef[BaseSerializer])
       extends Command
 

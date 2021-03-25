@@ -243,7 +243,7 @@ object UpDownBehavior extends JsonParse {
                                 symbol: CoinSymbol,
                                 contractType: ContractType,
                                 direction: Direction,
-                                price: Double,
+                                price: BigDecimal,
                                 amount: Int,
                                 time: Long
                               ) => {

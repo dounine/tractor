@@ -249,14 +249,14 @@ object OpenTriggeringStatus extends ActorSerializerSuport {
                       )(materializer)
                   }
                   case None =>
-                    val triggerPriceDouble: Double =
+                    val triggerPriceDouble: BigDecimal =
                       data.direction match {
                         case Direction.sell =>
                           data.tradePrice.get - data.info.openReboundPrice
                         case Direction.buy =>
                           data.tradePrice.get + data.info.openReboundPrice
                       }
-                    val triggerPrice: Double =
+                    val triggerPrice: BigDecimal =
                       handlePrice.getOrElse(triggerPriceDouble)
 
                     val createInfo = TriggerBase.Create(

@@ -11,7 +11,7 @@ object ContractAdjustfactorModel {
       ladder: Int,
       minSize: Int,
       maxSize: Int,
-      adjustFactor: Double
+      adjustFactor: BigDecimal
   ) extends BaseSerializer
 
   final case class AddItemListLadders(

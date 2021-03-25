@@ -8,7 +8,7 @@ object MarketTradeModel {
                            amount: Int,
                            direction: Direction,
                            id: Long,
-                           price: Double,
+                           price: BigDecimal,
                            ts: Long
                          )
 

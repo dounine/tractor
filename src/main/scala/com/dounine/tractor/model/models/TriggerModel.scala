@@ -22,8 +22,8 @@ object TriggerModel {
                          offset: Offset,
                          orderPriceType: OrderPriceType,
                          triggerType: TriggerType,
-                         orderPrice: Double,
-                         triggerPrice: Double,
+                         orderPrice: BigDecimal,
+                         triggerPrice: BigDecimal,
                          volume: Int,
                          createTime: LocalDateTime
                        ) extends BaseSerializer

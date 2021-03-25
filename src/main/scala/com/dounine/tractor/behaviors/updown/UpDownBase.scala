@@ -54,33 +54,33 @@ object UpDownBase {
   final case class Info(
       run: Boolean = false,
       runLoading: Boolean = false,
-      openTriggerPrice: Double = 0,
-      openReboundPrice: Double = 0,
-      openTriggerPriceSpread: Double = 0,
+      openTriggerPrice: BigDecimal = 0,
+      openReboundPrice: BigDecimal = 0,
+      openTriggerPriceSpread: BigDecimal = 0,
       openVolume: Int = 1,
       openEntrustTimeout: FiniteDuration = 3.seconds,
       openScheduling: FiniteDuration = 10.seconds,
       openTriggerSubmitOrder: Option[String] = Option.empty,
       openEntrustSubmitOrder: Option[String] = Option.empty,
-      openAvgPrice: Double = 0,
-      openFee: Double = 0,
+      openAvgPrice: BigDecimal = 0,
+      openFee: BigDecimal = 0,
       closeZoom: Boolean = true,
-      closeTriggerPrice: Double = 0,
-      closeReboundPrice: Double = 0,
-      closeTriggerPriceSpread: Double = 0,
+      closeTriggerPrice: BigDecimal = 0,
+      closeReboundPrice: BigDecimal = 0,
+      closeTriggerPriceSpread: BigDecimal = 0,
       closeVolume: Int = 0,
-      closeGetInProfit: Double = 0,
+      closeGetInProfit: BigDecimal = 0,
       closeEntrustTimeout: FiniteDuration = 3.seconds,
       closeScheduling: FiniteDuration = 500.milliseconds,
       closeTriggerSubmitOrder: Option[String] = Option.empty,
       closeEntrustSubmitOrder: Option[String] = Option.empty,
-      closeFee: Double = 0,
-      closeProfit: Double = 0
+      closeFee: BigDecimal = 0,
+      closeProfit: BigDecimal = 0
   ) extends BaseSerializer
 
   final case class DataStore(
-      tradePrice: Option[Double] = Option.empty,
-      preTradePrice: Option[Double] = Option.empty,
+      tradePrice: Option[BigDecimal] = Option.empty,
+      preTradePrice: Option[BigDecimal] = Option.empty,
       phone: String,
       symbol: CoinSymbol,
       contractType: ContractType,
@@ -142,7 +142,7 @@ object UpDownBase {
   ) extends Command
 
   final case class Trigger(
-      handPrice: Option[Double] = Option.empty
+      handPrice: Option[BigDecimal] = Option.empty
   ) extends Command
 
   final case class Recovery() extends Command
@@ -153,25 +153,25 @@ object UpDownBase {
       run: Option[Boolean] = Option.empty,
       runLoading: Option[Boolean] = Option.empty,
       status: Option[UpDownStatus] = Option.empty,
-      openTriggerPrice: Option[Double] = Option.empty,
-      openReboundPrice: Option[Double] = Option.empty,
-      openTriggerPriceSpread: Option[Double] = Option.empty,
+      openTriggerPrice: Option[BigDecimal] = Option.empty,
+      openReboundPrice: Option[BigDecimal] = Option.empty,
+      openTriggerPriceSpread: Option[BigDecimal] = Option.empty,
       openVolume: Option[Int] = Option.empty,
       openEntrustTimeout: Option[FiniteDuration] = Option.empty,
       openScheduling: Option[FiniteDuration] = Option.empty,
       openLeverRate: Option[LeverRate] = Option.empty,
-      openFee: Option[Double] = Option.empty,
+      openFee: Option[BigDecimal] = Option.empty,
       closeStatus: Option[UpDownStatus] = Option.empty,
       closeZoom: Option[Boolean] = Option.empty,
-      closeTriggerPrice: Option[Double] = Option.empty,
-      closeReboundPrice: Option[Double] = Option.empty,
-      closeTriggerPriceSpread: Option[Double] = Option.empty,
+      closeTriggerPrice: Option[BigDecimal] = Option.empty,
+      closeReboundPrice: Option[BigDecimal] = Option.empty,
+      closeTriggerPriceSpread: Option[BigDecimal] = Option.empty,
       closeVolume: Option[Int] = Option.empty,
-      closeGetInProfit: Option[Double] = Option.empty,
+      closeGetInProfit: Option[BigDecimal] = Option.empty,
       closeEntrustTimeout: Option[FiniteDuration] = Option.empty,
       closeScheduling: Option[FiniteDuration] = Option.empty,
-      closeFee: Option[Double] = Option.empty,
-      closeProfit: Option[Double] = Option.empty
+      closeFee: Option[BigDecimal] = Option.empty,
+      closeProfit: Option[BigDecimal] = Option.empty
   ) extends BaseSerializer
 
   final case class PushDataInfo(info: PushInfo) extends Command

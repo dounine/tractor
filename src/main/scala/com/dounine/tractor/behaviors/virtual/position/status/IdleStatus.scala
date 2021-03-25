@@ -148,14 +148,10 @@ object IdleStatus extends ActorSerializerSuport {
                   .map(item => {
                     item.direction match {
                       case Direction.sell => {
-                        BigDecimal(
-                          (1.0 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
-                        )
+                        (1.0 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
                       }
                       case Direction.buy => {
-                        BigDecimal(
-                          (1.0 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
-                        )
+                        (1.0 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
                       }
                     }
                   })
@@ -340,14 +336,10 @@ object IdleStatus extends ActorSerializerSuport {
               case Some(position) => {
                 val profitUnreal = updateState.data.direction match {
                   case Direction.sell => {
-                    BigDecimal(
-                      (1.0 / updateState.data.price - 1 / position.costOpen) * position.volume * updateState.data.contractSize
-                    )
+                    (1.0 / updateState.data.price - 1 / position.costOpen) * position.volume * updateState.data.contractSize
                   }
                   case Direction.buy => {
-                    BigDecimal(
-                      (1.0 / position.costOpen - 1 / updateState.data.price) * position.volume * updateState.data.contractSize
-                    )
+                    (1.0 / position.costOpen - 1 / updateState.data.price) * position.volume * updateState.data.contractSize
                   }
                 }
                 e.replyTo.tell(
@@ -384,7 +376,7 @@ object IdleStatus extends ActorSerializerSuport {
         case e @ Create(
               offset: Offset,
               volume: Int,
-              latestPrice: Double
+              latestPrice: BigDecimal
             ) => {
           logger.info(command.logJson)
           val takeRate = 0.0004
@@ -395,7 +387,7 @@ object IdleStatus extends ActorSerializerSuport {
                   val fee =
                     volume * state.data.contractSize / latestPrice * takeRate
 
-                  val costHold: Double =
+                  val costHold: BigDecimal =
                     state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
                   val mergePosition =
                     position.copy(
@@ -433,14 +425,10 @@ object IdleStatus extends ActorSerializerSuport {
                           costHold = latestPrice,
                           profitUnreal = state.data.direction match {
                             case Direction.sell => {
-                              BigDecimal(
-                                (1.0 / latestPrice - 1 / latestPrice) * volume * state.data.contractSize
-                              )
+                              (1.0 / latestPrice - 1 / latestPrice) * volume * state.data.contractSize
                             }
                             case Direction.buy => {
-                              BigDecimal(
-                                (1.0 / latestPrice - 1 / latestPrice) * volume * state.data.contractSize
-                              )
+                              (1.0 / latestPrice - 1 / latestPrice) * volume * state.data.contractSize
                             }
                           },
                           profitRate = 0,
@@ -465,21 +453,15 @@ object IdleStatus extends ActorSerializerSuport {
                   val costHold =
                     state.data.contractSize * (position.volume + volume) / (position.volume * state.data.contractSize / position.costHold + volume * state.data.contractSize / latestPrice)
                   val closeFee =
-                    BigDecimal(
-                      volume * state.data.contractSize / costHold * takeRate
-                    )
+                    volume * state.data.contractSize / costHold * takeRate
                   if (position.volume == volume) {
 
                     val updateBalance =
                       (state.data.direction match {
                         case Direction.buy =>
-                          BigDecimal(
-                            (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
-                          )
+                          (state.data.contractSize * position.volume / position.costHold) - (state.data.contractSize * position.volume / costHold)
                         case Direction.sell =>
-                          BigDecimal(
-                            (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
-                          )
+                          (state.data.contractSize * position.volume / costHold) - (state.data.contractSize * position.volume / position.costHold)
                       }) - position.openFee + position.closeFee + closeFee
                     logger.info(updateBalance.toString)
                     Effect
@@ -566,14 +548,10 @@ object IdleStatus extends ActorSerializerSuport {
                                 margin = sumPositionMargin,
                                 profitUnreal = state.data.direction match {
                                   case Direction.sell => {
-                                    BigDecimal(
-                                      (1.0 / latestPrice - 1 / position.costHold) * sumVolume * state.data.contractSize
-                                    )
+                                    (1.0 / latestPrice - 1 / position.costHold) * sumVolume * state.data.contractSize
                                   }
                                   case Direction.buy => {
-                                    BigDecimal(
-                                      (1.0 / position.costHold - 1 / latestPrice) * sumVolume * state.data.contractSize
-                                    )
+                                    (1.0 / position.costHold - 1 / latestPrice) * sumVolume * state.data.contractSize
                                   }
                                 }
                               )
@@ -722,14 +700,10 @@ object IdleStatus extends ActorSerializerSuport {
                   p.copy(
                     profitUnreal = state.data.direction match {
                       case Direction.sell => {
-                        BigDecimal(
-                          (1.0 / price - 1 / p.costHold) * p.volume * state.data.contractSize
-                        )
+                        (1.0 / price - 1 / p.costHold) * p.volume * state.data.contractSize
                       }
                       case Direction.buy => {
-                        BigDecimal(
-                          (1.0 / p.costHold - 1 / price) * p.volume * state.data.contractSize
-                        )
+                        (1.0 / p.costHold - 1 / price) * p.volume * state.data.contractSize
                       }
                     }
                   )

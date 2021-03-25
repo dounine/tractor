@@ -69,7 +69,7 @@ object SliderBehavior extends ActorSerializerSuport {
   final case class Run(
       marketTradeId: String,
       upDownId: Option[String],
-      maxValue: Double
+      maxValue: BigDecimal
   ) extends Command
 
   final case class Push(
@@ -81,13 +81,13 @@ object SliderBehavior extends ActorSerializerSuport {
   ) extends BaseSerializer
 
   final case class Info(
-      maxValue: Double,
-      initPrice: Option[Double] = Option.empty,
-      entrustValue: Option[Double] = Option.empty,
-      entrustPrice: Option[Double] = Option.empty,
-      tradeValue: Option[Double] = Option.empty,
-      tradePrice: Option[Double] = Option.empty,
-      price: Option[Double] = Option.empty
+      maxValue: BigDecimal,
+      initPrice: Option[BigDecimal] = Option.empty,
+      entrustValue: Option[BigDecimal] = Option.empty,
+      entrustPrice: Option[BigDecimal] = Option.empty,
+      tradeValue: Option[BigDecimal] = Option.empty,
+      tradePrice: Option[BigDecimal] = Option.empty,
+      price: Option[BigDecimal] = Option.empty
   )
 
   final case class DataStore(info: Info) extends BaseSerializer
@@ -123,16 +123,16 @@ object SliderBehavior extends ActorSerializerSuport {
             buffer: StashBuffer[BaseSerializer] =>
               def handleEntrust(
                   data: DataStore,
-                  price: Double
+                  price: BigDecimal
               ): Behavior[BaseSerializer] = {
                 var info: Info =
                   data.info.copy(entrustPrice = Option(price))
-                val middleValue: Double = info.maxValue / 2
+                val middleValue: BigDecimal = info.maxValue / 2
                 info.initPrice match {
                   case Some(initPrice) =>
-                    val entrustValue: Double =
+                    val entrustValue: BigDecimal =
                       middleValue + (price - initPrice)
-                    val percentage: Double =
+                    val percentage: BigDecimal =
                       entrustValue / info.maxValue
                     if (percentage <= 0.1 || percentage >= 0.9) {
                       info = info.copy(
@@ -326,12 +326,12 @@ object SliderBehavior extends ActorSerializerSuport {
                     logger.info(e.logJson)
                     var info: Info =
                       data.info.copy(tradePrice = Option(price))
-                    val middleValue: Double = info.maxValue / 2
+                    val middleValue: BigDecimal = info.maxValue / 2
                     info.initPrice match {
                       case Some(initPrice) =>
-                        val tradeValue: Double =
+                        val tradeValue: BigDecimal =
                           middleValue + (price - initPrice)
-                        var percentage: Double =
+                        var percentage: BigDecimal =
                           tradeValue / info.maxValue
 
                         if (percentage <= 0.1 || percentage >= 0.9) {

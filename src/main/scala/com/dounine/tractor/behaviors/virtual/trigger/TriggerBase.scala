@@ -28,8 +28,8 @@ object TriggerBase extends ActorSerializerSuport {
       offset: Offset,
       orderPriceType: OrderPriceType,
       triggerType: TriggerType,
-      orderPrice: Double,
-      triggerPrice: Double,
+      orderPrice: BigDecimal,
+      triggerPrice: BigDecimal,
       volume: Int,
       time: LocalDateTime
   ) extends BaseSerializer
@@ -46,7 +46,7 @@ object TriggerBase extends ActorSerializerSuport {
   ) extends BaseSerializer
 
   final case class DataStore(
-      price: Option[Double],
+      price: Option[BigDecimal],
       triggers: Map[String, TriggerInfo],
       config: Config,
       phone: String,
@@ -111,8 +111,8 @@ object TriggerBase extends ActorSerializerSuport {
       offset: Offset,
       orderPriceType: OrderPriceType,
       triggerType: TriggerType,
-      orderPrice: Double,
-      triggerPrice: Double,
+      orderPrice: BigDecimal,
+      triggerPrice: BigDecimal,
       volume: Int
   )(var replyTo: ActorRef[BaseSerializer])
       extends Command
@@ -133,7 +133,7 @@ object TriggerBase extends ActorSerializerSuport {
   final case class CancelFail(orderId: String, status: TriggerCancelFailStatus)
       extends Command
 
-  final case class Trigger(price: Double) extends Command
+  final case class Trigger(price: BigDecimal) extends Command
 
   final case class TriggerOk(info: (String, TriggerInfo)) extends Command
 

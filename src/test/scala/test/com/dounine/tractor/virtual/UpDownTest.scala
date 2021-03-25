@@ -486,7 +486,7 @@ class UpDownTest
       updownBehavior.tell(
         UpDownBase.Update(
           UpDownUpdateType.openReboundPrice,
-          1.0,
+          BigDecimal(1.0),
           updateProbe.ref
         )
       )
@@ -806,7 +806,7 @@ class UpDownTest
       updownBehavior.tell(
         UpDownBase.Update(
           UpDownUpdateType.openReboundPrice,
-          1,
+          BigDecimal(1.0),
           updateProbe.ref
         )
       )
@@ -828,7 +828,7 @@ class UpDownTest
       updownBehavior.tell(
         UpDownBase.Update(
           UpDownUpdateType.closeReboundPrice,
-          1,
+          BigDecimal(1.0),
           updateCloseProbe.ref
         )
       )

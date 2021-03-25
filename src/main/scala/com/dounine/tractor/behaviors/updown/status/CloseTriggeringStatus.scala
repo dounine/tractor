@@ -216,7 +216,7 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
               val data: DataStore = updateState.data
               data.info.closeTriggerSubmitOrder match {
                 case Some(orderId) =>
-                  val triggerPrice: Double = data.direction match {
+                  val triggerPrice: BigDecimal = data.direction match {
                     case Direction.sell =>
                       data.tradePrice.get + data.info.closeReboundPrice
                     case Direction.buy =>
@@ -264,7 +264,7 @@ object CloseTriggeringStatus extends ActorSerializerSuport {
                     )
                   }
                 case None =>
-                  val triggerPrice: Double = data.direction match {
+                  val triggerPrice: BigDecimal = data.direction match {
                     case Direction.sell =>
                       data.tradePrice.get + data.info.closeReboundPrice
                     case Direction.buy =>
