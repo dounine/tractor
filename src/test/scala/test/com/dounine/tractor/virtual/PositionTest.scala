@@ -229,7 +229,7 @@ class PositionTest
                 profitUnreal = 0,
                 profitRate = 0,
                 profit = 0,
-                positionMargin = 0,
+                margin = 0,
                 createTime = LocalDateTime.now()
               )
             ),
@@ -389,7 +389,7 @@ class PositionTest
                 profitUnreal = 0,
                 profitRate = 0,
                 profit = 0,
-                positionMargin = 100.0 * 1 / 10000 / 20,
+                margin = 100.0 * 1 / 10000 / 20,
                 createTime = LocalDateTime.now()
               )
             ),

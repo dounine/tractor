@@ -33,7 +33,7 @@ object PositionBase {
       profitUnreal: BigDecimal,
       profitRate: BigDecimal,
       profit: BigDecimal,
-      positionMargin: BigDecimal,
+      margin: BigDecimal,
       createTime: LocalDateTime
   ) extends BaseSerializer
 
