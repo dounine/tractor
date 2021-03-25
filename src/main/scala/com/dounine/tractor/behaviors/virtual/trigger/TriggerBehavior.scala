@@ -3,16 +3,20 @@ package com.dounine.tractor.behaviors.virtual.trigger
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PreRestart, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
 import akka.persistence.typed._
-import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.{AggregationActor, CoinSymbol, ContractType, Direction, LeverRate}
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
-import TriggerBase._
+import akka.persistence.typed.scaladsl.{
+  Effect,
+  EventSourcedBehavior,
+  RetentionCriteria
+}
 import com.dounine.tractor.behaviors.AggregationBehavior
+import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
+import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.tools.json.JsonParse
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
-import org.slf4j.LoggerFactory
 
 object TriggerBehavior extends JsonParse {
   private val logger = LoggerFactory.getLogger(TriggerBehavior.getClass)

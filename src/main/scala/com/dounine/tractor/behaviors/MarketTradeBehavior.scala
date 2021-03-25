@@ -1,23 +1,30 @@
 package com.dounine.tractor.behaviors
 
-import akka.Done
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.ws._
-import akka.http.scaladsl.model.{StatusCodes, Uri}
-import akka.stream.scaladsl.{BroadcastHub, Compression, Flow, Keep, RunnableGraph, Sink, Source, SourceQueueWithComplete, StreamRefs}
+import akka.stream.scaladsl.{
+  BroadcastHub,
+  Compression,
+  Flow,
+  Keep,
+  Sink,
+  Source,
+  StreamRefs
+}
 import akka.stream.typed.scaladsl.{ActorSink, ActorSource}
-import akka.stream.{KillSwitches, OverflowStrategy, QueueCompletionResult, QueueOfferResult, SourceRef, SystemMaterializer}
+import akka.stream._
 import akka.util.ByteString
 import com.dounine.tractor.model.models.{BaseSerializer, MarketTradeModel}
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
+import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType}
 import com.dounine.tractor.tools.akka.ConnectSettings
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
+import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 
 object MarketTradeBehavior extends ActorSerializerSuport {
@@ -60,7 +67,8 @@ object MarketTradeBehavior extends ActorSerializerSuport {
 
   final case class SocketConnectFail(msg: String) extends Command
 
-  final case class SocketConnected(serverActor: ActorRef[Command]) extends Command
+  final case class SocketConnected(serverActor: ActorRef[Command])
+      extends Command
 
   final case class SocketCloseFail(msg: String) extends Command
 

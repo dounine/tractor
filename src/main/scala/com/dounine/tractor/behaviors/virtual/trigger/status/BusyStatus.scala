@@ -2,20 +2,17 @@ package com.dounine.tractor.behaviors.virtual.trigger.status
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
-import akka.stream.{OverflowStrategy, SystemMaterializer}
 import akka.stream.scaladsl.Source
 import akka.stream.typed.scaladsl.ActorSink
-import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.model.models.{BaseSerializer, TriggerModel}
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
-import org.slf4j.{Logger, LoggerFactory}
+import akka.stream.{OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
-import com.dounine.tractor.model.types.currency.{
-  AggregationActor,
-  TriggerStatus
-}
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
+import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency.AggregationActor
+import com.dounine.tractor.tools.json.JsonParse
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.duration._
 

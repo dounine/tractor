@@ -10,10 +10,8 @@ import com.dounine.tractor.model.models.{
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
-import com.dounine.tractor.model.types.currency.EntrustStatus.EntrustStatus
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
-import com.dounine.tractor.model.types.currency.OrderPriceType.OrderPriceType
 import com.dounine.tractor.model.types.currency.PositionCreateFailStatus.PositionCreateFailStatus
 
 import java.time.LocalDateTime

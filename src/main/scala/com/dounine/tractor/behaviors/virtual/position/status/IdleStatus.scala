@@ -4,36 +4,27 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
-import akka.stream.scaladsl.{BroadcastHub, Sink, Source}
+import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.typed.scaladsl.ActorSink
-import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
+import akka.stream.{Materializer, SystemMaterializer}
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
-import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
-import com.dounine.tractor.model.types.currency.Direction.Direction
-import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
-import com.dounine.tractor.model.types.currency.Offset.{Offset, open}
+import com.dounine.tractor.model.types.currency.Offset.Offset
 import com.dounine.tractor.model.types.currency.{
   AggregationActor,
   Direction,
-  EntrustCancelFailStatus,
-  EntrustStatus,
   Offset,
   PositionCreateFailStatus
 }
-import com.dounine.tractor.service.virtual.{
-  BalanceRepository,
-  ContractAdjustfactorRepository
-}
+import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
 object IdleStatus extends ActorSerializerSuport {

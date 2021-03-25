@@ -4,10 +4,10 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
-import com.dounine.tractor.model.models.BaseSerializer
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
-import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase._
+import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.tools.json.JsonParse
+import org.slf4j.{Logger, LoggerFactory}
 
 object StopedStatus extends JsonParse {
 

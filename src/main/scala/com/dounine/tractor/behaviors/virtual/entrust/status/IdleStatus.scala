@@ -13,7 +13,6 @@ import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
-import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.{
   AggregationActor,
   Direction,
@@ -23,23 +22,16 @@ import com.dounine.tractor.model.types.currency.{
   Offset,
   OrderPriceType,
   OrderType,
-  Role,
-  TriggerCancelFailStatus,
-  TriggerStatus,
-  TriggerType
+  Role
 }
 import com.dounine.tractor.service.virtual.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
-import com.typesafe.config.ConfigFactory
 import org.slf4j.{Logger, LoggerFactory}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.ListMap
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.math.Ordered.orderingToOrdered
-import scala.util.{Failure, Success}
 
 object IdleStatus extends ActorSerializerSuport {
 

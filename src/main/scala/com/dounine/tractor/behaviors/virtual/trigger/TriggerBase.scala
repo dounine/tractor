@@ -2,8 +2,8 @@ package com.dounine.tractor.behaviors.virtual.trigger
 
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
+import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType

@@ -9,16 +9,10 @@ import akka.persistence.typed.scaladsl.{
   EventSourcedBehavior,
   RetentionCriteria
 }
-import com.dounine.tractor.model.models.BaseSerializer
-import PositionBase._
 import com.dounine.tractor.behaviors.AggregationBehavior
-import com.dounine.tractor.model.types.currency.{
-  AggregationActor,
-  CoinSymbol,
-  ContractType,
-  Direction,
-  LeverRate
-}
+import com.dounine.tractor.behaviors.virtual.position.PositionBase._
+import com.dounine.tractor.model.models.BaseSerializer
+import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.LoggerFactory
 

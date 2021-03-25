@@ -4,7 +4,6 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
-import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.tools.json.ActorSerializerSuport
