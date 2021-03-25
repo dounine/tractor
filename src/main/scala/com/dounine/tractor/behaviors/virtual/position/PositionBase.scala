@@ -25,7 +25,7 @@ object PositionBase {
       direction: Direction,
       volume: Int,
       available: Int,
-      frozen: Int,
+      frozen: Int, //The frozen quantity
       openFee: BigDecimal,
       closeFee: BigDecimal,
       costOpen: Double,
