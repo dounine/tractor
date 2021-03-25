@@ -331,7 +331,7 @@ object SliderBehavior extends ActorSerializerSuport {
                       case Some(initPrice) =>
                         val tradeValue: BigDecimal =
                           middleValue + (price - initPrice)
-                        var percentage: BigDecimal =
+                        val percentage: BigDecimal =
                           tradeValue / info.maxValue
 
                         if (percentage <= 0.1 || percentage >= 0.9) {
