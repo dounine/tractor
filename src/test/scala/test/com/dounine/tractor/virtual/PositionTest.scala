@@ -1,10 +1,7 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{
-  LoggingTestKit,
-  ScalaTestWithActorTestKit
-}
+import akka.actor.testkit.typed.scaladsl.{LoggingTestKit, ScalaTestWithActorTestKit}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
@@ -15,28 +12,14 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.behaviors.virtual.entrust.{
-  EntrustBase,
-  EntrustBehavior
-}
+import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{
-  PositionBase,
-  PositionBehavior
-}
-import com.dounine.tractor.behaviors.virtual.trigger.{
-  TriggerBase,
-  TriggerBehavior
-}
-import com.dounine.tractor.model.models.{
-  BalanceModel,
-  BaseSerializer,
-  ContractAdjustfactorModel,
-  MarketTradeModel
-}
+import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
+import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
+import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, ContractAdjustfactorModel, MarketTradeModel}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
-import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.service.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory

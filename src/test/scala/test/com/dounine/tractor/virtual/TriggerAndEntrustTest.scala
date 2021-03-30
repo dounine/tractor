@@ -19,7 +19,7 @@ import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavi
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
-import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.service.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory

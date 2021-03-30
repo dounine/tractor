@@ -13,18 +13,8 @@ import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase._
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
-import com.dounine.tractor.model.types.currency.{
-  AggregationActor,
-  Direction,
-  EntrustCancelFailStatus,
-  EntrustCreateFailStatus,
-  EntrustStatus,
-  Offset,
-  OrderPriceType,
-  OrderType,
-  Role
-}
-import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.model.types.currency.{AggregationActor, Direction, EntrustCancelFailStatus, EntrustCreateFailStatus, EntrustStatus, Offset, OrderPriceType, OrderType, Role}
+import com.dounine.tractor.service.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import org.slf4j.{Logger, LoggerFactory}

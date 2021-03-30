@@ -1,4 +1,4 @@
-package com.dounine.tractor.service.virtual
+package com.dounine.tractor.service
 
 import com.dounine.tractor.model.models.ContractAdjustfactorModel
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol

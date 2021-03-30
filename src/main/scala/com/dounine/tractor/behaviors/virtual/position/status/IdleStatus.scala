@@ -13,13 +13,8 @@ import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.Offset.Offset
-import com.dounine.tractor.model.types.currency.{
-  AggregationActor,
-  Direction,
-  Offset,
-  PositionCreateFailStatus
-}
-import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.model.types.currency.{AggregationActor, Direction, Offset, PositionCreateFailStatus}
+import com.dounine.tractor.service.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import org.slf4j.{Logger, LoggerFactory}
