@@ -19,7 +19,7 @@ class UserTable(tag: Tag)
       createTime
     ).mapTo[UserModel.UserInfo]
 
-  def phone: Rep[String] = column[String]("phone", O.Length(13))
+  def phone: Rep[String] = column[String]("phone", O.Length(13), O.PrimaryKey)
 
   def password: Rep[String] = column[String]("password", O.Length(20))
 
@@ -28,5 +28,4 @@ class UserTable(tag: Tag)
   def createTime: Rep[LocalDateTime] =
     column[LocalDateTime]("createTime", O.Length(23))(localDateTime2timestamp)
 
-  def pk: PrimaryKey = primaryKey("tractor-user-primaryKey", phone)
 }

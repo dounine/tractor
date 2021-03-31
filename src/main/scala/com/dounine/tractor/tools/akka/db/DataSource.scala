@@ -1,4 +1,4 @@
-package com.dounine.tractor.tools.akka
+package com.dounine.tractor.tools.akka.db
 
 import akka.actor.typed.{ActorSystem, Extension, ExtensionId}
 

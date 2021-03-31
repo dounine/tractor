@@ -7,10 +7,14 @@ import scala.concurrent.Future
 
 trait UserRepository {
 
-  def valid(token: String): Option[UserModel.Session]
+  def parse(token: String): Option[UserModel.Session]
 
   def info(phone: String): Future[Option[UserModel.UserInfo]]
 
   def login(phone: String, data: Map[String, String]): String
+
+  def add(info: UserModel.UserInfo): Future[Option[Int]]
+
+  def delete(phone: String): Future[Int]
 
 }
