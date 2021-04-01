@@ -21,7 +21,7 @@ import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavi
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel, NotifyModel}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
-import com.dounine.tractor.service.BalanceRepository
+import com.dounine.tractor.service.BalanceApi
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
@@ -215,7 +215,7 @@ class UpDownTest
   "updown behavior" should {
     "run" in {
       val (socketClient, socketPort) = createSocket()
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -235,7 +235,7 @@ class UpDownTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -334,7 +334,7 @@ class UpDownTest
 
     "run and create trigger" in {
       val (socketClient, socketPort) = createSocket()
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -355,7 +355,7 @@ class UpDownTest
         )(system.executionContext)
       )
 
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -489,7 +489,7 @@ class UpDownTest
 
     "create trigger and fireTrigger fail" in {
       val (socketClient, socketPort) = createSocket()
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -510,7 +510,7 @@ class UpDownTest
         )(system.executionContext)
       )
 
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -667,7 +667,7 @@ class UpDownTest
         )(testKit.createTestProbe[BaseSerializer]().ref)
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -688,7 +688,7 @@ class UpDownTest
         )(system.executionContext)
       )
 
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
       val positionId = TriggerBase.createEntityId(
         phone = phone,
         symbol = symbol,

@@ -19,7 +19,7 @@ import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavi
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, ContractAdjustfactorModel, MarketTradeModel}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
-import com.dounine.tractor.service.BalanceRepository
+import com.dounine.tractor.service.BalanceApi
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
@@ -261,7 +261,7 @@ class PositionTest
       )
       mergeProbe.expectMessage(PositionBase.MergeOk())
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       val nowTime = LocalDateTime.now()
       val balanceInfo = BalanceModel.Info(
         phone = phone,
@@ -291,7 +291,7 @@ class PositionTest
           )
         )(system.executionContext)
         )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val closeProbe = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(
@@ -401,7 +401,7 @@ class PositionTest
         )
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       val nowTime = LocalDateTime.now()
       val balanceInfo = BalanceModel.Info(
         phone = phone,
@@ -433,7 +433,7 @@ class PositionTest
         )
 
 
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val rateProbe = testKit.createTestProbe[BaseSerializer]()
       positionBehavior.tell(

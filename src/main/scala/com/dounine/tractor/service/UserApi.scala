@@ -5,7 +5,7 @@ import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 
 import scala.concurrent.Future
 
-trait UserRepository {
+trait UserApi {
 
   def parse(token: String): Option[UserModel.Session]
 

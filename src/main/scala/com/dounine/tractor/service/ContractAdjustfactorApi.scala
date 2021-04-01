@@ -5,7 +5,7 @@ import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 
 import scala.concurrent.Future
 
-trait ContractAdjustfactorRepository {
+trait ContractAdjustfactorApi {
 
   def infos(symbol: CoinSymbol): Future[Seq[ContractAdjustfactorModel.Info]]
 

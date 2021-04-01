@@ -14,7 +14,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 class UserService(system: ActorSystem[_])
-    extends UserRepository
+    extends UserApi
     with JsonParse {
 
   private final val jwtSecret =

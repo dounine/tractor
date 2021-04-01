@@ -46,7 +46,7 @@ import com.dounine.tractor.model.types.currency.{
   TriggerCancelFailStatus,
   TriggerType
 }
-import com.dounine.tractor.service.BalanceRepository
+import com.dounine.tractor.service.BalanceApi
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
@@ -222,7 +222,7 @@ class TriggerTest
       val time = System.currentTimeMillis()
       socketClient.offer(BinaryMessage.Strict(pingMessage(Option(time))))
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -235,7 +235,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -306,7 +306,7 @@ class TriggerTest
         )(connectProbe.ref)
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -319,7 +319,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -413,7 +413,7 @@ class TriggerTest
     "create and cancel" in {
       val (_, socketPort) = createSocket()
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -426,7 +426,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val marketTrade =
         sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
@@ -512,7 +512,7 @@ class TriggerTest
         )(connectProbe.ref)
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -525,7 +525,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -610,7 +610,7 @@ class TriggerTest
         )(connectProbe.ref)
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -623,7 +623,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -734,7 +734,7 @@ class TriggerTest
         )(connectProbe.ref)
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -747,7 +747,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
@@ -837,7 +837,7 @@ class TriggerTest
         )(connectProbe.ref)
       )
 
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
         Future(
           Option(
@@ -850,7 +850,7 @@ class TriggerTest
           )
         )(system.executionContext)
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 

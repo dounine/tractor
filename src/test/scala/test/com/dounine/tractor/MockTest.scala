@@ -17,7 +17,7 @@ import akka.stream.scaladsl.Source
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer}
 import com.dounine.tractor.model.types.currency.CoinSymbol
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
-import com.dounine.tractor.service.BalanceRepository
+import com.dounine.tractor.service.BalanceApi
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
@@ -50,7 +50,7 @@ object RemoteActor2 extends ActorSerializerSuport {
             Source
               .future(
                 ServiceSingleton
-                  .get(classOf[BalanceRepository])
+                  .get(classOf[BalanceApi])
                   .mergeBalance(
                     phone,
                     symbol,
@@ -118,7 +118,7 @@ class MockTest
 
   "mock test" should {
     "hello mock" in {
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       val nowTime = LocalDateTime.now()
       val balanceInfo = BalanceModel.Info(
         phone = "123456789",
@@ -133,11 +133,11 @@ class MockTest
           )
         )
       )
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val result =
         ServiceSingleton
-          .get(classOf[BalanceRepository])
+          .get(classOf[BalanceApi])
           .balance("123456789", CoinSymbol.BTC)
           .futureValue
 
@@ -146,7 +146,7 @@ class MockTest
 
     "bigdecimal" in {
       val remoteActor = sharding.entityRefFor(RemoteActor2.typeKey, "hello")
-      val mockBalanceService = mock[BalanceRepository]
+      val mockBalanceService = mock[BalanceApi]
       val price = BigDecimal(-0.0047572815533979754)
 
       doAnswer(_ => {
@@ -169,7 +169,7 @@ class MockTest
           )
         )
 
-      ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
+      ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val updateProbe1 = testKit.createTestProbe[BaseSerializer]()
       remoteActor.tell(

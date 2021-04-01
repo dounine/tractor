@@ -15,16 +15,16 @@ import pdi.jwt.{Jwt, JwtAlgorithm, JwtClaim, JwtHeader}
 import java.time.Clock
 import scala.util.Try
 
-class UserRepositoryTest
+class UserApiTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
                       |akka.remote.artery.canonical.port = 25520
                       |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
-          UserRepositoryTest
+          UserApiTest
         ].getSimpleName}"
                       |akka.persistence.snapshot-store.local.dir = "/tmp/snapshot_${classOf[
-          UserRepositoryTest
+          UserApiTest
         ].getSimpleName}"
                       |""".stripMargin)
         .withFallback(
