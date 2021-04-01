@@ -1,16 +1,23 @@
 package test.com.dounine.tractor
 
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  ScalaTestWithActorTestKit
+}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
+import akka.cluster.sharding.typed.scaladsl.{
+  ClusterSharding,
+  Entity,
+  EntityTypeKey
+}
 import akka.cluster.typed.{Cluster, Join}
 import akka.stream.SystemMaterializer
 import akka.stream.scaladsl.Source
 import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer}
 import com.dounine.tractor.model.types.currency.CoinSymbol
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
-import com.dounine.tractor.service.virtual.BalanceRepository
+import com.dounine.tractor.service.BalanceRepository
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
@@ -128,14 +135,13 @@ class MockTest
       )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
-      val result = Await.result(
+      val result =
         ServiceSingleton
           .get(classOf[BalanceRepository])
-          .balance("123456789", CoinSymbol.BTC),
-        Duration.Inf
-      )
+          .balance("123456789", CoinSymbol.BTC)
+          .futureValue
 
-      result.shouldBe(Option(balanceInfo))
+      result shouldBe Option(balanceInfo)
     }
 
     "bigdecimal" in {

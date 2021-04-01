@@ -1,7 +1,12 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ManualTime, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  LoggingTestKit,
+  ManualTime,
+  ScalaTestWithActorTestKit
+}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
@@ -12,13 +17,35 @@ import akka.stream.{BoundedSourceQueue, KillSwitches, SystemMaterializer}
 import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.entrust.{
+  EntrustBase,
+  EntrustBehavior
+}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
-import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
-import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel}
+import com.dounine.tractor.behaviors.virtual.position.{
+  PositionBase,
+  PositionBehavior
+}
+import com.dounine.tractor.behaviors.virtual.trigger.{
+  TriggerBase,
+  TriggerBehavior
+}
+import com.dounine.tractor.model.models.{
+  BalanceModel,
+  BaseSerializer,
+  MarketTradeModel
+}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
-import com.dounine.tractor.model.types.currency.{CoinSymbol, ContractType, Direction, LeverRate, Offset, OrderPriceType, TriggerCancelFailStatus, TriggerType}
+import com.dounine.tractor.model.types.currency.{
+  CoinSymbol,
+  ContractType,
+  Direction,
+  LeverRate,
+  Offset,
+  OrderPriceType,
+  TriggerCancelFailStatus,
+  TriggerType
+}
 import com.dounine.tractor.service.BalanceRepository
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
@@ -719,7 +746,7 @@ class TriggerTest
             )
           )
         )(system.executionContext)
-        )
+      )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
@@ -822,7 +849,7 @@ class TriggerTest
             )
           )
         )(system.executionContext)
-        )
+      )
       ServiceSingleton.put(classOf[BalanceRepository], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)

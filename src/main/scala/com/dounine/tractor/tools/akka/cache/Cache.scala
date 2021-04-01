@@ -43,7 +43,7 @@ class Cache(system: ActorSystem[_]) {
           case Some(value) => Future.successful(value.asInstanceOf[T])
           case None =>
             default()
-              .andThen(f => {
+              .map(f => {
                 replicatedCacheBehavior
                   .tell(ReplicatedCacheBehavior.PutCache(key, f, ttl))
                 f

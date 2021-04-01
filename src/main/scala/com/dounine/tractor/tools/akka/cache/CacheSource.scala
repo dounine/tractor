@@ -10,8 +10,7 @@ class CacheSource(system: ActorSystem[_]) extends Extension {
 }
 object CacheSource extends ExtensionId[CacheSource] {
 
-  override def createExtension(system: ActorSystem[_]): CacheSource =
-    CacheSource(system)
+  override def createExtension(system: ActorSystem[_]): CacheSource = new CacheSource(system)
 
   def get(system: ActorSystem[_]): CacheSource = apply(system)
 

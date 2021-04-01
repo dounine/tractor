@@ -1,6 +1,9 @@
 package test.com.dounine.tractor.store
 
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  ScalaTestWithActorTestKit
+}
 import com.dounine.tractor.store.UserTable
 import com.dounine.tractor.tools.akka.db.DataSource
 import com.dounine.tractor.tools.json.JsonParse
@@ -15,7 +18,8 @@ class DataSourceTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-                      |akka.remote.artery.canonical.port = 25520
+                      |akka.remote.artery.canonical.port = 25521
+                      |akka.actor.typed.extensions = ["com.dounine.tractor.tools.akka.db.DBSource"]
                       |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           DataSourceTest
         ].getSimpleName}"
@@ -34,7 +38,7 @@ class DataSourceTest
     with MockitoSugar
     with JsonParse {
 
-  "datasource test" should {
+  "datasource test" ignore {
     "create entity" in {
       val db = DataSource(system).source().db
       val dict = TableQuery[UserTable]
