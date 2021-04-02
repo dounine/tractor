@@ -16,14 +16,19 @@ object SocketBehavior extends ActorSerializerSuport {
 
   final case class Login(
       token: String,
-      client: Option[ActorRef[BaseSerializer]]
+      client: ActorRef[BaseSerializer]
   ) extends Command
 
-  final case class LoginOk()
+  final case class LoginOk() extends Command
 
   final case object Shutdown extends Command
 
   final case class StreamComplete() extends Command
+
+  final case class MessageReceive(
+      actor: ActorRef[Command],
+      message: String
+  ) extends Command
 
   final case class Config(
       userId: String = "",
@@ -50,10 +55,11 @@ object SocketBehavior extends ActorSerializerSuport {
               logger.info(e.logJson)
               userService.parse(token) match {
                 case Some(session) => {
+                  client.tell(LoginOk())
                   logined(
                     data.copy(
                       phone = Option(session.phone),
-                      client = client
+                      client = Option(client)
                     )
                   )
                 }
