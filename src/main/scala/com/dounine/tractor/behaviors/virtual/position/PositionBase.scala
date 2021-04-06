@@ -32,6 +32,7 @@ object PositionBase {
       costHold: BigDecimal,
       profitUnreal: BigDecimal,
       profitRate: BigDecimal,
+      riskRate: BigDecimal,
       profit: BigDecimal,
       margin: BigDecimal,
       createTime: LocalDateTime

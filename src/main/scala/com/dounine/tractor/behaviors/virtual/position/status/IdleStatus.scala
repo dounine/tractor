@@ -13,7 +13,12 @@ import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.Offset.Offset
-import com.dounine.tractor.model.types.currency.{AggregationActor, Direction, Offset, PositionCreateFailStatus}
+import com.dounine.tractor.model.types.currency.{
+  AggregationActor,
+  Direction,
+  Offset,
+  PositionCreateFailStatus
+}
 import com.dounine.tractor.service.BalanceApi
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
@@ -55,222 +60,223 @@ object IdleStatus extends ActorSerializerSuport {
     ): Unit = {
       data.position match {
         case Some(position) => {
-          data.direction match {
-            case Direction.sell => {}
-            case Direction.buy => {
-              val profixRate: BigDecimal =
-                (1.0 * data.contractSize * position.volume / position.costHold) - (data.contractSize * position.volume / data.price) - position.openFee - position.closeFee
-
-              val contractAdjusts =
-                data.contractAdjustfactors.filter(item =>
-                  item.symbol == data.symbol && item.leverRate == data.leverRate
-                )
-
-              val positionList =
-                Source
-                  .future(
-                    sharding
-                      .entityRefFor(
-                        AggregationBehavior.typeKey,
-                        data.config.aggregationId
-                      )
-                      .ask[BaseSerializer](
-                        AggregationBehavior
-                          .Query(
-                            AggregationActor.position,
-                            data.phone,
-                            data.symbol
-                          )(_)
-                      )(3.seconds)
-                  )
-                  .flatMapConcat {
-                    case AggregationBehavior.QueryOk(actors) => {
-                      Source(actors)
-                        .filterNot(_ == data.entityId)
-                        .mapAsync(4) { actor =>
-                          {
-                            sharding
-                              .entityRefFor(
-                                PositionBase.typeKey,
-                                actor
-                              )
-                              .ask[BaseSerializer](
-                                PositionBase.Query()(_)
-                              )(3.seconds)
-                          }
-                        }
-                        .collect {
-                          case PositionBase
-                                .QueryOk(position) =>
-                            position
-                          case PositionBase
-                                .QueryFail(msg) => {
-                            logger.error(msg)
-                            Option.empty[PositionInfo]
-                          }
-                        }
-                        .merge(
-                          Source.single(
-                            data.position
-                          )
-                        )
-                    }
-                  }
-                  .filter(_.isDefined)
-                  .map(_.get)
-                  .runWith(Sink.seq)(materializer)
-
-              val balanceSource = Source
-                .future(
-                  ServiceSingleton
-                    .get(classOf[BalanceApi])
-                    .balance(
-                      phone = data.phone,
-                      symbol = data.symbol
-                    )
-                )
-                .collect {
-                  case Some(balance) => balance
-                  case None =>
-                    throw new Exception("balance not found")
-                }
-                .map(_.balance)
-
-              val accountBenefitsSource =
-                Source
-                  .future(positionList)
-                  .mapConcat(identity)
-                  .map(item => {
-                    item.direction match {
-                      case Direction.sell => {
-                        (1.0 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
-                      }
-                      case Direction.buy => {
-                        (1.0 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
-                      }
-                    }
-                  })
-                  .merge(balanceSource)
-                  .fold(BigDecimal(0))(_ + _)
-
-              val positionMarginSource =
-                Source
-                  .future(positionList)
-                  .mapConcat(identity)
-                  .map(_.margin)
-                  .fold(BigDecimal(0))(_ + _)
-
-              val entrustMarginSource = Source
-                .future(
-                  sharding
-                    .entityRefFor(
-                      AggregationBehavior.typeKey,
-                      data.config.aggregationId
-                    )
-                    .ask[BaseSerializer](
-                      AggregationBehavior
-                        .Query(
-                          AggregationActor.entrust,
-                          data.phone,
-                          data.symbol
-                        )(_)
-                    )(3.seconds)
-                )
-                .flatMapConcat {
-                  case AggregationBehavior.QueryOk(actors) => {
-                    Source(actors)
-                      .mapAsync(4) { actor =>
-                        {
-                          sharding
-                            .entityRefFor(
-                              EntrustBase.typeKey,
-                              actor
-                            )
-                            .ask[BaseSerializer](
-                              EntrustBase.MarginQuery()(_)
-                            )(3.seconds)
-                        }
-                      }
-                      .collect {
-                        case EntrustBase.MarginQueryOk(margin) => margin
-                        case EntrustBase.MarginQueryFail(msg) => {
-                          logger.error(msg)
-                          BigDecimal(0)
-                        }
-                      }
-                  }
-                }
-                .fold(BigDecimal(0))(_ + _)
-
-              val marginSum =
-                positionMarginSource
-                  .merge(entrustMarginSource)
-                  .fold(BigDecimal(0))(_ + _)
-
-              val contractAdjustSource = Source
-                .future(positionList)
-                .mapConcat(identity)
-                .fold((0, 0))((sum, next) => {
-                  next.direction match {
-                    case Direction.sell =>
-                      sum.copy(_2 = sum._2 + next.volume)
-                    case Direction.buy =>
-                      sum.copy(_1 = sum._1 + next.volume)
-                  }
-                })
-                .map(item => item._1 - item._2)
-                .map(sumVolumn => {
-                  (contractAdjusts.find(item =>
-                    sumVolumn >= item.minSize && sumVolumn <= item.maxSize
-                  ) match {
-                    case some @ Some(value) => some
-                    case None               => contractAdjusts.find(_.maxSize == 0)
-                  })
-                })
-
-              marginSum
-                .zip(accountBenefitsSource)
-                .zip(contractAdjustSource)
-                .map {
-                  case (
-                        (marginAll, accountBenefit),
-                        contractAdjust
-                      ) => {
-                    contractAdjust match {
-                      case Some(ca) => {
-                        val riskRate: BigDecimal =
-                          ((1.0 * accountBenefit / marginAll) * 100.0 - ca.adjustFactor * 100)
-                        RateSelfOk(position, profixRate, riskRate, replyTo)
-                      }
-                      case None =>
-                        RateSelfFail(
-                          position,
-                          "contractAdjust not found",
-                          replyTo
-                        )
-                    }
-                  }
-                }
-                .idleTimeout(3.seconds)
-                .recover {
-                  case ee: Throwable => {
-                    ee.printStackTrace()
-                    RateSelfFail(position, ee.getMessage, replyTo)
-                  }
-                }
-                .runWith(
-                  ActorSink.actorRef(
-                    ref = context.self,
-                    onCompleteMessage = StreamComplete(),
-                    onFailureMessage = ee => {
-                      ee.printStackTrace()
-                      RateSelfFail(position, ee.getMessage, replyTo)
-                    }
-                  )
-                )(materializer)
-
+          val profixRate: BigDecimal = (data.direction match {
+            case com.dounine.tractor.model.types.currency.Direction.sell => {
+              (data.contractSize * position.volume / data.price) - (1.0 * data.contractSize * position.volume / position.costHold)
             }
-          }
+            case com.dounine.tractor.model.types.currency.Direction.buy => {
+              (1.0 * data.contractSize * position.volume / position.costHold) - (data.contractSize * position.volume / data.price)
+            }
+          }) - position.openFee - position.closeFee
+
+          val contractAdjusts =
+            data.contractAdjustfactors.filter(item =>
+              item.symbol == data.symbol && item.leverRate == data.leverRate
+            )
+
+          val positionList =
+            Source
+              .future(
+                sharding
+                  .entityRefFor(
+                    AggregationBehavior.typeKey,
+                    data.config.aggregationId
+                  )
+                  .ask[BaseSerializer](
+                    AggregationBehavior
+                      .Query(
+                        AggregationActor.position,
+                        data.phone,
+                        data.symbol
+                      )(_)
+                  )(3.seconds)
+              )
+              .flatMapConcat {
+                case AggregationBehavior.QueryOk(actors) => {
+                  Source(actors)
+                    .filterNot(_ == data.entityId)
+                    .mapAsync(4) { actor =>
+                      {
+                        sharding
+                          .entityRefFor(
+                            PositionBase.typeKey,
+                            actor
+                          )
+                          .ask[BaseSerializer](
+                            PositionBase.Query()(_)
+                          )(3.seconds)
+                      }
+                    }
+                    .collect {
+                      case PositionBase
+                            .QueryOk(position) =>
+                        position
+                      case PositionBase
+                            .QueryFail(msg) => {
+                        logger.error(msg)
+                        Option.empty[PositionInfo]
+                      }
+                    }
+                    .merge(
+                      Source.single(
+                        data.position
+                      )
+                    )
+                }
+              }
+              .filter(_.isDefined)
+              .map(_.get)
+              .runWith(Sink.seq)(materializer)
+
+          val balanceSource = Source
+            .future(
+              ServiceSingleton
+                .get(classOf[BalanceApi])
+                .balance(
+                  phone = data.phone,
+                  symbol = data.symbol
+                )
+            )
+            .collect {
+              case Some(balance) => balance
+              case None =>
+                throw new Exception("balance not found")
+            }
+            .map(_.balance)
+
+          val accountBenefitsSource =
+            Source
+              .future(positionList)
+              .mapConcat(identity)
+              .map(item => {
+                item.direction match {
+                  case Direction.sell => {
+                    (1.0 / data.price - 1 / item.costOpen) * item.volume * data.contractSize
+                  }
+                  case Direction.buy => {
+                    (1.0 / item.costOpen - 1 / data.price) * item.volume * data.contractSize
+                  }
+                }
+              })
+              .merge(balanceSource)
+              .fold(BigDecimal(0))(_ + _)
+
+          val positionMarginSource =
+            Source
+              .future(positionList)
+              .mapConcat(identity)
+              .map(_.margin)
+              .fold(BigDecimal(0))(_ + _)
+
+          val entrustMarginSource = Source
+            .future(
+              sharding
+                .entityRefFor(
+                  AggregationBehavior.typeKey,
+                  data.config.aggregationId
+                )
+                .ask[BaseSerializer](
+                  AggregationBehavior
+                    .Query(
+                      AggregationActor.entrust,
+                      data.phone,
+                      data.symbol
+                    )(_)
+                )(3.seconds)
+            )
+            .flatMapConcat {
+              case AggregationBehavior.QueryOk(actors) => {
+                Source(actors)
+                  .mapAsync(4) { actor =>
+                    {
+                      sharding
+                        .entityRefFor(
+                          EntrustBase.typeKey,
+                          actor
+                        )
+                        .ask[BaseSerializer](
+                          EntrustBase.MarginQuery()(_)
+                        )(3.seconds)
+                    }
+                  }
+                  .collect {
+                    case EntrustBase.MarginQueryOk(margin) => margin
+                    case EntrustBase.MarginQueryFail(msg) => {
+                      logger.error(msg)
+                      BigDecimal(0)
+                    }
+                  }
+              }
+            }
+            .fold(BigDecimal(0))(_ + _)
+
+          val marginSum =
+            positionMarginSource
+              .merge(entrustMarginSource)
+              .fold(BigDecimal(0))(_ + _)
+
+          val contractAdjustSource = Source
+            .future(positionList)
+            .mapConcat(identity)
+            .fold((0, 0))((sum, next) => {
+              next.direction match {
+                case Direction.sell =>
+                  sum.copy(_2 = sum._2 + next.volume)
+                case Direction.buy =>
+                  sum.copy(_1 = sum._1 + next.volume)
+              }
+            })
+            .map(item => item._1 - item._2)
+            .map(sumVolumn => {
+              (contractAdjusts.find(item =>
+                sumVolumn >= item.minSize && sumVolumn <= item.maxSize
+              ) match {
+                case some @ Some(value) => some
+                case None               => contractAdjusts.find(_.maxSize == 0)
+              })
+            })
+
+          marginSum
+            .zip(accountBenefitsSource)
+            .zip(contractAdjustSource)
+            .map {
+              case (
+                    (marginAll, accountBenefit),
+                    contractAdjust
+                  ) => {
+                contractAdjust match {
+                  case Some(ca) => {
+                    val riskRate: BigDecimal =
+                      ((1.0 * accountBenefit / marginAll) * 100.0 - ca.adjustFactor * 100)
+                    RateSelfOk(position, profixRate, riskRate, replyTo)
+                  }
+                  case None =>
+                    RateSelfFail(
+                      position,
+                      "contractAdjust not found",
+                      replyTo
+                    )
+                }
+              }
+            }
+            .idleTimeout(3.seconds)
+            .recover {
+              case ee: Throwable => {
+                ee.printStackTrace()
+                RateSelfFail(position, ee.getMessage, replyTo)
+              }
+            }
+            .runWith(
+              ActorSink.actorRef(
+                ref = context.self,
+                onCompleteMessage = StreamComplete(),
+                onFailureMessage = ee => {
+                  ee.printStackTrace()
+                  RateSelfFail(position, ee.getMessage, replyTo)
+                }
+              )
+            )(materializer)
+
         }
         case None => //ignore profix computer
       }
@@ -427,6 +433,7 @@ object IdleStatus extends ActorSerializerSuport {
                             }
                           },
                           profitRate = 0,
+                          riskRate = 0,
                           profit = 0,
                           margin = marginFrozen,
                           createTime = LocalDateTime.now()
@@ -629,7 +636,19 @@ object IdleStatus extends ActorSerializerSuport {
         case e @ RateQuery() => {
           logger.info(command.logJson)
           Effect.none.thenRun((updateState: State) => {
-            rateComputer(updateState.data, Option(e.replyTo))
+            state.data.position match {
+              case Some(position) => {
+                e.replyTo.tell(
+                  RateQueryOk(
+                    profixRate = position.profitRate,
+                    riskRate = position.riskRate
+                  )
+                )
+              }
+              case None => {
+                rateComputer(updateState.data, Option(e.replyTo))
+              }
+            }
           })
         }
         case RateSelfOk(_, profixRate, riskRate, replyTo) => {
@@ -717,7 +736,8 @@ object IdleStatus extends ActorSerializerSuport {
               state.data.copy(
                 position = state.data.position.map(item => {
                   item.copy(
-                    profitRate = profixRate
+                    profitRate = profixRate,
+                    riskRate = riskRate
                   )
                 })
               )

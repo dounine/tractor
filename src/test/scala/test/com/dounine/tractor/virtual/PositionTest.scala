@@ -1,7 +1,10 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{LoggingTestKit, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LoggingTestKit,
+  ScalaTestWithActorTestKit
+}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
@@ -12,11 +15,25 @@ import akka.stream.scaladsl.{Compression, Flow, Keep, Sink, Source}
 import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.entrust.{
+  EntrustBase,
+  EntrustBehavior
+}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
-import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
-import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, ContractAdjustfactorModel, MarketTradeModel}
+import com.dounine.tractor.behaviors.virtual.position.{
+  PositionBase,
+  PositionBehavior
+}
+import com.dounine.tractor.behaviors.virtual.trigger.{
+  TriggerBase,
+  TriggerBehavior
+}
+import com.dounine.tractor.model.models.{
+  BalanceModel,
+  BaseSerializer,
+  ContractAdjustfactorModel,
+  MarketTradeModel
+}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.service.BalanceApi
@@ -211,6 +228,7 @@ class PositionTest
                 costHold = 100,
                 profitUnreal = 0,
                 profitRate = 0,
+                riskRate = 0,
                 profit = 0,
                 margin = 0,
                 createTime = LocalDateTime.now()
@@ -290,7 +308,7 @@ class PositionTest
             BigDecimal(1.0)
           )
         )(system.executionContext)
-        )
+      )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       val closeProbe = testKit.createTestProbe[BaseSerializer]()
@@ -371,6 +389,7 @@ class PositionTest
                 costHold = 10000.0,
                 profitUnreal = 0,
                 profitRate = 0,
+                riskRate = 0,
                 profit = 0,
                 margin = 100.0 * 1 / 10000 / 20,
                 createTime = LocalDateTime.now()
@@ -422,7 +441,7 @@ class PositionTest
             )
           )
         )(system.executionContext)
-        )
+      )
 
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
         Future(
@@ -430,8 +449,7 @@ class PositionTest
             BigDecimal(1.0)
           )
         )(system.executionContext)
-        )
-
+      )
 
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
