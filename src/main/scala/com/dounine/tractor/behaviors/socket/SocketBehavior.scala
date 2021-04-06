@@ -239,6 +239,19 @@ object SocketBehavior extends ActorSerializerSuport {
 
                       Behaviors.same
                     }
+                    case UpDownMessageType.unsub => {
+                      data.subConfig.slider.foreach(_.shutdown())
+                      data.subConfig.updown.foreach(_.shutdown())
+                      actor.tell(Ack)
+                      logined(
+                        data.copy(
+                          subConfig = data.subConfig.copy(
+                            updown = Option.empty,
+                            slider = Option.empty
+                          )
+                        )
+                      )
+                    }
                     case UpDownMessageType.sub => {
                       data.subConfig.updown.foreach(_.shutdown())
                       actor.tell(Ack)
@@ -279,7 +292,7 @@ object SocketBehavior extends ActorSerializerSuport {
                               MessageOutput[Map[String, Any]](
                                 `type` = MessageType.upDown,
                                 data = Map(
-                                  "ctype" -> "info",
+                                  "ctype" -> UpDownMessageType.info,
                                   "data" -> Map(
                                     "status" -> updownInfo.status,
                                     "leverRate" -> updownInfo.openLeverRate,
