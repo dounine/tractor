@@ -403,7 +403,7 @@ class SocketBehaviorTest
                   contractType = ContractType.quarter,
                   direction = Direction.buy,
                   name = UpDownUpdateType.openReboundPrice,
-                  value = "100.12"
+                  value = "10"
                 )
               )
             )

@@ -3,12 +3,20 @@ package com.dounine.tractor.behaviors.socket
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.stream.SystemMaterializer
-import akka.stream.scaladsl.Source
-import akka.stream.typed.scaladsl.ActorSink
+import akka.stream.{
+  KillSwitches,
+  OverflowStrategy,
+  SystemMaterializer,
+  UniqueKillSwitch
+}
+import akka.stream.scaladsl.{Keep, Source}
+import akka.stream.typed.scaladsl.ActorSource
+import akka.util.Timeout
+import com.dounine.tractor.behaviors.slider.SliderBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBase
 import com.dounine.tractor.model.models.{BaseSerializer, MessageModel}
 import com.dounine.tractor.model.types.currency.{LeverRate, UpDownUpdateType}
+import com.dounine.tractor.model.types.service.MessageType.MessageType
 import com.dounine.tractor.model.types.service.{MessageType, UpDownMessageType}
 import com.dounine.tractor.service.UserApi
 import com.dounine.tractor.tools.json.ActorSerializerSuport
@@ -31,6 +39,8 @@ object SocketBehavior extends ActorSerializerSuport {
 
   final case class StreamComplete() extends Command
 
+  final case class StreamFail(e: Throwable) extends Command
+
   final case object Ack extends Command
 
   final case class MessageReceive(
@@ -38,15 +48,26 @@ object SocketBehavior extends ActorSerializerSuport {
       message: String
   ) extends Command
 
+  final case class MessageOutput[T](
+      `type`: MessageType,
+      data: T
+  ) extends Command
+
   final case class Config(
       userId: String = "",
       updownId: String = ""
   ) extends BaseSerializer
 
+  final case class SubConfig(
+      updown: Option[UniqueKillSwitch] = Option.empty,
+      slider: Option[UniqueKillSwitch] = Option.empty
+  ) extends BaseSerializer
+
   final case class DataStore(
       phone: Option[String],
       client: Option[ActorRef[BaseSerializer]],
-      config: Config
+      config: Config,
+      subConfig: SubConfig = SubConfig()
   ) extends BaseSerializer
 
   private final val logger = LoggerFactory.getLogger(SocketBehavior.getClass)
@@ -92,14 +113,69 @@ object SocketBehavior extends ActorSerializerSuport {
                   val upDown = messageData.data.toJson
                     .jsonTo[MessageModel.UpDownData[Map[String, Any]]]
                   upDown.ctype match {
-                    case UpDownMessageType.slider => {}
+                    case UpDownMessageType.slider => {
+                      data.subConfig.slider.foreach(_.shutdown())
+                      val sliderInfo =
+                        upDown.data.toJson.jsonTo[MessageModel.UpDownSlider]
+
+                      val sliderBehavior = context.spawnAnonymous(
+                        SliderBehavior(
+                          phone = data.phone.get,
+                          symbol = sliderInfo.symbol,
+                          contractType = sliderInfo.contractType,
+                          direction = sliderInfo.direction,
+                          offset = sliderInfo.offset
+                        )
+                      )
+                      import akka.actor.typed.scaladsl.AskPattern._
+
+                      val (killSwitch, subSource) = Source
+                        .future(
+                          sliderBehavior.ask((ref: ActorRef[BaseSerializer]) =>
+                            SliderBehavior.Sub()(ref)
+                          )(3.seconds, context.system.scheduler)
+                        )
+                        .flatMapConcat {
+                          case SliderBehavior.SubOk(source) => source
+                          case SliderBehavior.SubFail(msg) => {
+                            logger.error(msg)
+                            Source.empty[SliderBehavior.Push]
+                          }
+                        }
+                        .viaMat(KillSwitches.single)(Keep.right)
+                        .preMaterialize()(materializer)
+
+                      subSource.runForeach(push => {
+                        data.client.foreach(client => {
+                          client.tell(
+                            MessageOutput[Map[String, Any]](
+                              `type` = MessageType.upDown,
+                              data = Map(
+                                "ctype" -> UpDownMessageType.slider,
+                                "data" -> push
+                              )
+                            )
+                          )
+                        })
+                      })(materializer)
+
+                      logined(
+                        data.copy(
+                          subConfig = data.subConfig.copy(
+                            slider = Option(killSwitch)
+                          )
+                        )
+                      )
+
+                      Behaviors.same
+                    }
                     case UpDownMessageType.update => {
-                      val update =
+                      val updateInfo =
                         upDown.data.toJson.jsonTo[MessageModel.UpDownUpdate]
-                      val updateValue: Any = update.name match {
+                      val updateValue: Any = updateInfo.name match {
                         case UpDownUpdateType.run |
                             UpDownUpdateType.closeZoom => {
-                          update.value == "true"
+                          updateInfo.value == "true"
                         }
                         case UpDownUpdateType.closeTriggerPriceSpread |
                             UpDownUpdateType.closeReboundPrice |
@@ -107,21 +183,21 @@ object SocketBehavior extends ActorSerializerSuport {
                             UpDownUpdateType.openTriggerPriceSpread |
                             UpDownUpdateType.openTriggerPrice |
                             UpDownUpdateType.openReboundPrice => {
-                          BigDecimal(update.value)
+                          BigDecimal(updateInfo.value)
                         }
                         case UpDownUpdateType.closeGetInProfit |
                             UpDownUpdateType.openVolume |
                             UpDownUpdateType.closeVolume => {
-                          update.value.toInt
+                          updateInfo.value.toInt
                         }
                         case UpDownUpdateType.openEntrustTimeout |
                             UpDownUpdateType.closeScheduling |
                             UpDownUpdateType.openScheduling |
                             UpDownUpdateType.closeEntrustTimeout => {
-                          update.value.toInt.seconds
+                          updateInfo.value.toInt.seconds
                         }
                         case UpDownUpdateType.openLeverRate => {
-                          LeverRate.withName(update.value)
+                          LeverRate.withName(updateInfo.value)
                         }
                       }
                       Source
@@ -131,14 +207,14 @@ object SocketBehavior extends ActorSerializerSuport {
                               UpDownBase.typeKey,
                               UpDownBase.createEntityId(
                                 phone = data.phone.get,
-                                symbol = update.symbol,
-                                contractType = update.contractType,
-                                direction = update.direction
+                                symbol = updateInfo.symbol,
+                                contractType = updateInfo.contractType,
+                                direction = updateInfo.direction
                               )
                             )
                             .ask((ref: ActorRef[BaseSerializer]) =>
                               UpDownBase.Update(
-                                name = update.name,
+                                name = updateInfo.name,
                                 value = updateValue,
                                 replyTo = ref
                               )
@@ -160,12 +236,90 @@ object SocketBehavior extends ActorSerializerSuport {
                         .runForeach(result => {
                           actor.tell(result)
                         })(materializer)
+
+                      Behaviors.same
                     }
-                    case UpDownMessageType.info => {}
+                    case UpDownMessageType.sub => {
+                      data.subConfig.updown.foreach(_.shutdown())
+                      actor.tell(Ack)
+                      val info =
+                        upDown.data.toJson.jsonTo[MessageModel.UpDownInfo]
+
+                      val (killSwitch, subSource) = Source
+                        .future(
+                          sharding
+                            .entityRefFor(
+                              UpDownBase.typeKey,
+                              UpDownBase.createEntityId(
+                                phone = data.phone.get,
+                                symbol = info.symbol,
+                                contractType = info.contractType,
+                                direction = info.direction
+                              )
+                            )
+                            .ask((ref: ActorRef[BaseSerializer]) =>
+                              UpDownBase.Sub()(ref)
+                            )(3.seconds)
+                        )
+                        .flatMapConcat {
+                          case UpDownBase.SubOk(source) => source
+                          case UpDownBase.SubFail(msg) => {
+                            logger.error(msg)
+                            Source.empty[UpDownBase.PushDataInfo]
+                          }
+                        }
+                        .viaMat(KillSwitches.single)(Keep.right)
+                        .preMaterialize()(materializer)
+
+                      subSource
+                        .runForeach(info => {
+                          data.client.foreach(client => {
+                            val updownInfo = info.info
+                            client.tell(
+                              MessageOutput[Map[String, Any]](
+                                `type` = MessageType.upDown,
+                                data = Map(
+                                  "ctype" -> "info",
+                                  "data" -> Map(
+                                    "status" -> updownInfo.status,
+                                    "leverRate" -> updownInfo.openLeverRate,
+                                    "open" -> Map(
+                                      "run" -> updownInfo.run,
+                                      "runLoading" -> updownInfo.runLoading,
+                                      "rebound" -> updownInfo.openReboundPrice,
+                                      "scheduling" -> updownInfo.openScheduling
+                                        .map(_._1),
+                                      "spread" -> updownInfo.openTriggerPriceSpread,
+                                      "timeout" -> updownInfo.openEntrustTimeout
+                                        .map(_._1),
+                                      "volume" -> updownInfo.openVolume
+                                    ),
+                                    "close" -> Map(
+                                      "rebound" -> updownInfo.closeReboundPrice,
+                                      "spread" -> updownInfo.closeTriggerPriceSpread,
+                                      "timeout" -> updownInfo.closeEntrustTimeout
+                                        .map(_._1),
+                                      "volume" -> updownInfo.closeVolume,
+                                      "zoom" -> updownInfo.closeZoom
+                                    )
+                                  )
+                                )
+                              )
+                            )
+                          })
+                        })(materializer)
+
+                      logined(
+                        data.copy(
+                          subConfig = data.subConfig.copy(
+                            updown = Option(killSwitch)
+                          )
+                        )
+                      )
+                    }
                   }
                 }
               }
-              Behaviors.same
             }
             case e @ Shutdown => {
               logger.info(e.logJson)
