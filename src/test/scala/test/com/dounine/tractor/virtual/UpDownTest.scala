@@ -1,7 +1,11 @@
 package test.com.dounine.tractor.virtual
 
 import akka.NotUsed
-import akka.actor.testkit.typed.scaladsl.{LogCapturing, LoggingTestKit, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.{
+  LogCapturing,
+  LoggingTestKit,
+  ScalaTestWithActorTestKit
+}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
@@ -14,11 +18,25 @@ import akka.stream.{BoundedSourceQueue, SystemMaterializer}
 import akka.util.ByteString
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.behaviors.updown.{UpDownBase, UpDownBehavior}
-import com.dounine.tractor.behaviors.virtual.entrust.{EntrustBase, EntrustBehavior}
+import com.dounine.tractor.behaviors.virtual.entrust.{
+  EntrustBase,
+  EntrustBehavior
+}
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
-import com.dounine.tractor.behaviors.virtual.position.{PositionBase, PositionBehavior}
-import com.dounine.tractor.behaviors.virtual.trigger.{TriggerBase, TriggerBehavior}
-import com.dounine.tractor.model.models.{BalanceModel, BaseSerializer, MarketTradeModel, NotifyModel}
+import com.dounine.tractor.behaviors.virtual.position.{
+  PositionBase,
+  PositionBehavior
+}
+import com.dounine.tractor.behaviors.virtual.trigger.{
+  TriggerBase,
+  TriggerBehavior
+}
+import com.dounine.tractor.model.models.{
+  BalanceModel,
+  BaseSerializer,
+  MarketTradeModel,
+  NotifyModel
+}
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.service.BalanceApi
@@ -274,8 +292,7 @@ class UpDownTest
       )
       val entrustBehavior =
         sharding.entityRefFor(EntrustBase.typeKey, entrustId)
-      val aggregationBehavior =
-        sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
+      sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
           marketTradeId = socketPort,

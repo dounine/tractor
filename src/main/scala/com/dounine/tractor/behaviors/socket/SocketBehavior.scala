@@ -92,18 +92,15 @@ object SocketBehavior extends ActorSerializerSuport {
                   val upDown = messageData.data.toJson
                     .jsonTo[MessageModel.UpDownData[Map[String, Any]]]
                   upDown.ctype match {
-                    case UpDownMessageType.slider => {
-
-                    }
+                    case UpDownMessageType.slider => {}
                     case UpDownMessageType.update => {
                       val update =
                         upDown.data.toJson.jsonTo[MessageModel.UpDownUpdate]
-                      val updateValue = update.name match {
+                      val updateValue: Any = update.name match {
                         case UpDownUpdateType.run |
                             UpDownUpdateType.closeZoom => {
                           update.value == "true"
                         }
-                        case UpDownUpdateType.status =>
                         case UpDownUpdateType.closeTriggerPriceSpread |
                             UpDownUpdateType.closeReboundPrice |
                             UpDownUpdateType.closeTriggerPrice |
@@ -117,8 +114,8 @@ object SocketBehavior extends ActorSerializerSuport {
                             UpDownUpdateType.closeVolume => {
                           update.value.toInt
                         }
-                        case UpDownUpdateType.openEntrustTimeout =>
-                        case UpDownUpdateType.closeScheduling |
+                        case UpDownUpdateType.openEntrustTimeout |
+                            UpDownUpdateType.closeScheduling |
                             UpDownUpdateType.openScheduling |
                             UpDownUpdateType.closeEntrustTimeout => {
                           update.value.toInt.seconds
@@ -154,8 +151,8 @@ object SocketBehavior extends ActorSerializerSuport {
                             Ack
                           }
                         }
-                        .recover{
-                          case ee:Throwable => {
+                        .recover {
+                          case ee: Throwable => {
                             ee.printStackTrace()
                             Ack
                           }

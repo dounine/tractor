@@ -28,7 +28,7 @@ object TriggerBehavior extends JsonParse {
     Behaviors.setup { context: ActorContext[BaseSerializer] =>
       Behaviors.withTimers((timers: TimerScheduler[BaseSerializer]) => {
         val sharding = ClusterSharding(context.system)
-        entityId.id.split("\\|").last.split("-") match {
+        entityId.id.split("\\|").last.split("-", -1) match {
           case Array(
                 phone,
                 symbolStr,
