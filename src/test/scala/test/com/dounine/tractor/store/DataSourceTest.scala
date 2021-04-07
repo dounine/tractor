@@ -19,7 +19,7 @@ class DataSourceTest
       ConfigFactory
         .parseString(s"""
                       |akka.remote.artery.canonical.port = 25521
-                      |akka.actor.typed.extensions = ["com.dounine.tractor.tools.akka.db.DBSource"]
+                      |akka.extensions = ["com.dounine.tractor.tools.akka.db.DBSource"]
                       |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           DataSourceTest
         ].getSimpleName}"
