@@ -139,8 +139,7 @@ object PositionBase {
   final case class RateSelfOk(
       position: PositionInfo,
       profixRate: BigDecimal,
-      riskRate: BigDecimal,
-      replyTo: Option[ActorRef[BaseSerializer]]
+      riskRate: BigDecimal
   ) extends Command
 
   final case class RateQuery()(val replyTo: ActorRef[BaseSerializer])
@@ -155,8 +154,7 @@ object PositionBase {
 
   final case class RateSelfFail(
       position: PositionInfo,
-      msg: String,
-      replyTo: Option[ActorRef[BaseSerializer]]
+      msg: String
   ) extends Command
 
   final case class NewPosition(

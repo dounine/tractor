@@ -55,16 +55,15 @@ object IdleStatus extends ActorSerializerSuport {
     ).materializer
 
     def rateComputer(
-        data: DataStore,
-        replyTo: Option[ActorRef[BaseSerializer]]
+        data: DataStore
     ): Unit = {
       data.position match {
         case Some(position) => {
           val profixRate: BigDecimal = (data.direction match {
-            case com.dounine.tractor.model.types.currency.Direction.sell => {
+            case Direction.sell => {
               (data.contractSize * position.volume / data.price) - (1.0 * data.contractSize * position.volume / position.costHold)
             }
-            case com.dounine.tractor.model.types.currency.Direction.buy => {
+            case Direction.buy => {
               (1.0 * data.contractSize * position.volume / position.costHold) - (data.contractSize * position.volume / data.price)
             }
           }) - position.openFee - position.closeFee
@@ -248,13 +247,12 @@ object IdleStatus extends ActorSerializerSuport {
                   case Some(ca) => {
                     val riskRate: BigDecimal =
                       ((1.0 * accountBenefit / marginAll) * 100.0 - ca.adjustFactor * 100)
-                    RateSelfOk(position, profixRate, riskRate, replyTo)
+                    RateSelfOk(position, profixRate, riskRate)
                   }
                   case None =>
                     RateSelfFail(
                       position,
-                      "contractAdjust not found",
-                      replyTo
+                      "contractAdjust not found"
                     )
                 }
               }
@@ -263,7 +261,7 @@ object IdleStatus extends ActorSerializerSuport {
             .recover {
               case ee: Throwable => {
                 ee.printStackTrace()
-                RateSelfFail(position, ee.getMessage, replyTo)
+                RateSelfFail(position, ee.getMessage)
               }
             }
             .runWith(
@@ -272,7 +270,7 @@ object IdleStatus extends ActorSerializerSuport {
                 onCompleteMessage = StreamComplete(),
                 onFailureMessage = ee => {
                   ee.printStackTrace()
-                  RateSelfFail(position, ee.getMessage, replyTo)
+                  RateSelfFail(position, ee.getMessage)
                 }
               )
             )(materializer)
@@ -646,35 +644,19 @@ object IdleStatus extends ActorSerializerSuport {
                 )
               }
               case None => {
-                rateComputer(updateState.data, Option(e.replyTo))
+                RateQueryFail("position not exit")
               }
             }
           })
         }
-        case RateSelfOk(_, profixRate, riskRate, replyTo) => {
+        case RateSelfOk(_, profixRate, riskRate) => {
           logger.info(command.logJson)
           Effect
             .persist(command)
-            .thenRun((updateState: State) => {
-              replyTo.foreach(
-                _.tell(
-                  RateQueryOk(
-                    profixRate = profixRate,
-                    riskRate = riskRate
-                  )
-                )
-              )
-            })
         }
-        case RateSelfFail(_, msg, replyTo) => {
+        case RateSelfFail(_, msg) => {
           logger.error(command.logJson)
-          Effect.none.thenRun((updateState: State) => {
-            replyTo.foreach(
-              _.tell(
-                RateQueryFail(msg)
-              )
-            )
-          })
+          Effect.none
         }
 
         case MarketTradeBehavior.TradeDetail(_, _, _, price, _, _) => {
@@ -682,7 +664,7 @@ object IdleStatus extends ActorSerializerSuport {
           Effect
             .persist(command)
             .thenRun((updateState: State) => {
-              rateComputer(updateState.data, Option.empty)
+              rateComputer(updateState.data)
             })
         }
         case _ => {
@@ -731,7 +713,7 @@ object IdleStatus extends ActorSerializerSuport {
           case MergePosition(position) => {
             Busy(state.data)
           }
-          case RateSelfOk(position, profixRate, riskRate, _) => {
+          case RateSelfOk(position, profixRate, riskRate) => {
             Idle(
               state.data.copy(
                 position = state.data.position.map(item => {
