@@ -3,6 +3,8 @@ package com.dounine.tractor.model.types.currency
 object CoinSymbol extends Enumeration {
   type CoinSymbol = Value
 
+  val dbLength: Int = 5
+
   val BTC: CoinSymbol.Value = Value("BTC")
   val ETC: CoinSymbol.Value = Value("ETC")
   val ETH: CoinSymbol.Value = Value("ETH")

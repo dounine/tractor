@@ -2,7 +2,7 @@ package com.dounine.tractor.service
 
 import akka.actor.typed.ActorSystem
 import com.dounine.tractor.model.models.UserModel
-import com.dounine.tractor.store.UserTable
+import com.dounine.tractor.store.{EnumMapper, UserTable}
 import com.dounine.tractor.tools.akka.db.DataSource
 import com.dounine.tractor.tools.json.JsonParse
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtClaim, JwtHeader}
@@ -15,6 +15,7 @@ import scala.util.Try
 
 class UserService(system: ActorSystem[_])
     extends UserApi
+    with EnumMapper
     with JsonParse {
 
   private final val jwtSecret =

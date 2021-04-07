@@ -3,7 +3,12 @@ package com.dounine.tractor.tools.json
 import akka.actor.typed.ActorRef
 import com.dounine.tractor.model.types.currency._
 import com.dounine.tractor.model.types.router.ResponseCode
-import com.dounine.tractor.model.types.service.{MessageType, UpDownMessageType, UserStatus}
+import com.dounine.tractor.model.types.service.{
+  MessageType,
+  SliderType,
+  UpDownMessageType,
+  UserStatus
+}
 import org.json4s.JsonAST.{JField, JLong, JObject, JString}
 import org.json4s.ext.EnumNameSerializer
 import org.json4s.jackson.Serialization
@@ -106,6 +111,7 @@ object JsonSuport {
     EntrustCreateFailStatus,
     PositionCreateFailStatus,
     Source,
+    SliderType,
     OrderType,
     Role,
     UpDownStatus,

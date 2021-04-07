@@ -6,7 +6,8 @@ import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.LeverRate.LeverRate
 import com.dounine.tractor.model.types.currency.Offset.Offset
 import com.dounine.tractor.model.types.currency._
-import com.dounine.tractor.model.types.service.UserStatus
+import com.dounine.tractor.model.types.service.SliderType.SliderType
+import com.dounine.tractor.model.types.service.{SliderType, UserStatus}
 import com.dounine.tractor.model.types.service.UserStatus.UserStatus
 import com.dounine.tractor.tools.json.JsonParse
 import slick.ast.BaseTypedType
@@ -50,6 +51,22 @@ trait EnumMapper extends JsonParse {
       }
     )
 
+  implicit val mapString
+      : JdbcType[Map[String, String]] with BaseTypedType[Map[String, String]] =
+    MappedColumnType.base[Map[String, String], String](
+      e => {
+        e.map(item => s"${item._1}:${item._2}").mkString(",")
+      },
+      s => {
+        s.split(",")
+          .map(_.split(":"))
+          .map(keys => {
+            (keys.head, keys.last)
+          })
+          .toMap
+      }
+    )
+
   implicit val userStatusMapper
       : JdbcType[UserStatus] with BaseTypedType[UserStatus] =
     MappedColumnType.base[UserStatus, String](
@@ -76,6 +93,13 @@ trait EnumMapper extends JsonParse {
     MappedColumnType.base[Direction, String](
       e => e.toString,
       s => Direction.withName(s)
+    )
+
+  implicit val sliderTypeMapper
+      : JdbcType[SliderType] with BaseTypedType[SliderType] =
+    MappedColumnType.base[SliderType, String](
+      e => e.toString,
+      s => SliderType.withName(s)
     )
 
   implicit val leverRateMapper
