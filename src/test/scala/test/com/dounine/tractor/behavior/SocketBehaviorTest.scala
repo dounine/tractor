@@ -8,7 +8,7 @@ import akka.actor.testkit.typed.scaladsl.{
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.ws.Message
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message}
 import akka.http.scaladsl.server.Directives.handleWebSocketMessages
 import akka.persistence.typed.PersistenceId
 import akka.stream.BoundedSourceQueue
@@ -94,15 +94,6 @@ class SocketBehaviorTest
 
   val portGlobal = new AtomicInteger(8200)
   val orderIdGlobal = new AtomicInteger(1)
-  val dataMessage = (data: String) =>
-    Await.result(
-      Source
-        .single(data)
-        .map(ByteString(_))
-        .via(Compression.gzip)
-        .runWith(Sink.head),
-      Duration.Inf
-    )
 
   val sharding = ClusterSharding(system)
 
@@ -236,6 +227,25 @@ class SocketBehaviorTest
   final val contractType = ContractType.quarter
   final val direction = Direction.buy
 
+  val pingMessage = (time: Option[Long]) =>
+    Await.result(
+      Source
+        .single(s"""{"ping":${time.getOrElse(System.currentTimeMillis())}}""")
+        .map(ByteString(_))
+        .via(Compression.gzip)
+        .runWith(Sink.head),
+      Duration.Inf
+    )
+  val dataMessage = (data: String) =>
+    Await.result(
+      Source
+        .single(data)
+        .map(ByteString(_))
+        .via(Compression.gzip)
+        .runWith(Sink.head),
+      Duration.Inf
+    )
+
   "socket behavior test" should {
 
     "logined" in {
@@ -301,12 +311,14 @@ class SocketBehaviorTest
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val marketTrade =
-        sharding.entityRefFor(MarketTradeBehavior.typeKey, "")
+        sharding.entityRefFor(MarketTradeBehavior.typeKey, MarketTradeBehavior.typeKey.name)
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
           Option(s"ws://127.0.0.1:${socketPort}")
         )(testKit.createTestProbe[BaseSerializer]().ref)
       )
+
+      socketClient.offer(BinaryMessage(pingMessage(Option.empty)))
 
       val positionId = TriggerBase.createEntityId(
         phone = phone,
@@ -320,7 +332,7 @@ class SocketBehaviorTest
 
       positionBehavior.tell(
         PositionBase.Run(
-          marketTradeId = "",
+          marketTradeId = MarketTradeBehavior.typeKey.name,
           aggregationId = socketPort,
           contractSize = 100
         )
@@ -338,7 +350,7 @@ class SocketBehaviorTest
       sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
-          marketTradeId = "",
+          marketTradeId = MarketTradeBehavior.typeKey.name,
           positionId = positionId,
           entrustNotifyId = socketPort,
           aggregationId = socketPort,
@@ -358,7 +370,7 @@ class SocketBehaviorTest
 
       triggerBehavior.tell(
         TriggerBase.Run(
-          marketTradeId = "",
+          marketTradeId = MarketTradeBehavior.typeKey.name,
           entrustId = entrustId,
           aggregationId = socketPort,
           contractSize = 100
@@ -375,7 +387,7 @@ class SocketBehaviorTest
 
       updownBehavior.tell(
         UpDownBase.Run(
-          marketTradeId = "",
+          marketTradeId = MarketTradeBehavior.typeKey.name,
           entrustId = entrustId,
           triggerId = triggerId,
           entrustNotifyId = socketPort

@@ -3,29 +3,17 @@ package com.dounine.tractor.behaviors.socket
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.stream.{
-  KillSwitches,
-  OverflowStrategy,
-  SystemMaterializer,
-  UniqueKillSwitch
-}
+import akka.stream.{KillSwitches, OverflowStrategy, SystemMaterializer, UniqueKillSwitch}
 import akka.stream.scaladsl.{Keep, Source}
 import akka.stream.typed.scaladsl.ActorSource
 import akka.util.Timeout
+import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.slider.SliderBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBase
 import com.dounine.tractor.model.models.{BaseSerializer, MessageModel}
-import com.dounine.tractor.model.types.currency.{
-  LeverRate,
-  Offset,
-  UpDownUpdateType
-}
+import com.dounine.tractor.model.types.currency.{LeverRate, Offset, UpDownUpdateType}
 import com.dounine.tractor.model.types.service.MessageType.MessageType
-import com.dounine.tractor.model.types.service.{
-  MessageType,
-  SliderType,
-  UpDownMessageType
-}
+import com.dounine.tractor.model.types.service.{MessageType, SliderType, UpDownMessageType}
 import com.dounine.tractor.service.{SliderApi, UserApi}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
@@ -154,7 +142,7 @@ object SocketBehavior extends ActorSerializerSuport {
                         .runForeach(dbSliderInfo => {
                           sliderBehavior.tell(
                             SliderBehavior.Run(
-                              marketTradeId = "",
+                              marketTradeId = MarketTradeBehavior.typeKey.name,
                               upDownId = Option(
                                 UpDownBase.createEntityId(
                                   phone = data.phone.get,
