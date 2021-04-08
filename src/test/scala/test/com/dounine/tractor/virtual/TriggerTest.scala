@@ -224,7 +224,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -233,7 +233,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -308,7 +308,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -317,7 +317,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -415,7 +415,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -424,7 +424,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -514,7 +514,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -523,7 +523,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -612,7 +612,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -621,7 +621,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -736,7 +736,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -745,7 +745,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -839,7 +839,7 @@ class TriggerTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -848,7 +848,7 @@ class TriggerTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 

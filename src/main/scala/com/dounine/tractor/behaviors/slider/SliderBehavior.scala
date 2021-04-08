@@ -210,6 +210,10 @@ object SliderBehavior extends ActorSerializerSuport {
                       )
                       .flatMapConcat {
                         case MarketTradeBehavior.SubOk(source) => source
+                        case MarketTradeBehavior.SubFail(msg) => {
+                          logger.error(msg)
+                          Source.empty[MarketTradeBehavior.TradeDetail]
+                        }
                       }
                       .throttle(
                         1,
@@ -244,6 +248,10 @@ object SliderBehavior extends ActorSerializerSuport {
                         )
                         .flatMapConcat {
                           case UpDownBase.SubOk(source) => source
+                          case UpDownBase.SubFail(msg) => {
+                            logger.error(msg)
+                            Source.empty[UpDownBase.PushDataInfo]
+                          }
                         }
                         .runWith(
                           ActorSink.actorRef(

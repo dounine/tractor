@@ -25,7 +25,7 @@ class CacheSourceTest
     extends ScalaTestWithActorTestKit(
       ConfigFactory
         .parseString(s"""
-           |akka.actor.typed.extensions = ["com.dounine.tractor.tools.akka.cache.CacheSource"]
+           |akka.extensions = ["com.dounine.tractor.tools.akka.cache.CacheSource"]
            |akka.persistence.journal.leveldb.dir = "/tmp/journal_${classOf[
           CacheSourceTest
         ].getSimpleName}"

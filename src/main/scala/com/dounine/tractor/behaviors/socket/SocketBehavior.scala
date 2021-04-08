@@ -15,10 +15,18 @@ import akka.util.Timeout
 import com.dounine.tractor.behaviors.slider.SliderBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBase
 import com.dounine.tractor.model.models.{BaseSerializer, MessageModel}
-import com.dounine.tractor.model.types.currency.{LeverRate, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  LeverRate,
+  Offset,
+  UpDownUpdateType
+}
 import com.dounine.tractor.model.types.service.MessageType.MessageType
-import com.dounine.tractor.model.types.service.{MessageType, UpDownMessageType}
-import com.dounine.tractor.service.UserApi
+import com.dounine.tractor.model.types.service.{
+  MessageType,
+  SliderType,
+  UpDownMessageType
+}
+import com.dounine.tractor.service.{SliderApi, UserApi}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
 import org.slf4j.LoggerFactory
@@ -127,6 +135,39 @@ object SocketBehavior extends ActorSerializerSuport {
                           offset = sliderInfo.offset
                         )
                       )
+
+                      val sliderApi = ServiceSingleton.get(classOf[SliderApi])
+
+                      Source
+                        .future(
+                          sliderApi.info(
+                            phone = data.phone.get,
+                            symbol = sliderInfo.symbol,
+                            contractType = sliderInfo.contractType,
+                            direction = sliderInfo.direction,
+                            sliderType = sliderInfo.offset match {
+                              case Offset.open  => SliderType.openOnline
+                              case Offset.close => SliderType.closeOnline
+                            }
+                          )
+                        )
+                        .runForeach(dbSliderInfo => {
+                          sliderBehavior.tell(
+                            SliderBehavior.Run(
+                              marketTradeId = "",
+                              upDownId = Option(
+                                UpDownBase.createEntityId(
+                                  phone = data.phone.get,
+                                  symbol = sliderInfo.symbol,
+                                  contractType = sliderInfo.contractType,
+                                  direction = sliderInfo.direction
+                                )
+                              ),
+                              maxValue = dbSliderInfo.max
+                            )
+                          )
+                        })(materializer)
+
                       import akka.actor.typed.scaladsl.AskPattern._
 
                       val (killSwitch, subSource) = Source
@@ -158,7 +199,7 @@ object SocketBehavior extends ActorSerializerSuport {
                           )
                         })
                       })(materializer)
-
+                      actor.tell(Ack)
                       logined(
                         data.copy(
                           subConfig = data.subConfig.copy(
@@ -166,8 +207,6 @@ object SocketBehavior extends ActorSerializerSuport {
                           )
                         )
                       )
-
-                      Behaviors.same
                     }
                     case UpDownMessageType.update => {
                       val updateInfo =

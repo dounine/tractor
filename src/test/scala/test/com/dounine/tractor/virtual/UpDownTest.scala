@@ -235,7 +235,7 @@ class UpDownTest
       val (socketClient, socketPort) = createSocket()
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -244,14 +244,14 @@ class UpDownTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal(1.0)
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -353,7 +353,7 @@ class UpDownTest
       val (socketClient, socketPort) = createSocket()
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -362,14 +362,14 @@ class UpDownTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal(1.0)
           )
-        )(system.executionContext)
+        )
       )
 
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
@@ -508,7 +508,7 @@ class UpDownTest
       val (socketClient, socketPort) = createSocket()
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -517,14 +517,14 @@ class UpDownTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal(1.0)
           )
-        )(system.executionContext)
+        )
       )
 
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
@@ -686,7 +686,7 @@ class UpDownTest
 
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -695,14 +695,14 @@ class UpDownTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal(1.0)
           )
-        )(system.executionContext)
+        )
       )
 
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)

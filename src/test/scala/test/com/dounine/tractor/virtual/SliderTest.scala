@@ -192,6 +192,7 @@ class SliderTest
         "sliderBehavior"
       )
 
+
       LoggingTestKit
         .info(
           classOf[SliderBehavior.Run].getName
@@ -201,7 +202,7 @@ class SliderTest
             SliderBehavior.Run(
               marketTradeId = socketPort,
               upDownId = Option.empty,
-              maxValue = 100
+              maxValue = BigDecimal(100)
             )
           )
         )

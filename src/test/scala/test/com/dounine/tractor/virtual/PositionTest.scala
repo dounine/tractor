@@ -290,7 +290,7 @@ class PositionTest
 
       implicit val ec = system.executionContext
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -299,15 +299,15 @@ class PositionTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
 
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal(1.0)
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
@@ -431,7 +431,7 @@ class PositionTest
 
       implicit val ec = system.executionContext
       when(mockBalanceService.balance(any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -440,15 +440,15 @@ class PositionTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
 
       when(mockBalanceService.mergeBalance(any, any, any)) thenAnswer (args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal(1.0)
           )
-        )(system.executionContext)
+        )
       )
 
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)

@@ -34,6 +34,7 @@ import com.dounine.tractor.model.models.{
   BalanceModel,
   BaseSerializer,
   MessageModel,
+  SliderModel,
   UserModel
 }
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
@@ -41,14 +42,16 @@ import com.dounine.tractor.model.types.currency.{
   CoinSymbol,
   ContractType,
   Direction,
+  Offset,
   UpDownUpdateType
 }
 import com.dounine.tractor.model.types.service.{
   MessageType,
+  SliderType,
   UpDownMessageType,
   UserStatus
 }
-import com.dounine.tractor.service.{BalanceApi, UserApi, UserService}
+import com.dounine.tractor.service.{BalanceApi, SliderApi, UserApi, UserService}
 import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.ServiceSingleton
 import com.typesafe.config.ConfigFactory
@@ -275,7 +278,7 @@ class SocketBehaviorTest
       ServiceSingleton.put(classOf[UserApi], userApi)
       val mockBalanceService = mock[BalanceApi]
       when(mockBalanceService.balance(any, any)).thenAnswer(args =>
-        Future(
+        Future.successful(
           Option(
             BalanceModel.Info(
               phone = args.getArgument[String](0),
@@ -284,21 +287,21 @@ class SocketBehaviorTest
               createTime = LocalDateTime.now()
             )
           )
-        )(system.executionContext)
+        )
       )
       when(mockBalanceService.mergeBalance(any, any, any)).thenAnswer(args =>
-        Future(
+        Future.successful(
           Option(
             BigDecimal("1.0")
           )
-        )(system.executionContext)
+        )
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val marketTrade =
-        sharding.entityRefFor(MarketTradeBehavior.typeKey, socketPort)
+        sharding.entityRefFor(MarketTradeBehavior.typeKey, "")
       marketTrade.tell(
         MarketTradeBehavior.SocketConnect(
           Option(s"ws://127.0.0.1:${socketPort}")
@@ -317,7 +320,7 @@ class SocketBehaviorTest
 
       positionBehavior.tell(
         PositionBase.Run(
-          marketTradeId = socketPort,
+          marketTradeId = "",
           aggregationId = socketPort,
           contractSize = 100
         )
@@ -335,7 +338,7 @@ class SocketBehaviorTest
       sharding.entityRefFor(AggregationBehavior.typeKey, socketPort)
       entrustBehavior.tell(
         EntrustBase.Run(
-          marketTradeId = socketPort,
+          marketTradeId = "",
           positionId = positionId,
           entrustNotifyId = socketPort,
           aggregationId = socketPort,
@@ -355,7 +358,7 @@ class SocketBehaviorTest
 
       triggerBehavior.tell(
         TriggerBase.Run(
-          marketTradeId = socketPort,
+          marketTradeId = "",
           entrustId = entrustId,
           aggregationId = socketPort,
           contractSize = 100
@@ -372,7 +375,7 @@ class SocketBehaviorTest
 
       updownBehavior.tell(
         UpDownBase.Run(
-          marketTradeId = socketPort,
+          marketTradeId = "",
           entrustId = entrustId,
           triggerId = triggerId,
           entrustNotifyId = socketPort
@@ -411,6 +414,57 @@ class SocketBehaviorTest
         )
       )
       updownUpdate.expectMessage(SocketBehavior.Ack)
+
+      val sliderApi = mock[SliderApi]
+      when(
+        sliderApi.info(
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          sliderType = SliderType.openOnline
+        )
+      ).thenAnswer(args => {
+        Future.successful(
+          SliderModel.SliderInfo(
+            phone = phone,
+            symbol = symbol,
+            contractType = contractType,
+            direction = direction,
+            sliderType = SliderType.openOnline,
+            min = BigDecimal("0"),
+            max = BigDecimal("100"),
+            setup = BigDecimal("1"),
+            system = false,
+            disable = true,
+            input = false,
+            marks = Map.empty
+          )
+        )
+      })
+      ServiceSingleton.put(classOf[SliderApi], sliderApi)
+
+      val sliderProbe = testKit.createTestProbe[BaseSerializer]()
+      socketBehavior.tell(
+        SocketBehavior.MessageReceive(
+          actor = sliderProbe.ref,
+          message = MessageModel
+            .Data[MessageModel.UpDownData[MessageModel.UpDownSlider]](
+              `type` = MessageType.upDown,
+              data = MessageModel.UpDownData[MessageModel.UpDownSlider](
+                ctype = UpDownMessageType.slider,
+                data = MessageModel.UpDownSlider(
+                  symbol = symbol,
+                  contractType = contractType,
+                  direction = direction,
+                  offset = Offset.open
+                )
+              )
+            )
+            .toJson
+        )
+      )
+      sliderProbe.expectMessage(SocketBehavior.Ack)
 
     }
 
