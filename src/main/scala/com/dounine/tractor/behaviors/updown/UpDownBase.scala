@@ -3,9 +3,9 @@ package com.dounine.tractor.behaviors.updown
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import akka.stream.scaladsl.SourceQueueWithComplete
 import akka.stream.{QueueCompletionResult, QueueOfferResult, SourceRef}
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
-import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
 import com.dounine.tractor.behaviors.virtual.entrust.{
   EntrustBase,
   EntrustBehavior
@@ -94,6 +94,10 @@ object UpDownBase {
   abstract class State() extends BaseSerializer {
     val data: DataStore
   }
+
+  final case class ShareData(
+      infoQueue: SourceQueueWithComplete[PushDataInfo]
+  )
 
   final case class Inited(data: DataStore) extends State
 

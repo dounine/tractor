@@ -3,17 +3,31 @@ package com.dounine.tractor.behaviors.socket
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.stream.{KillSwitches, OverflowStrategy, SystemMaterializer, UniqueKillSwitch}
+import akka.stream.{
+  KillSwitches,
+  OverflowStrategy,
+  SystemMaterializer,
+  UniqueKillSwitch
+}
 import akka.stream.scaladsl.{Keep, Source}
 import akka.stream.typed.scaladsl.ActorSource
 import akka.util.Timeout
 import com.dounine.tractor.behaviors.MarketTradeBehavior
 import com.dounine.tractor.behaviors.slider.SliderBehavior
 import com.dounine.tractor.behaviors.updown.UpDownBase
+import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.model.models.{BaseSerializer, MessageModel}
-import com.dounine.tractor.model.types.currency.{LeverRate, Offset, UpDownUpdateType}
+import com.dounine.tractor.model.types.currency.{
+  LeverRate,
+  Offset,
+  UpDownUpdateType
+}
 import com.dounine.tractor.model.types.service.MessageType.MessageType
-import com.dounine.tractor.model.types.service.{MessageType, SliderType, UpDownMessageType}
+import com.dounine.tractor.model.types.service.{
+  MessageType,
+  SliderType,
+  UpDownMessageType
+}
 import com.dounine.tractor.service.{SliderApi, UserApi}
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import com.dounine.tractor.tools.util.ServiceSingleton
@@ -56,6 +70,7 @@ object SocketBehavior extends ActorSerializerSuport {
 
   final case class SubConfig(
       updown: Option[UniqueKillSwitch] = Option.empty,
+      rate: Option[UniqueKillSwitch] = Option.empty,
       slider: Option[UniqueKillSwitch] = Option.empty
   ) extends BaseSerializer
 
@@ -74,6 +89,7 @@ object SocketBehavior extends ActorSerializerSuport {
         val sharding = ClusterSharding(context.system)
         val materializer = SystemMaterializer(context.system).materializer
         val userService = ServiceSingleton.get(classOf[UserApi])
+        val sliderApi = ServiceSingleton.get(classOf[SliderApi])
         def login(data: DataStore): Behavior[BaseSerializer] =
           Behaviors.receiveMessage {
             case e @ Login(token, client) => {
@@ -123,8 +139,6 @@ object SocketBehavior extends ActorSerializerSuport {
                           offset = sliderInfo.offset
                         )
                       )
-
-                      val sliderApi = ServiceSingleton.get(classOf[SliderApi])
 
                       Source
                         .future(
@@ -268,6 +282,7 @@ object SocketBehavior extends ActorSerializerSuport {
                     }
                     case UpDownMessageType.unsub => {
                       data.subConfig.slider.foreach(_.shutdown())
+                      data.subConfig.rate.foreach(_.shutdown())
                       data.subConfig.updown.foreach(_.shutdown())
                       actor.tell(Ack)
                       logined(
@@ -284,6 +299,53 @@ object SocketBehavior extends ActorSerializerSuport {
                       actor.tell(Ack)
                       val info =
                         upDown.data.toJson.jsonTo[MessageModel.UpDownInfo]
+
+                      val (rateKillSwitch, rateSubSource) = Source
+                        .future(
+                          sharding
+                            .entityRefFor(
+                              PositionBase.typeKey,
+                              PositionBase.createEntityId(
+                                phone = data.phone.get,
+                                symbol = info.symbol,
+                                contractType = info.contractType,
+                                direction = info.direction
+                              )
+                            )
+                            .ask((ref: ActorRef[BaseSerializer]) =>
+                              PositionBase.Sub()(ref)
+                            )(3.seconds)
+                        )
+                        .flatMapConcat {
+                          case PositionBase.SubOk(source) => source
+                          case PositionBase.SubFail(msg) => {
+                            logger.error(msg)
+                            Source.empty[PositionBase.RateInfo]
+                          }
+                        }
+                        .buffer(1, OverflowStrategy.dropHead)
+                        .throttle(1, 500.milliseconds)
+                        .viaMat(KillSwitches.single)(Keep.right)
+                        .preMaterialize()(materializer)
+
+                      data.client.foreach(client => {
+                        rateSubSource.runForeach(rateInfo => {
+                          client.tell(
+                            MessageOutput[Map[String, Any]](
+                              `type` = MessageType.upDown,
+                              data = Map(
+                                "ctype" -> UpDownMessageType.info,
+                                "data" -> Map(
+                                  "close" -> Map(
+                                    "profix" -> rateInfo.profix,
+                                    "risk" -> rateInfo.risk
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        })(materializer)
+                      })
 
                       val (killSwitch, subSource) = Source
                         .future(
@@ -311,9 +373,9 @@ object SocketBehavior extends ActorSerializerSuport {
                         .viaMat(KillSwitches.single)(Keep.right)
                         .preMaterialize()(materializer)
 
-                      subSource
-                        .runForeach(info => {
-                          data.client.foreach(client => {
+                      data.client.foreach(client => {
+                        subSource
+                          .runForeach(info => {
                             val updownInfo = info.info
                             client.tell(
                               MessageOutput[Map[String, Any]](
@@ -346,13 +408,14 @@ object SocketBehavior extends ActorSerializerSuport {
                                 )
                               )
                             )
-                          })
-                        })(materializer)
+                          })(materializer)
+                      })
 
                       logined(
                         data.copy(
                           subConfig = data.subConfig.copy(
-                            updown = Option(killSwitch)
+                            updown = Option(killSwitch),
+                            rate = Option(rateKillSwitch)
                           )
                         )
                       )

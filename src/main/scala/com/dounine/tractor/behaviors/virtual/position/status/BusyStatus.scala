@@ -17,7 +17,8 @@ object BusyStatus extends ActorSerializerSuport {
   def apply(
       context: ActorContext[BaseSerializer],
       shard: ActorRef[ClusterSharding.ShardCommand],
-      timers: TimerScheduler[BaseSerializer]
+      timers: TimerScheduler[BaseSerializer],
+      shareData: ShareData
   ): (
       (
           State,

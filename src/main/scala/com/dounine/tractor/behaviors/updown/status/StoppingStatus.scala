@@ -7,7 +7,6 @@ import akka.persistence.typed.scaladsl.Effect
 import com.dounine.tractor.tools.json.ActorSerializerSuport
 import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.updown.UpDownBase._
-import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase
 import com.dounine.tractor.model.models.BaseSerializer

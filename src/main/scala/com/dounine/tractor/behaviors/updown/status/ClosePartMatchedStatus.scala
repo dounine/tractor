@@ -7,30 +7,18 @@ import akka.persistence.typed.scaladsl.Effect
 import akka.stream.SystemMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.typed.scaladsl.ActorSink
-import com.dounine.tractor.tools.json.ActorSerializerSuport
-import org.slf4j.{Logger, LoggerFactory}
-
-import scala.concurrent.duration._
 import com.dounine.tractor.behaviors.updown.UpDownBase._
-import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
-import com.dounine.tractor.behaviors.updown.status.CloseEntrustedStatus.logger
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
-import com.dounine.tractor.model.types.currency.{
-  Direction,
-  EntrustCancelFailStatus,
-  EntrustStatus,
-  Offset,
-  TriggerCancelFailStatus,
-  UpDownStatus,
-  UpDownUpdateType
-}
+import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.tools.json.ActorSerializerSuport
+import org.slf4j.{Logger, LoggerFactory}
 
-import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 object ClosePartMatchedStatus extends ActorSerializerSuport {
 

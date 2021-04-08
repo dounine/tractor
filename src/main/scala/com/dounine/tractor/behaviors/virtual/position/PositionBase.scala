@@ -1,7 +1,10 @@
 package com.dounine.tractor.behaviors.virtual.position
 
+import akka.NotUsed
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import akka.stream.SourceRef
+import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
 import com.dounine.tractor.model.models.{
   BaseSerializer,
@@ -62,6 +65,11 @@ object PositionBase {
   abstract class State() extends BaseSerializer {
     val data: DataStore
   }
+
+  final case class ShareData(
+      rateInfoQueue: SourceQueueWithComplete[RateInfo],
+      rateInfoBrocastHub: Source[RateInfo, NotUsed]
+  )
 
   final case class Stoped(data: DataStore) extends State
 
@@ -128,6 +136,12 @@ object PositionBase {
 
   final case class ProfitUnrealQueryFail(msg: String) extends Command
 
+  final case class Sub()(val replyTo: ActorRef[BaseSerializer]) extends Command
+
+  final case class SubOk(source: SourceRef[RateInfo]) extends Command
+
+  final case class SubFail(msg: String) extends Command
+
   final case class OpenOk() extends Command
 
   final case class MergeOk() extends Command
@@ -135,6 +149,11 @@ object PositionBase {
   final case class CloseOk() extends Command
 
   final case class StreamComplete() extends Command
+
+  final case class RateInfo(
+      profix: BigDecimal,
+      risk: BigDecimal
+  ) extends BaseSerializer
 
   final case class RateSelfOk(
       position: PositionInfo,

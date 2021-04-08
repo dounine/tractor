@@ -4,53 +4,25 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PreRestart, SupervisorStrategy}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed._
-import akka.persistence.typed.scaladsl.{
-  Effect,
-  EventSourcedBehavior,
-  RetentionCriteria
-}
-import com.dounine.tractor.model.models.{BaseSerializer, NotifyModel}
-import com.dounine.tractor.model.types.currency.{
-  AggregationActor,
-  CoinSymbol,
-  ContractType,
-  Direction,
-  LeverRate,
-  UpDownStatus,
-  UpDownSubType,
-  UpDownUpdateType
-}
-import com.dounine.tractor.tools.json.{ActorSerializerSuport, JsonParse}
-import org.slf4j.LoggerFactory
-import UpDownBase._
-import akka.stream.{
-  OverflowStrategy,
-  QueueCompletionResult,
-  QueueOfferResult,
-  SourceRef,
-  SystemMaterializer
-}
-import akka.stream.scaladsl.{
-  BroadcastHub,
-  Source,
-  SourceQueueWithComplete,
-  StreamRefs
-}
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, RetentionCriteria}
+import akka.stream.scaladsl.{BroadcastHub, Source, StreamRefs}
+import akka.stream.{OverflowStrategy, SourceRef, SystemMaterializer}
+import com.dounine.tractor.behaviors.updown.UpDownBase._
 import com.dounine.tractor.behaviors.{AggregationBehavior, MarketTradeBehavior}
+import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.CoinSymbol.CoinSymbol
 import com.dounine.tractor.model.types.currency.ContractType.ContractType
 import com.dounine.tractor.model.types.currency.Direction.Direction
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
+import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.tools.json.JsonParse
 import com.dounine.tractor.tools.util.CopyUtil
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 
 object UpDownBehavior extends JsonParse {
   private val logger = LoggerFactory.getLogger(UpDownBehavior.getClass)
-
-  final case class ShareData(
-      infoQueue: SourceQueueWithComplete[PushDataInfo]
-  )
 
   def apply(
       entityId: PersistenceId,
@@ -71,7 +43,7 @@ object UpDownBehavior extends JsonParse {
             val (infoQueue, infoSource) = Source
               .queue[PushDataInfo](
                 100,
-                OverflowStrategy.fail
+                OverflowStrategy.dropHead
               )
               .preMaterialize()(materializer)
             val infoBrocastHub =

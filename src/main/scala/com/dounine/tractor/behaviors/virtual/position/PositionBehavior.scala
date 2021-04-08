@@ -9,6 +9,8 @@ import akka.persistence.typed.scaladsl.{
   EventSourcedBehavior,
   RetentionCriteria
 }
+import akka.stream.{OverflowStrategy, SystemMaterializer}
+import akka.stream.scaladsl.{BroadcastHub, SourceQueueWithComplete}
 import com.dounine.tractor.behaviors.AggregationBehavior
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
 import com.dounine.tractor.model.models.BaseSerializer
@@ -37,10 +39,25 @@ object PositionBehavior extends ActorSerializerSuport {
                 randomId
               ) => {
 
+            val materializer = SystemMaterializer(context.system).materializer
+            val (rateInfoQueue, rateInfoSource) = akka.stream.scaladsl.Source
+              .queue[RateInfo](
+                2,
+                OverflowStrategy.dropHead
+              )
+              .preMaterialize()(materializer)
+            val rateInfoBrocastHub =
+              rateInfoSource.runWith(BroadcastHub.sink)(materializer)
+
+            val shareData = ShareData(
+              rateInfoQueue = rateInfoQueue,
+              rateInfoBrocastHub = rateInfoBrocastHub
+            )
+
             val statusList = Seq(
-              status.StopedStatus(context, shard, timers),
-              status.IdleStatus(context, shard, timers),
-              status.BusyStatus(context, shard, timers)
+              status.StopedStatus(context, shard, timers, shareData),
+              status.IdleStatus(context, shard, timers, shareData),
+              status.BusyStatus(context, shard, timers, shareData)
             )
 
             val commandDefaultHandler: (

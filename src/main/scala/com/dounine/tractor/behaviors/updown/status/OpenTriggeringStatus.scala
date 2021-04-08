@@ -5,33 +5,20 @@ import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
 import akka.stream.SystemMaterializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
 import akka.stream.typed.scaladsl.ActorSink
-import com.dounine.tractor.tools.json.ActorSerializerSuport
-import org.slf4j.{Logger, LoggerFactory}
 import com.dounine.tractor.behaviors.updown.UpDownBase._
-import com.dounine.tractor.behaviors.updown.UpDownBehavior.ShareData
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.notify.EntrustNotifyBehavior
 import com.dounine.tractor.behaviors.virtual.trigger.TriggerBase
 import com.dounine.tractor.model.models.BaseSerializer
 import com.dounine.tractor.model.types.currency.UpDownStatus.UpDownStatus
-import com.dounine.tractor.model.types.currency.{
-  Direction,
-  EntrustCancelFailStatus,
-  EntrustStatus,
-  Offset,
-  OrderPriceType,
-  TriggerCancelFailStatus,
-  TriggerCreateFailStatus,
-  TriggerType,
-  UpDownStatus,
-  UpDownUpdateType
-}
+import com.dounine.tractor.model.types.currency._
+import com.dounine.tractor.tools.json.ActorSerializerSuport
+import org.slf4j.{Logger, LoggerFactory}
 
 import java.util.UUID
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
 
 object OpenTriggeringStatus extends ActorSerializerSuport {
 

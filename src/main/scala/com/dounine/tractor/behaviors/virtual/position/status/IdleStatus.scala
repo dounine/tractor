@@ -4,9 +4,9 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.{ActorContext, TimerScheduler}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.persistence.typed.scaladsl.Effect
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.{Sink, Source, StreamRefs}
 import akka.stream.typed.scaladsl.ActorSink
-import akka.stream.{Materializer, SystemMaterializer}
+import akka.stream.{Materializer, OverflowStrategy, SystemMaterializer}
 import com.dounine.tractor.behaviors.virtual.entrust.EntrustBase
 import com.dounine.tractor.behaviors.virtual.position.PositionBase
 import com.dounine.tractor.behaviors.virtual.position.PositionBase._
@@ -35,7 +35,8 @@ object IdleStatus extends ActorSerializerSuport {
   def apply(
       context: ActorContext[BaseSerializer],
       shard: ActorRef[ClusterSharding.ShardCommand],
-      timers: TimerScheduler[BaseSerializer]
+      timers: TimerScheduler[BaseSerializer],
+      shareData: ShareData
   ): (
       (
           State,
@@ -295,6 +296,25 @@ object IdleStatus extends ActorSerializerSuport {
           Effect.none
         }
         case StreamComplete() => Effect.none
+        case e @ Sub() => {
+          logger.info(e.logJson)
+          Effect.none.thenRun((updateState: State) => {
+            val rateInfoSource = updateState.data.position match {
+              case Some(position) =>
+                Source.single(
+                  RateInfo(
+                    profix = position.profitRate,
+                    risk = position.riskRate
+                  )
+                )
+              case None => Source.empty[RateInfo]
+            }
+            val sourceRef = rateInfoSource
+              .concat(shareData.rateInfoBrocastHub)
+              .runWith(StreamRefs.sourceRef())(materializer)
+            e.replyTo.tell(SubOk(sourceRef))
+          })
+        }
         case MarketTradeBehavior.SubFail(msg) => {
           logger.error(command.logJson)
           Effect.none
@@ -653,6 +673,14 @@ object IdleStatus extends ActorSerializerSuport {
           logger.info(command.logJson)
           Effect
             .persist(command)
+            .thenRun((updateState: State) => {
+              shareData.rateInfoQueue.offer(
+                RateInfo(
+                  profix = profixRate,
+                  risk = riskRate
+                )
+              )
+            })
         }
         case RateSelfFail(_, msg) => {
           logger.error(command.logJson)

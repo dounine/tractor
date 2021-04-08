@@ -308,6 +308,35 @@ class SocketBehaviorTest
       )
       ServiceSingleton.put(classOf[BalanceApi], mockBalanceService)
 
+      val sliderApi = mock[SliderApi]
+      when(
+        sliderApi.info(
+          phone = phone,
+          symbol = symbol,
+          contractType = contractType,
+          direction = direction,
+          sliderType = SliderType.openOnline
+        )
+      ).thenAnswer(args => {
+        Future.successful(
+          SliderModel.SliderInfo(
+            phone = phone,
+            symbol = symbol,
+            contractType = contractType,
+            direction = direction,
+            sliderType = SliderType.openOnline,
+            min = BigDecimal("0"),
+            max = BigDecimal("100"),
+            setup = BigDecimal("1"),
+            system = false,
+            disable = true,
+            input = false,
+            marks = Map.empty
+          )
+        )
+      })
+      ServiceSingleton.put(classOf[SliderApi], sliderApi)
+
       sharding.entityRefFor(EntrustNotifyBehavior.typeKey, socketPort)
 
       val marketTrade =
@@ -427,34 +456,6 @@ class SocketBehaviorTest
       )
       updownUpdate.expectMessage(SocketBehavior.Ack)
 
-      val sliderApi = mock[SliderApi]
-      when(
-        sliderApi.info(
-          phone = phone,
-          symbol = symbol,
-          contractType = contractType,
-          direction = direction,
-          sliderType = SliderType.openOnline
-        )
-      ).thenAnswer(args => {
-        Future.successful(
-          SliderModel.SliderInfo(
-            phone = phone,
-            symbol = symbol,
-            contractType = contractType,
-            direction = direction,
-            sliderType = SliderType.openOnline,
-            min = BigDecimal("0"),
-            max = BigDecimal("100"),
-            setup = BigDecimal("1"),
-            system = false,
-            disable = true,
-            input = false,
-            marks = Map.empty
-          )
-        )
-      })
-      ServiceSingleton.put(classOf[SliderApi], sliderApi)
 
       val sliderProbe = testKit.createTestProbe[BaseSerializer]()
       socketBehavior.tell(
