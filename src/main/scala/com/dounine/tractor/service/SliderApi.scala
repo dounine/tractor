@@ -27,4 +27,6 @@ trait SliderApi {
       direction: Direction
   ): Future[Map[SliderType, SliderModel.SliderInfo]]
 
+  def update(info: SliderModel.SliderInfo): Future[Int]
+
 }

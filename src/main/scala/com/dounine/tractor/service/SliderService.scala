@@ -18,11 +18,7 @@ class SliderService(system: ActorSystem[_]) extends SliderApi with EnumMapper {
   private val db = DataSource(system).source().db
   private val dict: TableQuery[SliderTable] = TableQuery[SliderTable]
 
-  override def add(info: SliderModel.SliderInfo): Future[Option[Int]] = {
-    db.run(
-      dict ++= Seq(info)
-    )
-  }
+  override def add(info: SliderModel.SliderInfo): Future[Option[Int]] = db.run(dict ++= Seq(info))
 
   override def info(
       phone: String,
@@ -98,4 +94,6 @@ class SliderService(system: ActorSystem[_]) extends SliderApi with EnumMapper {
       })(system.executionContext)
   }
 
+  override def update(info: SliderModel.SliderInfo): Future[Int] =
+    db.run(dict.insertOrUpdate(info.copy(system = false)))
 }

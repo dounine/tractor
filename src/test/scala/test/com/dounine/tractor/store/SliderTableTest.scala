@@ -240,9 +240,118 @@ class SliderTableTest
           contractType = userSliderInfo.contractType,
           direction = userSliderInfo.direction
         )
-        .futureValue.size shouldBe SliderType.list.size
+        .futureValue
+        .size shouldBe SliderType.list.size
 
       afterFun()
     }
+
+    "update exits" in {
+      beforeFun()
+      val userSliderInfo = SliderModel.SliderInfo(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        system = false,
+        sliderType = SliderType.openOnline,
+        min = BigDecimal("0"),
+        max = BigDecimal("100"),
+        setup = BigDecimal("1"),
+        disable = true,
+        input = false,
+        marks = Map("1USD" -> "1", "2USD" -> "2")
+      )
+      val systemSliderInfo = SliderModel.SliderInfo(
+        phone = "111111111",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        system = true,
+        sliderType = SliderType.openOnline,
+        min = BigDecimal("0"),
+        max = BigDecimal("100"),
+        setup = BigDecimal("1"),
+        disable = true,
+        input = false,
+        marks = Map("1USD" -> "1", "2USD" -> "2")
+      )
+
+      sliderService.add(userSliderInfo).futureValue shouldBe Option(1)
+      sliderService.add(systemSliderInfo).futureValue shouldBe Option(1)
+
+      sliderService
+        .update(
+          userSliderInfo.copy(
+            input = true
+          )
+        )
+        .futureValue shouldBe 1
+
+      sliderService
+        .info(
+          phone = userSliderInfo.phone,
+          symbol = userSliderInfo.symbol,
+          contractType = userSliderInfo.contractType,
+          direction = userSliderInfo.direction,
+          sliderType = userSliderInfo.sliderType
+        )
+        .futureValue shouldBe userSliderInfo.copy(
+        input = true
+      )
+
+      afterFun()
+    }
+
+    "update not exits" in {
+      beforeFun()
+      val userSliderInfo = SliderModel.SliderInfo(
+        phone = "123456789",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        system = false,
+        sliderType = SliderType.openOnline,
+        min = BigDecimal("0"),
+        max = BigDecimal("100"),
+        setup = BigDecimal("1"),
+        disable = true,
+        input = false,
+        marks = Map("1USD" -> "1", "2USD" -> "2")
+      )
+      val systemSliderInfo = SliderModel.SliderInfo(
+        phone = "111111111",
+        symbol = CoinSymbol.BTC,
+        contractType = ContractType.quarter,
+        direction = Direction.buy,
+        system = true,
+        sliderType = SliderType.openOnline,
+        min = BigDecimal("0"),
+        max = BigDecimal("100"),
+        setup = BigDecimal("1"),
+        disable = true,
+        input = false,
+        marks = Map("1USD" -> "1", "2USD" -> "2")
+      )
+
+      sliderService.add(systemSliderInfo).futureValue shouldBe Option(1)
+
+      sliderService
+        .update(userSliderInfo)
+        .futureValue shouldBe 1
+
+      sliderService
+        .info(
+          phone = userSliderInfo.phone,
+          symbol = userSliderInfo.symbol,
+          contractType = userSliderInfo.contractType,
+          direction = userSliderInfo.direction,
+          sliderType = userSliderInfo.sliderType
+        )
+        .futureValue shouldBe userSliderInfo
+
+      afterFun()
+    }
+
   }
 }
