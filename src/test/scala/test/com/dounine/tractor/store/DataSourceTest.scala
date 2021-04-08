@@ -38,7 +38,7 @@ class DataSourceTest
     with MockitoSugar
     with JsonParse {
 
-  "datasource test" ignore {
+  "datasource test" should {
     "create entity" in {
       val db = DataSource(system).source().db
       val dict = TableQuery[UserTable]
