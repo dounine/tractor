@@ -81,7 +81,7 @@ repositories {
 def versions = [
         ScalaBinary: "2.13",
         scala      : "2.13.4",
-        akka       : "2.6.12",
+        akka       : "2.6.14",
         akkaHttp   : "10.2.3",
         alpakka    : "2.0.2",
 ]

@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success}
 
-object Bootstrap {
-  private val logger = LoggerFactory.getLogger(Bootstrap.getClass)
+object Tractor {
+  private val logger = LoggerFactory.getLogger(Tractor.getClass)
 
   def main(args: Array[String]): Unit = {
 

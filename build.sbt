@@ -1,4 +1,4 @@
-val akkaVersion = "2.6.13"
+val akkaVersion = "2.6.14"
 val akkaHttpVersion = "10.2.3"
 val json4sVersion = "3.7.0-M6"
 val alpakka = "2.0.2"
@@ -11,17 +11,9 @@ lazy val app = (project in file("."))
     maintainer := "amwoqmgo@gmail.com",
     scalaVersion := "2.13.4",
     dockerBaseImage := "openjdk:11.0.8-slim",
-    //    mainClass in (Compile, run) := Some("com.dounine.tractor.Bootstrap"),
-    mappings in Universal ++= {
-      import NativePackagerHelper._
-      val confFile = buildEnv.value match {
-        case BuildEnv.Stage => "stage"
-        case BuildEnv.Developement => "dev"
-        case BuildEnv.Test => "test"
-        case BuildEnv.Production => "prod"
-      }
-      contentOf("src/main/resources/" + confFile)
-    },
+    dockerExposedPorts := Seq(30000),
+    dockerEnvVars := Map("apiVersion" -> "1.0.0"),
+    dockerEntrypoint := Seq("/opt/docker/bin/tractor"),
     parallelExecution in Test := false,
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % "1.2.3",
